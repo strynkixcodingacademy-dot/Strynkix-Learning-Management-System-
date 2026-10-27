@@ -1,0 +1,447 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions: Authentication & Role Verification
+    // -------------------------------------------------------------------------
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return getUserDoc().data;
+    }
+
+    function getUserRole() {
+      return getUserData().role;
+    }
+
+    function getUserOrgId() {
+      return getUserData().orgId;
+    }
+
+    function getUserBranchId() {
+      return getUserData().get('branchId', '');
+    }
+
+    function isAccountActive() {
+      return userExists() && getUserData().get('status', 'active') == 'active';
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && isAccountActive() && getUserRole() == 'super_admin';
+    }
+
+    function isUniversityAdmin(orgId) {
+      return isAuthenticated() && isAccountActive() && getUserRole() == 'university_admin' && getUserOrgId() == orgId;
+    }
+
+    function isBranchAdmin(orgId, branchId) {
+      return isAuthenticated() && isAccountActive() && getUserRole() == 'branch_admin' && getUserOrgId() == orgId && getUserBranchId() == branchId;
+    }
+
+    function isInstructor(orgId) {
+      return isAuthenticated() && isAccountActive() && getUserRole() == 'instructor' && getUserOrgId() == orgId;
+    }
+
+    function isStudent(orgId) {
+      return isAuthenticated() && isAccountActive() && getUserRole() == 'student' && getUserOrgId() == orgId;
+    }
+
+    function lessonExists(lessonId) {
+      return exists(/databases/$(database)/documents/lessons/$(lessonId));
+    }
+
+    function getLessonDoc(lessonId) {
+      return get(/databases/$(database)/documents/lessons/$(lessonId));
+    }
+
+    function isLessonPublishedAndInOrg(lessonId, orgId) {
+      return lessonExists(lessonId) &&
+        getLessonDoc(lessonId).data.orgId == orgId &&
+        getLessonDoc(lessonId).data.get('status', '') == 'published';
+    }
+
+    // Default deny by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. /organizations/{orgId}
+    // -------------------------------------------------------------------------
+    match /organizations/{orgId} {
+      // Super admin can read/write any organization.
+      // Active members can read their own organization's profile.
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (isAccountActive() && getUserOrgId() == orgId)
+      );
+      allow write: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. /branches/{branchId}
+    // -------------------------------------------------------------------------
+    match /branches/{branchId} {
+      // Active members of the org can read branches.
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (isAccountActive() && getUserOrgId() == resource.data.orgId)
+      );
+
+      allow create: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        getUserRole() == 'university_admin' &&
+        getUserOrgId() == request.resource.data.orgId
+      );
+
+      allow update: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() && (
+          (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId) ||
+          (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && getUserBranchId() == branchId && request.resource.data.orgId == resource.data.orgId)
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. /users/{userId}
+    // Document ID MUST be the Firebase Auth UID
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        isSuperAdmin() ||
+        (isAccountActive() && getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
+        (isAccountActive() && getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.get('branchId', ''))
+      );
+
+      // Self signup OR administrative provisioning
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (
+          // SELF REGISTRATION: User can only create their own record (userId == auth.uid)
+          // SECURITY INVARIANT: Role CANNOT be super_admin, university_admin, branch_admin, or instructor.
+          // Role MUST strictly be 'student' or 'pending_verification'.
+          request.auth.uid == userId &&
+          (request.resource.data.role == 'student' || request.resource.data.role == 'pending_verification') &&
+          request.resource.data.email is string &&
+          request.resource.data.displayName is string &&
+          request.resource.data.displayName.size() <= 100 &&
+          request.resource.data.orgId is string &&
+          request.resource.data.orgId.size() <= 128
+        ) ||
+        (
+          // University admin creating branch admin / instructor / student in their org
+          isAccountActive() && getUserRole() == 'university_admin' &&
+          getUserOrgId() == request.resource.data.orgId &&
+          request.resource.data.role in ['branch_admin', 'instructor', 'student']
+        ) ||
+        (
+          // Branch admin creating instructor / student in their branch
+          isAccountActive() && getUserRole() == 'branch_admin' &&
+          getUserOrgId() == request.resource.data.orgId &&
+          getUserBranchId() == request.resource.data.branchId &&
+          request.resource.data.role in ['instructor', 'student']
+        )
+      );
+
+      // Updates
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (
+          // Self update: Can update displayName/photo, but CANNOT alter status, role, orgId, or branchId
+          isAccountActive() &&
+          request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.get('branchId', null) == resource.data.get('branchId', null) &&
+          request.resource.data.get('status', 'active') == resource.data.get('status', 'active') &&
+          request.resource.data.displayName is string &&
+          request.resource.data.displayName.size() <= 100
+        ) ||
+        (
+          // University admin modifying a user in their org
+          isAccountActive() && getUserRole() == 'university_admin' &&
+          request.auth.uid != userId &&
+          getUserOrgId() == resource.data.orgId &&
+          request.resource.data.orgId == resource.data.orgId &&
+          resource.data.role != 'super_admin' &&
+          request.resource.data.role != 'super_admin'
+        ) ||
+        (
+          // Branch admin modifying a student/instructor in their branch (cannot modify own record via this branch rule)
+          isAccountActive() && getUserRole() == 'branch_admin' &&
+          request.auth.uid != userId &&
+          getUserOrgId() == resource.data.orgId &&
+          getUserBranchId() == resource.data.get('branchId', '') &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.branchId == resource.data.get('branchId', '') &&
+          resource.data.role in ['instructor', 'student'] &&
+          request.resource.data.role in ['instructor', 'student']
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. /courses/{courseId}
+    // -------------------------------------------------------------------------
+    match /courses/{courseId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserOrgId() == resource.data.orgId && (
+          getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
+          (getUserRole() == 'student' && resource.data.get('status', '') == 'published')
+        ))
+      );
+
+      allow create: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        (getUserRole() in ['university_admin', 'instructor']) &&
+        getUserOrgId() == request.resource.data.orgId
+      );
+
+      allow update: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        (getUserRole() in ['university_admin', 'instructor']) &&
+        getUserOrgId() == resource.data.orgId &&
+        request.resource.data.orgId == resource.data.orgId
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. /batches/{batchId}
+    // -------------------------------------------------------------------------
+    match /batches/{batchId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
+        (getUserOrgId() == resource.data.orgId && (
+          (getUserRole() == 'branch_admin' && getUserBranchId() == resource.data.branchId) ||
+          (getUserRole() == 'instructor' && (request.auth.uid in resource.data.instructorUserIds || getUserBranchId() == resource.data.branchId)) ||
+          getUserRole() == 'student'
+        ))
+      );
+
+      allow create: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() && (
+          (getUserRole() == 'university_admin' && getUserOrgId() == request.resource.data.orgId) ||
+          (getUserRole() == 'branch_admin' && getUserOrgId() == request.resource.data.orgId && getUserBranchId() == request.resource.data.branchId)
+        )
+      );
+
+      allow update: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() && (
+          (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId) ||
+          (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId && getUserBranchId() == resource.data.branchId && request.resource.data.branchId == resource.data.branchId)
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. /modules/{moduleId}
+    // -------------------------------------------------------------------------
+    match /modules/{moduleId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserOrgId() == resource.data.orgId && (
+          getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
+          (getUserRole() == 'student' && resource.data.get('status', '') == 'published')
+        ))
+      );
+
+      allow write: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        (getUserRole() in ['university_admin', 'instructor']) &&
+        getUserOrgId() == request.resource.data.orgId
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. /lessons/{lessonId} (Live Books)
+    // -------------------------------------------------------------------------
+    match /lessons/{lessonId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserOrgId() == resource.data.orgId && (
+          getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
+          (getUserRole() == 'student' && resource.data.get('status', '') == 'published')
+        ))
+      );
+
+      allow write: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        (getUserRole() in ['university_admin', 'instructor']) &&
+        getUserOrgId() == request.resource.data.orgId
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. /enrollments/{enrollmentId}
+    // -------------------------------------------------------------------------
+    match /enrollments/{enrollmentId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
+        (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.branchId) ||
+        (getUserRole() == 'instructor' && getUserOrgId() == resource.data.orgId) ||
+        (getUserRole() == 'student' && resource.data.studentId == request.auth.uid)
+      );
+
+      allow create: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() && (
+          (getUserRole() == 'university_admin' && getUserOrgId() == request.resource.data.orgId) ||
+          (getUserRole() == 'branch_admin' && getUserOrgId() == request.resource.data.orgId && getUserBranchId() == request.resource.data.branchId)
+        )
+      );
+
+      allow update: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() && (
+          (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId) ||
+          (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId && getUserBranchId() == resource.data.branchId && request.resource.data.branchId == resource.data.branchId)
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. /progress/{progressId}
+    // -------------------------------------------------------------------------
+    match /progress/{progressId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserOrgId() == resource.data.orgId && (
+          getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
+          (getUserRole() == 'student' && resource.data.studentId == request.auth.uid)
+        ))
+      );
+
+      allow create: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (
+          getUserOrgId() == request.resource.data.orgId &&
+          request.resource.data.studentId == request.auth.uid &&
+          request.resource.data.timeSpentSeconds is int &&
+          request.resource.data.timeSpentSeconds >= 0 &&
+          isLessonPublishedAndInOrg(request.resource.data.lessonId, getUserOrgId()) &&
+          getLessonDoc(request.resource.data.lessonId).data.courseId == request.resource.data.courseId &&
+          getLessonDoc(request.resource.data.lessonId).data.moduleId == request.resource.data.moduleId
+        )
+      );
+
+      allow update: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (
+          getUserOrgId() == resource.data.orgId &&
+          resource.data.studentId == request.auth.uid &&
+          request.resource.data.studentId == request.auth.uid &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.courseId == resource.data.courseId &&
+          request.resource.data.moduleId == resource.data.moduleId &&
+          request.resource.data.lessonId == resource.data.lessonId &&
+          request.resource.data.timeSpentSeconds is int &&
+          request.resource.data.timeSpentSeconds >= 0
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. /assignments/{assignmentId}
+    // -------------------------------------------------------------------------
+    match /assignments/{assignmentId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserOrgId() == resource.data.orgId && (
+          getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
+          (getUserRole() == 'student' && resource.data.status == 'published')
+        ))
+      );
+
+      allow write: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        (getUserRole() in ['university_admin', 'instructor']) &&
+        getUserOrgId() == request.resource.data.orgId
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 11. /submissions/{submissionId}
+    // -------------------------------------------------------------------------
+    match /submissions/{submissionId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
+        (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.branchId) ||
+        (getUserRole() == 'instructor' && getUserOrgId() == resource.data.orgId) ||
+        (getUserRole() == 'student' && resource.data.studentId == request.auth.uid)
+      );
+
+      allow create: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (
+          getUserRole() == 'student' &&
+          getUserOrgId() == request.resource.data.orgId &&
+          request.resource.data.studentId == request.auth.uid &&
+          request.resource.data.status in ['draft', 'submitted'] &&
+          (!('score' in request.resource.data) || request.resource.data.score == null)
+        )
+      );
+
+      allow update: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (
+          // Student updating their submission (cannot modify score or feedback)
+          getUserRole() == 'student' &&
+          resource.data.studentId == request.auth.uid &&
+          request.resource.data.studentId == request.auth.uid &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.assignmentId == resource.data.assignmentId &&
+          (!('score' in request.resource.data) || request.resource.data.score == resource.data.score) &&
+          (!('feedback' in request.resource.data) || request.resource.data.feedback == resource.data.feedback)
+        ) ||
+        (
+          // Instructor / Branch Admin / University Admin grading
+          getUserOrgId() == resource.data.orgId &&
+          request.resource.data.studentId == resource.data.studentId &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.assignmentId == resource.data.assignmentId &&
+          (
+            getUserRole() in ['instructor', 'university_admin'] ||
+            (
+              getUserRole() == 'branch_admin' &&
+              getUserBranchId() == resource.data.branchId &&
+              request.resource.data.branchId == resource.data.branchId
+            )
+          )
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+  }
+}
