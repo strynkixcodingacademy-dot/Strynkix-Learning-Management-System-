@@ -24,10 +24,12 @@ export interface CourseWithCurriculum {
 
 /**
  * Loads a single course and its full curriculum (modules + lessons).
+ * For students (allowDrafts = false), strictly filters out draft courses and lessons.
  */
 export async function getCourseWithCurriculum(
   courseId: string,
-  orgId: string
+  orgId: string,
+  allowDrafts = false
 ): Promise<CourseWithCurriculum | null> {
   // 1. Fetch Course Document
   const courseDocRef = doc(db, 'courses', courseId);
@@ -42,25 +44,42 @@ export async function getCourseWithCurriculum(
     return null; // Tenant mismatch
   }
 
+  // Publication gate: Non-admin students cannot view draft courses
+  if (!allowDrafts && course.status !== 'published') {
+    return null;
+  }
+
   // 2. Fetch Modules
-  const modulesQuery = query(
-    collection(db, 'modules'),
-    where('courseId', '==', courseId),
-    where('orgId', '==', orgId),
-    where('status', '==', 'published')
-  );
+  const modulesQuery = allowDrafts
+    ? query(
+        collection(db, 'modules'),
+        where('courseId', '==', courseId),
+        where('orgId', '==', orgId)
+      )
+    : query(
+        collection(db, 'modules'),
+        where('courseId', '==', courseId),
+        where('orgId', '==', orgId),
+        where('status', '==', 'published')
+      );
   const modulesSnap = await getDocs(modulesQuery);
   const modules = modulesSnap.docs.map(
     (d) => ({ id: d.id, ...d.data() } as Module)
   );
 
-  // 3. Fetch Published Lessons
-  const lessonsQuery = query(
-    collection(db, 'lessons'),
-    where('courseId', '==', courseId),
-    where('orgId', '==', orgId),
-    where('status', '==', 'published')
-  );
+  // 3. Fetch Lessons
+  const lessonsQuery = allowDrafts
+    ? query(
+        collection(db, 'lessons'),
+        where('courseId', '==', courseId),
+        where('orgId', '==', orgId)
+      )
+    : query(
+        collection(db, 'lessons'),
+        where('courseId', '==', courseId),
+        where('orgId', '==', orgId),
+        where('status', '==', 'published')
+      );
   const lessonsSnap = await getDocs(lessonsQuery);
   const lessons = lessonsSnap.docs.map((d) => {
     const raw = { id: d.id, ...d.data() } as Lesson;
@@ -75,11 +94,13 @@ export async function getCourseWithCurriculum(
 
 /**
  * Loads a specific lesson by ID with tenant boundary verification.
+ * For students (allowDrafts = false), strictly rejects unpublished draft lessons.
  * Filters out any malformed blocks that fail runtime schema validation.
  */
 export async function getLesson(
   lessonId: string,
-  orgId: string
+  orgId: string,
+  allowDrafts = false
 ): Promise<Lesson | null> {
   const lessonDocRef = doc(db, 'lessons', lessonId);
   const lessonSnap = await getDoc(lessonDocRef);
@@ -90,6 +111,10 @@ export async function getLesson(
 
   const lesson = { id: lessonSnap.id, ...lessonSnap.data() } as Lesson;
   if (lesson.orgId !== orgId) {
+    return null;
+  }
+
+  if (!allowDrafts && lesson.status !== 'published') {
     return null;
   }
 

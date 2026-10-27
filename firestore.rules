@@ -215,18 +215,22 @@ service cloud.firestore {
 
       allow create: if isSuperAdmin() || (
         isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'instructor']) &&
+        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
         getUserOrgId() == request.resource.data.orgId
       );
 
       allow update: if isSuperAdmin() || (
         isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'instructor']) &&
+        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
         getUserOrgId() == resource.data.orgId &&
         request.resource.data.orgId == resource.data.orgId
       );
 
-      allow delete: if isSuperAdmin();
+      allow delete: if isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        (getUserRole() in ['university_admin', 'branch_admin']) &&
+        getUserOrgId() == resource.data.orgId
+      );
     }
 
     // -------------------------------------------------------------------------
@@ -274,7 +278,7 @@ service cloud.firestore {
 
       allow write: if isSuperAdmin() || (
         isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'instructor']) &&
+        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
         getUserOrgId() == request.resource.data.orgId
       );
     }
@@ -293,7 +297,7 @@ service cloud.firestore {
 
       allow write: if isSuperAdmin() || (
         isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'instructor']) &&
+        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
         getUserOrgId() == request.resource.data.orgId
       );
     }

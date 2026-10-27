@@ -53,7 +53,10 @@ function CourseDetailView({ courseId }: { courseId: string }) {
       setIsLoading(true);
       setError(null);
       try {
-        const curriculum = await getCourseWithCurriculum(courseId, tenant.orgId);
+        const canPreviewDrafts = Boolean(
+          tenant?.role && ['super_admin', 'university_admin', 'branch_admin', 'instructor'].includes(tenant.role)
+        );
+        const curriculum = await getCourseWithCurriculum(courseId, tenant.orgId, canPreviewDrafts);
         if (!curriculum) {
           setError('Course not found or access is restricted.');
           return;
@@ -75,7 +78,7 @@ function CourseDetailView({ courseId }: { courseId: string }) {
     }
 
     loadData();
-  }, [courseId, tenant?.orgId, user?.uid]);
+  }, [courseId, tenant?.orgId, tenant?.role, user?.uid]);
 
   if (isLoading) {
     return (

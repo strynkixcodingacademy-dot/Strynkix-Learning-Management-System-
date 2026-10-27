@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "vitest run tests/auth tests/livebook tests/admin",
+    "test:unit": "vitest run tests/auth tests/livebook tests/admin tests/courses",
     "test:rules": "vitest run tests/rules",
     "test:emulator": "JAVA_HOME=\"${JAVA_HOME:-/opt/homebrew/opt/openjdk@21}\" PATH=\"/opt/homebrew/opt/openjdk@21/bin:$PATH\" firebase emulators:exec --only firestore \"npm run test:rules\"",
     "test": "npm run test:unit && npm run test:emulator",

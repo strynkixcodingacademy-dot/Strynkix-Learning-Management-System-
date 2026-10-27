@@ -1004,4 +1004,190 @@ describe('8. Stage 4 Organization & Branch Administrative Governance', () => {
   });
 });
 
+describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+
+      // Seed organization
+      await setDoc(doc(adminDb, 'organizations/strynkix'), {
+        name: 'Strynkix Academy',
+        slug: 'strynkix',
+        status: 'active',
+      });
+      await setDoc(doc(adminDb, 'organizations/foreign_org'), {
+        name: 'Foreign Academy',
+        slug: 'foreign',
+        status: 'active',
+      });
+
+      // Seed instructor in strynkix
+      await setDoc(doc(adminDb, 'users/inst_priya'), {
+        role: 'instructor',
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        status: 'active',
+        displayName: 'Instructor Priya',
+        email: 'priya@strynkix.com',
+      });
+
+      // Seed suspended instructor
+      await setDoc(doc(adminDb, 'users/inst_suspended'), {
+        role: 'instructor',
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        status: 'suspended',
+        displayName: 'Suspended Instructor',
+        email: 'inst_suspended@strynkix.com',
+      });
+
+      // Seed student in strynkix
+      await setDoc(doc(adminDb, 'users/stud_arjun'), {
+        role: 'student',
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        status: 'active',
+        displayName: 'Arjun Student',
+        email: 'arjun@strynkix.com',
+      });
+
+      // Seed an existing draft course
+      await setDoc(doc(adminDb, 'courses/draft_course_1'), {
+        orgId: 'strynkix',
+        title: 'Draft Cloud Architecture',
+        status: 'draft',
+      });
+
+      // Seed an existing draft lesson
+      await setDoc(doc(adminDb, 'lessons/draft_lesson_1'), {
+        orgId: 'strynkix',
+        courseId: 'draft_course_1',
+        moduleId: 'mod_1',
+        title: 'Draft Security Block',
+        status: 'draft',
+      });
+    });
+  });
+
+  it('instructor CAN create a draft course in their own org', async () => {
+    const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
+    await assertSucceeds(
+      setDoc(doc(instructorDb, 'courses/course_new_arch'), {
+        orgId: 'strynkix',
+        title: 'Microservices & Distributed Systems',
+        slug: 'microservices-distributed',
+        level: 'advanced',
+        status: 'draft',
+      })
+    );
+  });
+
+  it('instructor CANNOT create a course for another org (cross-tenant rejection)', async () => {
+    const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
+    await assertFails(
+      setDoc(doc(instructorDb, 'courses/course_foreign_theft'), {
+        orgId: 'foreign_org',
+        title: 'Hijacked Foreign Course',
+        status: 'draft',
+      })
+    );
+  });
+
+  it('instructor CAN update their course and toggle publication status to published', async () => {
+    const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
+    await assertSucceeds(
+      updateDoc(doc(instructorDb, 'courses/draft_course_1'), {
+        status: 'published',
+      })
+    );
+  });
+
+  it('instructor CAN create modules and lessons for a course in their org', async () => {
+    const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
+    await assertSucceeds(
+      setDoc(doc(instructorDb, 'modules/mod_new_1'), {
+        orgId: 'strynkix',
+        courseId: 'draft_course_1',
+        title: 'Module 1: Invariant Foundations',
+        status: 'draft',
+      })
+    );
+
+    await assertSucceeds(
+      setDoc(doc(instructorDb, 'lessons/les_new_1'), {
+        orgId: 'strynkix',
+        courseId: 'draft_course_1',
+        moduleId: 'mod_new_1',
+        title: 'Lesson 1.1: Live Book Setup',
+        status: 'draft',
+        blocks: [],
+      })
+    );
+  });
+
+  it('student CANNOT create a course, module, or lesson', async () => {
+    const studentDb = testEnv.authenticatedContext('stud_arjun').firestore();
+    await assertFails(
+      setDoc(doc(studentDb, 'courses/student_course'), {
+        orgId: 'strynkix',
+        title: 'Student Course',
+        status: 'draft',
+      })
+    );
+    await assertFails(
+      setDoc(doc(studentDb, 'modules/student_module'), {
+        orgId: 'strynkix',
+        courseId: 'draft_course_1',
+        title: 'Student Module',
+      })
+    );
+    await assertFails(
+      setDoc(doc(studentDb, 'lessons/student_lesson'), {
+        orgId: 'strynkix',
+        courseId: 'draft_course_1',
+        moduleId: 'mod_1',
+        title: 'Student Lesson',
+      })
+    );
+  });
+
+  it('student CANNOT update or publish a course', async () => {
+    const studentDb = testEnv.authenticatedContext('stud_arjun').firestore();
+    await assertFails(
+      updateDoc(doc(studentDb, 'courses/draft_course_1'), {
+        status: 'published',
+      })
+    );
+  });
+
+  it('student CANNOT read a draft course or draft lesson', async () => {
+    const studentDb = testEnv.authenticatedContext('stud_arjun').firestore();
+    await assertFails(getDoc(doc(studentDb, 'courses/draft_course_1')));
+    await assertFails(getDoc(doc(studentDb, 'lessons/draft_lesson_1')));
+  });
+
+  it('student CAN read a course and lesson once published', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await updateDoc(doc(adminDb, 'courses/draft_course_1'), { status: 'published' });
+      await updateDoc(doc(adminDb, 'lessons/draft_lesson_1'), { status: 'published' });
+    });
+
+    const studentDb = testEnv.authenticatedContext('stud_arjun').firestore();
+    await assertSucceeds(getDoc(doc(studentDb, 'courses/draft_course_1')));
+    await assertSucceeds(getDoc(doc(studentDb, 'lessons/draft_lesson_1')));
+  });
+
+  it('suspended instructor is strictly DENIED course creation', async () => {
+    const suspendedDb = testEnv.authenticatedContext('inst_suspended').firestore();
+    await assertFails(
+      setDoc(doc(suspendedDb, 'courses/suspended_course'), {
+        orgId: 'strynkix',
+        title: 'Suspended Instructor Course',
+        status: 'draft',
+      })
+    );
+  });
+});
+
 

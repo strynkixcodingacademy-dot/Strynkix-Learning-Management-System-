@@ -60,9 +60,12 @@ function LessonRuntimeView({
       setIsLoading(true);
       setError(null);
       try {
+        const canPreviewDrafts = Boolean(
+          tenant?.role && ['super_admin', 'university_admin', 'branch_admin', 'instructor'].includes(tenant.role)
+        );
         const [curriculum, activeLesson, userProgress] = await Promise.all([
-          getCourseWithCurriculum(courseId, tenant.orgId),
-          getLesson(lessonId, tenant.orgId),
+          getCourseWithCurriculum(courseId, tenant.orgId, canPreviewDrafts),
+          getLesson(lessonId, tenant.orgId, canPreviewDrafts),
           getStudentCourseProgress(courseId, user.uid, tenant.orgId),
         ]);
 
@@ -96,7 +99,7 @@ function LessonRuntimeView({
     }
 
     loadData();
-  }, [courseId, lessonId, tenant?.orgId, user?.uid]);
+  }, [courseId, lessonId, tenant?.orgId, tenant?.role, user?.uid]);
 
   // Handler for marking current lesson as completed
   const handleMarkCompleted = useCallback(async () => {

@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   Briefcase,
+  GraduationCap,
 } from 'lucide-react';
 
 interface NavItem {
@@ -48,6 +49,12 @@ const NAV_ITEMS: NavItem[] = [
     href: '/dashboard/branches',
     icon: GitBranch,
     roles: ['super_admin', 'university_admin'],
+  },
+  {
+    name: 'Course Authoring',
+    href: '/dashboard/courses',
+    icon: GraduationCap,
+    roles: ['super_admin', 'university_admin', 'branch_admin', 'instructor'],
   },
   {
     name: 'Live Books & Courses',
