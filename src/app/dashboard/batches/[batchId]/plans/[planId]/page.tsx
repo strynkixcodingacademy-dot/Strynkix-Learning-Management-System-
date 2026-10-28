@@ -45,7 +45,7 @@ interface PlanPageProps {
 }
 
 const inputClass =
-  'w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60';
+  'w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 disabled:opacity-60';
 
 function toLocalInput(iso?: string): string {
   if (!iso) return '';
@@ -100,13 +100,13 @@ function SubmissionReview({ submission, assignment, uid }: { submission: Submiss
     <div className="mt-3 p-4 rounded-xl bg-surface border border-line space-y-3">
       {submission.textAnswer && (
         <div>
-          <div className="text-[11px] font-mono uppercase text-ink-3 mb-1">Written answer</div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 mb-1">Written answer</div>
           <p className="text-xs text-ink whitespace-pre-line">{submission.textAnswer}</p>
         </div>
       )}
       {submission.codeContent && (
         <div>
-          <div className="text-[11px] font-mono uppercase text-ink-3 mb-1">Code</div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 mb-1">Code</div>
           <pre className="text-[11px] text-ink bg-surface border border-line rounded-lg p-3 overflow-x-auto"><code>{submission.codeContent}</code></pre>
         </div>
       )}
@@ -260,7 +260,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-3" role="status">
         <Loader2 className="w-7 h-7 text-brand-ink animate-spin" />
-        <span className="text-xs text-ink-3 font-mono">Loading plan...</span>
+        <span className="text-xs text-ink-3">Loading plan...</span>
       </div>
     );
   }
@@ -538,7 +538,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
                     <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
                       <div className="min-w-0 lg:w-56">
                         <div className="text-sm font-semibold text-ink truncate">{enrollment.studentDisplayName || enrollment.studentId}</div>
-                        <div className="text-[11px] font-mono text-ink-3 truncate">{enrollment.studentEmail}</div>
+                        <div className="text-[11px] text-ink-3 truncate">{enrollment.studentEmail}</div>
                       </div>
                       <div className="text-xs text-ink-2 lg:w-40">
                         {plan.lessonIds.length === 0 ? <span className="text-ink-3">No lessons planned</span> :
@@ -547,7 +547,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
                       </div>
                       <div className="flex-1 flex flex-wrap items-center gap-2 text-xs">
                         {state ? <DeadlineBadge state={state} /> : <span className="text-ink-3">No assignment</span>}
-                        {late && <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-coral-soft text-coral-ink border border-coral-line">Late</span>}
+                        {late && <span className="text-[10px] font-bold uppercase tracking-[0.06em] px-1.5 py-0.5 rounded bg-coral-soft text-coral-ink border border-coral-line">Late</span>}
                         {submission && <span className="text-[11px] text-ink-3">attempt {submission.attemptCount ?? 1} • {formatDateTime(submission.submittedAt)}</span>}
                         {submission?.status === 'graded' && assignment && <span className="text-[11px] text-brand-ink font-semibold">{submission.score}/{assignment.totalPoints} marks</span>}
                       </div>

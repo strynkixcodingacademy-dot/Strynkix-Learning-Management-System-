@@ -47,7 +47,7 @@ export function useConfirm() {
         close(false);
       }}
       aria-labelledby="confirm-title"
-      className="m-auto w-[min(92vw,26rem)] rounded-card border border-line bg-surface p-0 text-ink shadow-lift backdrop:bg-ink/30 open:animate-rise"
+      className="m-auto w-[min(92vw,26rem)] rounded-card border border-line bg-surface p-0 text-ink shadow-lift backdrop:bg-ink/20 backdrop:backdrop-blur-[3px] open:animate-rise"
     >
       {options && (
         <div className="p-6 space-y-4">

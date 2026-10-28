@@ -76,7 +76,7 @@ export async function createOrganization(params: {
     status: 'active' as const,
     settings: {
       allowedEmailDomains: params.allowedEmailDomains || [],
-      defaultTimezone: params.defaultTimezone || 'UTC',
+      defaultTimezone: params.defaultTimezone || 'Asia/Kolkata',
       features: {
         liveBooksEnabled: params.liveBooksEnabled ?? true,
         interactivePlaygrounds: true,
@@ -168,41 +168,74 @@ export async function createBranch(params: {
   return branchRecord;
 }
 
-/**
- * Creates a new Branch Manager account in Firebase Auth and provisions their
- * user profile in Firestore under the specified branch and organization.
- * Uses a secondary Firebase App instance so the currently logged-in Super Admin is NOT logged out.
- */
-export async function createBranchManager(params: {
+// -----------------------------------------------------------------------------
+// Account provisioning
+// -----------------------------------------------------------------------------
+
+export const MIN_PASSWORD_LENGTH = 8;
+
+export interface ProvisionInput {
   email: string;
   password: string;
   displayName: string;
   orgId: string;
   branchId: string;
-}): Promise<{
+}
+
+export interface ProvisionedAccount {
   uid: string;
   email: string;
   displayName: string;
   role: string;
   branchId: string;
   orgId: string;
-}> {
-  const cleanEmail = params.email.trim();
-  const cleanName = params.displayName.trim();
-  const cleanPassword = params.password.trim();
+  /** True when an existing account of the same role in this branch was reused. */
+  existing?: boolean;
+}
 
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    throw new Error('Please enter a valid email address.');
+const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+
+/**
+ * Temporary password from the browser's cryptographic RNG (rejection sampling,
+ * so every character is equally likely). New users should change it on first
+ * sign-in with the reset link.
+ */
+export function generateTempPassword(length = 14): string {
+  const out: string[] = [];
+  const limit = 256 - (256 % PASSWORD_ALPHABET.length);
+  const bytes = new Uint8Array(1);
+  while (out.length < length) {
+    crypto.getRandomValues(bytes);
+    if (bytes[0] < limit) out.push(PASSWORD_ALPHABET[bytes[0] % PASSWORD_ALPHABET.length]);
   }
-  if (!cleanPassword || cleanPassword.length < 6) {
-    throw new Error('Password must be at least 6 characters long.');
-  }
-  if (!cleanName || cleanName.length < 2) {
-    throw new Error('Please enter a display name (at least 2 characters).');
-  }
+  return out.join('');
+}
+
+/** Returns an error message for invalid input, or null. */
+export function validateProvisionInput(input: ProvisionInput): string | null {
+  const email = input.email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address.';
+  if (input.displayName.trim().length < 2) return 'Please enter a full name (at least 2 characters).';
+  if (input.password.trim().length < MIN_PASSWORD_LENGTH) return `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`;
+  return null;
+}
+
+type ProvisionRole = 'branch_admin' | 'instructor' | 'student';
+
+/**
+ * Creates the Firebase Auth login on a throwaway secondary app (so the admin
+ * stays signed in), then writes the profile with the ADMIN's session, so the
+ * Firestore rules decide whether this admin may create this role in this
+ * branch. If the profile write fails, the new login is deleted again so a
+ * retry doesn't hit "email already exists" for an account nobody can use.
+ */
+async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Promise<ProvisionedAccount> {
+  const invalid = validateProvisionInput(params);
+  if (invalid) throw new Error(invalid);
+  const email = params.email.trim().toLowerCase();
+  const displayName = params.displayName.trim();
 
   const config = getFirebaseConfig();
-  const tempAppName = `TempAdminApp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const tempApp = initializeApp(
     {
       apiKey: config.apiKey,
@@ -213,69 +246,97 @@ export async function createBranchManager(params: {
       appId: config.appId,
       measurementId: config.measurementId,
     },
-    tempAppName
+    `Provision_${role}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
   );
+  const tempAuth = getAuth(tempApp);
 
-  let newUid = '';
   try {
-    const tempAuth = getAuth(tempApp);
-    const userCred = await createUserWithEmailAndPassword(tempAuth, cleanEmail, cleanPassword);
-    newUid = userCred.user.uid;
-    await signOut(tempAuth);
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (e.code === 'auth/email-already-in-use') {
-      throw new Error('An account with this email address already exists.');
-    } else if (e.code === 'auth/weak-password') {
-      throw new Error('The password is too weak. Please use at least 6 characters.');
-    } else if (e.code === 'auth/invalid-email') {
-      throw new Error('Invalid email format.');
-    }
-    throw new Error(e.message || 'Failed to create user account in Firebase Auth.');
-  } finally {
+    let credential;
     try {
-      await deleteApp(tempApp);
-    } catch {
-      // Ignore cleanup error
+      credential = await createUserWithEmailAndPassword(tempAuth, email, params.password.trim());
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'auth/email-already-in-use') {
+        // Reuse only an account of the same role in the same branch; anything
+        // else (another branch, another role) must be handled by an administrator.
+        if (role !== 'branch_admin') {
+          const existing = await getDocs(
+            query(
+              collection(db, 'users'),
+              where('orgId', '==', params.orgId),
+              where('branchId', '==', params.branchId),
+              where('email', '==', email)
+            )
+          ).catch(() => null);
+          const match = existing?.docs.find((d) => d.data().role === role);
+          if (match) {
+            return {
+              uid: match.id,
+              email,
+              displayName: (match.data().displayName as string) || displayName,
+              role,
+              branchId: params.branchId,
+              orgId: params.orgId,
+              existing: true,
+            };
+          }
+        }
+        throw new Error('An account with this email address already exists. Use a different email, or ask the Super Admin to check it.');
+      }
+      if (code === 'auth/weak-password') throw new Error(`The password is too weak. Use at least ${MIN_PASSWORD_LENGTH} characters.`);
+      if (code === 'auth/invalid-email') throw new Error('Invalid email format.');
+      if (code === 'auth/operation-not-allowed') throw new Error('Email/password sign-in is not enabled for this Firebase project.');
+      throw new Error((err as Error).message || 'Failed to create the login.');
     }
+
+    const uid = credential.user.uid;
+    const now = new Date().toISOString();
+    try {
+      await setDoc(doc(db, 'users', uid), {
+        id: uid,
+        email,
+        displayName,
+        role,
+        orgId: params.orgId,
+        branchId: params.branchId,
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (err) {
+      // Roll back the login: the temp app is still signed in as the new user.
+      await credential.user.delete().catch((e) => console.error('Could not roll back new login', e));
+      const denied = (err as { code?: string }).code === 'permission-denied';
+      throw new Error(denied ? 'You are not allowed to create this account for that branch.' : (err as Error).message || 'Failed to save the profile.');
+    }
+
+    if (role === 'branch_admin') {
+      try {
+        await updateDoc(doc(db, 'branches', params.branchId), { branchAdminUserIds: arrayUnion(uid), updatedAt: now });
+      } catch (err) {
+        console.warn('Could not link the manager on the branch document:', err);
+      }
+    }
+    return { uid, email, displayName, role, branchId: params.branchId, orgId: params.orgId };
+  } finally {
+    await signOut(tempAuth).catch(() => {});
+    await deleteApp(tempApp).catch(() => {});
   }
+}
 
-  const now = new Date().toISOString();
-  const userDocRef = doc(db, 'users', newUid);
-  const profileRecord = {
-    id: newUid,
-    email: cleanEmail,
-    displayName: cleanName,
-    role: 'branch_admin' as const,
-    orgId: params.orgId,
-    branchId: params.branchId,
-    status: 'active' as const,
-    createdAt: now,
-    updatedAt: now,
-  };
+/** Creates a Branch Manager account (Super Admin). */
+export function createBranchManager(params: ProvisionInput): Promise<ProvisionedAccount> {
+  return provisionAccount('branch_admin', params);
+}
 
-  // Write profile to Firestore
-  await setDoc(userDocRef, profileRecord);
+/** Creates a student account in a branch (Branch Manager or Super Admin). */
+export function createStudent(params: ProvisionInput): Promise<ProvisionedAccount> {
+  return provisionAccount('student', params);
+}
 
-  // Link manager UID to the branch document
-  const branchDocRef = doc(db, 'branches', params.branchId);
-  try {
-    await updateDoc(branchDocRef, {
-      branchAdminUserIds: arrayUnion(newUid),
-      updatedAt: now,
-    });
-  } catch (err) {
-    console.warn('Could not update branchAdminUserIds array on branch document:', err);
-  }
-
-  return {
-    uid: newUid,
-    email: cleanEmail,
-    displayName: cleanName,
-    role: 'branch_admin',
-    branchId: params.branchId,
-    orgId: params.orgId,
-  };
+/** Creates an instructor account in a branch (Branch Manager or Super Admin). */
+export function createInstructor(params: ProvisionInput): Promise<ProvisionedAccount> {
+  return provisionAccount('instructor', params);
 }
 
 /**
@@ -305,229 +366,21 @@ export async function getBranchManagers(managerUids: string[]): Promise<{ id: st
 }
 
 /**
- * Creates a student account in Firebase Auth and provisions their profile in Firestore.
- * Automatically links to the student's branch and organization.
+ * Branch managers grouped by branch, read from their profiles (the source of
+ * truth) rather than the branch's branchAdminUserIds list, which can lag.
  */
-export async function createStudent(params: {
-  email: string;
-  password: string;
-  displayName: string;
-  orgId: string;
-  branchId: string;
-}): Promise<{
-  uid: string;
-  email: string;
-  displayName: string;
-  role: string;
-  branchId: string;
-  orgId: string;
-}> {
-  const cleanEmail = params.email.trim();
-  const cleanName = params.displayName.trim();
-  const cleanPassword = params.password.trim();
-
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    throw new Error('Please enter a valid email address.');
+export async function getManagersByBranch(orgId?: string): Promise<Record<string, { id: string; displayName: string; email: string }[]>> {
+  const coll = collection(db, 'users');
+  const q = orgId
+    ? query(coll, where('orgId', '==', orgId), where('role', '==', 'branch_admin'))
+    : query(coll, where('role', '==', 'branch_admin'));
+  const snap = await getDocs(q);
+  const out: Record<string, { id: string; displayName: string; email: string }[]> = {};
+  for (const d of snap.docs) {
+    const data = d.data();
+    const branchId = data.branchId as string | undefined;
+    if (!branchId || data.status === 'suspended') continue;
+    (out[branchId] ??= []).push({ id: d.id, displayName: (data.displayName as string) || 'Branch Manager', email: (data.email as string) || '' });
   }
-  if (!cleanPassword || cleanPassword.length < 6) {
-    throw new Error('Password must be at least 6 characters long.');
-  }
-  if (!cleanName || cleanName.length < 2) {
-    throw new Error('Please enter student full name.');
-  }
-
-  const config = getFirebaseConfig();
-  const tempAppName = `TempStudentApp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const tempApp = initializeApp(
-    {
-      apiKey: config.apiKey,
-      authDomain: config.authDomain,
-      projectId: config.projectId,
-      storageBucket: config.storageBucket,
-      messagingSenderId: config.messagingSenderId,
-      appId: config.appId,
-      measurementId: config.measurementId,
-    },
-    tempAppName
-  );
-
-  let newUid = '';
-  try {
-    const tempAuth = getAuth(tempApp);
-    const userCred = await createUserWithEmailAndPassword(tempAuth, cleanEmail, cleanPassword);
-    newUid = userCred.user.uid;
-    await signOut(tempAuth);
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (e.code === 'auth/email-already-in-use') {
-      // If student already exists in Firestore for this org, retrieve and return them
-      const q = query(
-        collection(db, 'users'),
-        where('email', '==', cleanEmail),
-        where('orgId', '==', params.orgId)
-      );
-      const existingSnap = await getDocs(q);
-      if (!existingSnap.empty) {
-        const existingDoc = existingSnap.docs[0];
-        const existingData = existingDoc.data();
-        if (existingData.role === 'student') {
-          return {
-            uid: existingDoc.id,
-            email: cleanEmail,
-            displayName: (existingData.displayName as string) || cleanName,
-            role: 'student',
-            branchId: (existingData.branchId as string) || params.branchId,
-            orgId: params.orgId,
-          };
-        }
-      }
-      throw new Error('An account with this email address already exists.');
-    } else if (e.code === 'auth/weak-password') {
-      throw new Error('The password is too weak. Please use at least 6 characters.');
-    }
-    throw new Error(e.message || 'Failed to create student account.');
-  } finally {
-    try {
-      await deleteApp(tempApp);
-    } catch {}
-  }
-
-  const now = new Date().toISOString();
-  const userDocRef = doc(db, 'users', newUid);
-  const profileRecord = {
-    id: newUid,
-    email: cleanEmail,
-    displayName: cleanName,
-    role: 'student' as const,
-    orgId: params.orgId,
-    branchId: params.branchId,
-    status: 'active' as const,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await setDoc(userDocRef, profileRecord);
-
-  return {
-    uid: newUid,
-    email: cleanEmail,
-    displayName: cleanName,
-    role: 'student',
-    branchId: params.branchId,
-    orgId: params.orgId,
-  };
+  return out;
 }
-
-/**
- * Creates an instructor account in Firebase Auth and provisions their profile in Firestore.
- * Automatically links to the instructor's branch and organization.
- */
-export async function createInstructor(params: {
-  email: string;
-  password: string;
-  displayName: string;
-  orgId: string;
-  branchId: string;
-}): Promise<{
-  uid: string;
-  email: string;
-  displayName: string;
-  role: string;
-  branchId: string;
-  orgId: string;
-}> {
-  const cleanEmail = params.email.trim();
-  const cleanName = params.displayName.trim();
-  const cleanPassword = params.password.trim();
-
-  if (!cleanEmail || !cleanEmail.includes('@')) {
-    throw new Error('Please enter a valid email address.');
-  }
-  if (!cleanPassword || cleanPassword.length < 6) {
-    throw new Error('Password must be at least 6 characters long.');
-  }
-  if (!cleanName || cleanName.length < 2) {
-    throw new Error('Please enter instructor full name.');
-  }
-
-  const config = getFirebaseConfig();
-  const tempAppName = `TempInstructorApp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const tempApp = initializeApp(
-    {
-      apiKey: config.apiKey,
-      authDomain: config.authDomain,
-      projectId: config.projectId,
-      storageBucket: config.storageBucket,
-      messagingSenderId: config.messagingSenderId,
-      appId: config.appId,
-      measurementId: config.measurementId,
-    },
-    tempAppName
-  );
-
-  let newUid = '';
-  try {
-    const tempAuth = getAuth(tempApp);
-    const userCred = await createUserWithEmailAndPassword(tempAuth, cleanEmail, cleanPassword);
-    newUid = userCred.user.uid;
-    await signOut(tempAuth);
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (e.code === 'auth/email-already-in-use') {
-      const q = query(
-        collection(db, 'users'),
-        where('email', '==', cleanEmail),
-        where('orgId', '==', params.orgId)
-      );
-      const existingSnap = await getDocs(q);
-      if (!existingSnap.empty) {
-        const existingDoc = existingSnap.docs[0];
-        const existingData = existingDoc.data();
-        if (existingData.role === 'instructor') {
-          return {
-            uid: existingDoc.id,
-            email: cleanEmail,
-            displayName: (existingData.displayName as string) || cleanName,
-            role: 'instructor',
-            branchId: (existingData.branchId as string) || params.branchId,
-            orgId: params.orgId,
-          };
-        }
-      }
-      throw new Error('An account with this email address already exists.');
-    } else if (e.code === 'auth/weak-password') {
-      throw new Error('The password is too weak. Please use at least 6 characters.');
-    }
-    throw new Error(e.message || 'Failed to create instructor account.');
-  } finally {
-    try {
-      await deleteApp(tempApp);
-    } catch {}
-  }
-
-  const now = new Date().toISOString();
-  const userDocRef = doc(db, 'users', newUid);
-  const profileRecord = {
-    id: newUid,
-    email: cleanEmail,
-    displayName: cleanName,
-    role: 'instructor' as const,
-    orgId: params.orgId,
-    branchId: params.branchId,
-    status: 'active' as const,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await setDoc(userDocRef, profileRecord);
-
-  return {
-    uid: newUid,
-    email: cleanEmail,
-    displayName: cleanName,
-    role: 'instructor',
-    branchId: params.branchId,
-    orgId: params.orgId,
-  };
-}
-

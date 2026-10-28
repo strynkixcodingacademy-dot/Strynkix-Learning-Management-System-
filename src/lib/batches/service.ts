@@ -10,10 +10,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   query,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { TenantContext } from '@/types/auth';
@@ -78,7 +80,9 @@ function isPermissionDenied(err: unknown): boolean {
   return (err as { code?: string })?.code === 'permission-denied';
 }
 
-async function assertValidInstructors(ids: string[], target: { orgId: string; branchId: string }) {
+/** Validates instructors and returns their display names, in the same order. */
+async function assertValidInstructors(ids: string[], target: { orgId: string; branchId: string }): Promise<string[]> {
+  const names: string[] = [];
   for (const uid of ids) {
     let profile: UserProfile | null;
     try {
@@ -89,7 +93,44 @@ async function assertValidInstructors(ids: string[], target: { orgId: string; br
     }
     const error = getInstructorAssignmentError(profile, target);
     if (error) throw new Error(`${uid}: ${error}`);
+    names.push((profile?.displayName || 'Instructor').slice(0, 100));
   }
+  return names;
+}
+
+// -----------------------------------------------------------------------------
+// Seats (owner decision D2): capped batches keep activeEnrollmentCount in step
+// with active enrollments, inside the same atomic write. See firestore.rules.
+// -----------------------------------------------------------------------------
+
+const isCapped = (batch: Pick<Batch, 'maxStudents'>) => typeof batch.maxStudents === 'number';
+
+/** Seat change for an enrollment going from `was` to `now` (only 'active' holds a seat). */
+export function seatDelta(was: EnrollmentStatus | null, now: EnrollmentStatus | null): number {
+  return (now === 'active' ? 1 : 0) - (was === 'active' ? 1 : 0);
+}
+
+async function countActiveSeats(batch: Batch): Promise<number> {
+  return (await getBatchEnrollments(batch)).filter((e) => e.status === 'active').length;
+}
+
+/**
+ * Re-counts a capped batch's active seats and stores the result when it has
+ * drifted (legacy batches created before the counter existed). Returns the count.
+ */
+export async function reconcileSeatCount(batch: Batch): Promise<number> {
+  const count = await countActiveSeats(batch);
+  if (isCapped(batch) && batch.activeEnrollmentCount !== count) {
+    await updateDoc(doc(db, 'batches', batch.id), { activeEnrollmentCount: count, updatedAt: new Date().toISOString() });
+  }
+  return count;
+}
+
+function isFullError(err: unknown, batch: Batch): Error | null {
+  if (isPermissionDenied(err) && isCapped(batch)) {
+    return new Error(`Batch is full (${batch.maxStudents} seats), or the seat count changed. Refresh and try again.`);
+  }
+  return null;
 }
 
 // -----------------------------------------------------------------------------
@@ -164,7 +205,7 @@ export async function createBatch(
   if (!course || course.orgId !== data.orgId) throw new Error('Course not found in this organization.');
   if (course.status === 'archived') throw new Error('Cannot create a batch for an archived course.');
 
-  await assertValidInstructors(data.instructorUserIds, data);
+  const instructorNames = await assertValidInstructors(data.instructorUserIds, data);
 
   const slug = data.code.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
   const batchId = `batch_${slug}_${Date.now().toString(36)}`;
@@ -172,6 +213,8 @@ export async function createBatch(
   const record: Batch = withoutUndefined({
     id: batchId,
     ...data,
+    instructorNames,
+    activeEnrollmentCount: isCapped(data) ? 0 : undefined,
     createdById: actorUid,
     createdAt: now,
     updatedAt: now,
@@ -203,12 +246,20 @@ export async function updateBatch(
   });
   if (!parsed.success) throw new Error(`Invalid batch update: ${formatZodError(parsed.error)}`);
 
-  const changes = withoutUndefined({ ...parsed.data });
+  const changes: Record<string, unknown> = withoutUndefined({ ...parsed.data });
   const instructorsChanged =
     changes.instructorUserIds &&
     JSON.stringify(changes.instructorUserIds) !== JSON.stringify(batch.instructorUserIds);
-  if (instructorsChanged) {
-    await assertValidInstructors(changes.instructorUserIds!, batch);
+  if (instructorsChanged || (changes.instructorUserIds && !batch.instructorNames)) {
+    changes.instructorNames = await assertValidInstructors(changes.instructorUserIds as string[], batch);
+  }
+  // Setting or changing a cap re-counts seats so the counter starts accurate.
+  if (typeof changes.maxStudents === 'number' && changes.maxStudents !== batch.maxStudents) {
+    const seats = await countActiveSeats(batch);
+    if (seats > (changes.maxStudents as number)) {
+      throw new Error(`This batch already has ${seats} active students; Max Students can't be lower than that.`);
+    }
+    changes.activeEnrollmentCount = seats;
   }
 
   await updateDoc(doc(db, 'batches', batch.id), {
@@ -350,16 +401,21 @@ export async function enrollStudent(
   const enrollmentId = enrollmentIdFor(batch.courseId, studentId);
   const ref = doc(db, 'enrollments', enrollmentId);
 
-  let existing: Enrollment | null = null;
-  try {
-    const snap = await getDoc(ref);
-    existing = snap.exists() ? ({ id: snap.id, ...snap.data() } as Enrollment) : null;
-  } catch (err) {
-    if (isPermissionDenied(err)) {
-      throw new Error('This student already has an enrollment for this course outside your scope.');
-    }
-    throw err;
-  }
+  // A point read of a missing document is denied by the rules (they read
+  // resource.data), so look the enrollment up with a branch-scoped query: "not
+  // enrolled here" is then an empty result. An enrollment in another branch is
+  // invisible here and makes the write below fail with permission-denied.
+  const existingSnap = await getDocs(
+    query(
+      collection(db, 'enrollments'),
+      where('orgId', '==', batch.orgId),
+      where('branchId', '==', batch.branchId),
+      where('courseId', '==', batch.courseId),
+      where('studentId', '==', studentId)
+    )
+  );
+  const found = existingSnap.docs.find((d) => d.id === enrollmentId);
+  const existing: Enrollment | null = found ? ({ id: found.id, ...found.data() } as Enrollment) : null;
 
   if (existing && grantsContentAccess(existing.status)) {
     throw new Error(
@@ -386,7 +442,18 @@ export async function enrollStudent(
       ...roster,
       updatedAt: now,
     };
-    await updateDoc(ref, reactivation);
+    const write = writeBatch(db);
+    write.update(ref, reactivation);
+    if (isCapped(batch)) write.update(doc(db, 'batches', batch.id), { activeEnrollmentCount: increment(1), updatedAt: now });
+    // Moving out of another batch frees a seat there (only if it held one).
+    if (existing.batchId !== batch.id && existing.status === 'active') {
+      write.update(doc(db, 'batches', existing.batchId), { activeEnrollmentCount: increment(-1), updatedAt: now });
+    }
+    try {
+      await write.commit();
+    } catch (err) {
+      throw isFullError(err, batch) ?? err;
+    }
     return { ...existing, ...reactivation };
   }
 
@@ -409,7 +476,20 @@ export async function enrollStudent(
     createdAt: now,
     updatedAt: now,
   });
-  await setDoc(ref, record);
+  try {
+    const write = writeBatch(db);
+    write.set(ref, record);
+    if (isCapped(batch)) write.update(doc(db, 'batches', batch.id), { activeEnrollmentCount: increment(1), updatedAt: now });
+    await write.commit();
+  } catch (err) {
+    if (isPermissionDenied(err) && isCapped(batch) && (await countActiveSeats(batch).catch(() => 0)) >= batch.maxStudents!) {
+      throw new Error(`Batch is full (${batch.maxStudents} seats).`);
+    }
+    if (isPermissionDenied(err)) {
+      throw new Error('This student already has an enrollment for this course in another branch, or is outside your scope.');
+    }
+    throw err;
+  }
   return record;
 }
 
@@ -440,7 +520,8 @@ export async function changeEnrollmentStatus(
   }
 
   const now = new Date().toISOString();
-  await updateDoc(
+  const write = writeBatch(db);
+  write.update(
     doc(db, 'enrollments', enrollment.id),
     withoutUndefined({
       status,
@@ -448,6 +529,15 @@ export async function changeEnrollmentStatus(
       updatedAt: now,
     })
   );
+  const delta = seatDelta(enrollment.status, status);
+  if (isCapped(batch) && delta !== 0) {
+    write.update(doc(db, 'batches', batch.id), { activeEnrollmentCount: increment(delta), updatedAt: now });
+  }
+  try {
+    await write.commit();
+  } catch (err) {
+    throw (delta > 0 ? isFullError(err, batch) : null) ?? err;
+  }
 }
 
 // -----------------------------------------------------------------------------

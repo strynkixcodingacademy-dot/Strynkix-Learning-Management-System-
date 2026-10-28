@@ -34,6 +34,8 @@ import {
 
 export default function CourseAuthoringPage() {
   const { user, tenant } = useAuth();
+  // Only the Super Admin publishes shared courses and lessons (owner decision D3).
+  const canPublish = tenant?.role === 'super_admin';
   const [courses, setCourses] = useState<Course[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -170,7 +172,7 @@ export default function CourseAuthoringPage() {
 
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor']}>
-      <AppShell pageTitle="Course Authoring & Management">
+      <AppShell pageTitle="Course Authoring">
         <div className="space-y-6">
           {/* Action Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
@@ -185,7 +187,7 @@ export default function CourseAuthoringPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
+                className="px-2.5 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
               >
                 <option value="all">All Statuses ({courses.length})</option>
                 <option value="published">Published Only</option>
@@ -223,7 +225,7 @@ export default function CourseAuthoringPage() {
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
               <Loader2 className="w-7 h-7 text-brand-ink animate-spin" />
-              <span className="text-xs text-ink-3 font-mono">Loading course catalog...</span>
+              <span className="text-xs text-ink-3">Loading course catalog...</span>
             </div>
           )}
 
@@ -254,11 +256,11 @@ export default function CourseAuthoringPage() {
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <CourseIcon course={c} size="sm" />
-                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-surface-muted border border-line text-ink-2">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full bg-surface-muted border border-line text-ink-2">
                           {c.level}
                         </span>
                         <span
-                          className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
+                          className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border ${
  isPub
  ? 'bg-success-soft text-success-ink border-success-line'
  : c.status === 'draft'
@@ -279,7 +281,7 @@ export default function CourseAuthoringPage() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs font-mono text-ink-3">
+                      <div className="flex items-center gap-4 text-xs text-ink-3">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
                           {c.estimatedWeeks} Weeks
@@ -296,6 +298,7 @@ export default function CourseAuthoringPage() {
                     {/* Actions Toolbar */}
                     <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
+                        {canPublish ? (<>
                         {/* Publish / Unpublish Button */}
                         <button
                           type="button"
@@ -310,6 +313,9 @@ export default function CourseAuthoringPage() {
                           {isPub ? <XCircle className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
                           <span>{isPub ? 'Unpublish' : 'Publish'}</span>
                         </button>
+                        </>) : (
+                          <span className="inline-flex items-center rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-ink-3" title="Only the Super Admin publishes shared courses">{isPub ? 'Published' : 'Draft'}</span>
+                        )}
 
                         {/* Preview Student Syllabus */}
                         <Link
@@ -339,7 +345,7 @@ export default function CourseAuthoringPage() {
 
           {/* Create Course Modal */}
           {showModal && (
-            <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-lg w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -348,7 +354,7 @@ export default function CourseAuthoringPage() {
                   </div>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="text-ink-3 hover:text-ink text-xs font-mono"
+                    className="text-ink-3 hover:text-ink text-xs"
                   >
                     Cancel
                   </button>
@@ -372,7 +378,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => handleTitleChange(e.target.value)}
                       placeholder="e.g. Distributed Systems & Cloud Infrastructure"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -386,7 +392,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setSlug(e.target.value)}
                       placeholder="e.g. distributed-systems-cloud"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                     />
                   </div>
 
@@ -400,7 +406,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setTagline(e.target.value)}
                       placeholder="e.g. Master resilient microservices and real-time event streaming"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -414,7 +420,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Provide comprehensive pedagogy goals, target competencies, and technical prerequisites..."
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -424,7 +430,7 @@ export default function CourseAuthoringPage() {
                       <select
                         value={level}
                         onChange={(e) => setLevel(e.target.value as CourseLevel)}
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       >
                         <option value="beginner">Beginner</option>
                         <option value="intermediate">Intermediate</option>
@@ -442,7 +448,7 @@ export default function CourseAuthoringPage() {
                           value={estimatedWeeks}
                           onChange={(e) => setEstimatedWeeks(Number(e.target.value))}
                           required
-                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                         />
                         <span className="absolute right-3 top-2 text-xs text-ink-3 pointer-events-none">
                           Weeks
@@ -458,7 +464,7 @@ export default function CourseAuthoringPage() {
                       value={tagsInput}
                       onChange={(e) => setTagsInput(e.target.value)}
                       placeholder="typescript, architecture, cloud, databases"
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono text-[11px]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono text-[11px]"
                     />
                   </div>
 

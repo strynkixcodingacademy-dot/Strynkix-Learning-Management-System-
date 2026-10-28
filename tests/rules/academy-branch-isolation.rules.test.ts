@@ -61,7 +61,7 @@ beforeEach(async () => {
       await user(`stu_${b}2`, 'student', `branch_${b}`);
       await put(`batches/batch_${b}`, {
         orgId: ORG, branchId: `branch_${b}`, courseId: 'course_x', name: `Batch ${b}`, code: `B-${b}`,
-        instructorUserIds: [`inst_${b}`], startDate: NOW, status: 'in_progress', maxStudents: 30,
+        instructorUserIds: [`inst_${b}`], startDate: NOW, status: 'in_progress',
       });
       await put(`enrollments/${enrollment(b)}`, {
         orgId: ORG, branchId: `branch_${b}`, courseId: 'course_x', batchId: `batch_${b}`, studentId: `stu_${b}`, status: 'active', enrolledAt: NOW,
@@ -221,6 +221,16 @@ describe('Phase 8.1 — forged tenant, branch, role, ownership and relationship 
     await assertFails(updateDoc(doc(as('ba_a'), `enrollments/${enrollment('a')}`), { batchId: 'batch_b', branchId: 'branch_b' }));
     // Enrollment ID must match {courseId}_{studentId}.
     await assertFails(setDoc(doc(as('ba_a'), 'enrollments/course_x_someone_else'), newEnrollment('stu_a2', 'branch_a', 'batch_a')));
+  });
+
+  it('enrolling a new student: the branch-scoped existence query works, a point read of the missing doc stays denied', async () => {
+    const db = as('ba_a');
+    const snap = await assertSucceeds(getDocs(query(collection(db, 'enrollments'),
+      where('orgId', '==', ORG), where('branchId', '==', 'branch_a'), where('courseId', '==', 'course_x'), where('studentId', '==', 'stu_a2'))));
+    if (!snap.empty) throw new Error('expected no enrollment yet');
+    // Rules never open "read anything that doesn't exist" (that would be an existence oracle).
+    await assertFails(getDoc(doc(as('stu_a'), 'enrollments/course_x_stu_a2')));
+    await assertSucceeds(setDoc(doc(db, 'enrollments/course_x_stu_a2'), newEnrollment('stu_a2', 'branch_a', 'batch_a')));
   });
 
   it('a branch admin cannot assign another branch\'s instructor to their batch', async () => {

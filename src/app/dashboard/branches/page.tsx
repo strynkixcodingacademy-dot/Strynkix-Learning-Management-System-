@@ -6,6 +6,9 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { PageHeader, fieldClasses } from '@/components/ui/Page';
+import { buttonClasses } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
@@ -15,6 +18,8 @@ import {
   createBranch,
   createBranchManager,
   getBranchManagers,
+  getManagersByBranch,
+  generateTempPassword,
 } from '@/lib/admin/service';
 import { Branch, Organization } from '@/types/domain';
 import {
@@ -32,6 +37,7 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function BranchesPage() {
@@ -45,6 +51,7 @@ export default function BranchesPage() {
 
   // Managers Map (UID -> profile)
   const [managersMap, setManagersMap] = useState<Record<string, { id: string; displayName: string; email: string }>>({});
+  const [managersByBranch, setManagersByBranch] = useState<Record<string, { id: string; displayName: string; email: string }[]>>({});
 
   // Add Manager Modal State
   const [showAddManagerModal, setShowAddManagerModal] = useState(false);
@@ -114,6 +121,7 @@ export default function BranchesPage() {
             setOrganizations(loadedOrgs);
             setBranches(loadedBranches);
             loadManagerProfiles(loadedBranches);
+            getManagersByBranch().then(setManagersByBranch).catch((err) => console.warn('Could not load branch managers:', err));
             if (!targetOrgId && loadedOrgs.length > 0) {
               setTargetOrgId(loadedOrgs[0].id);
             }
@@ -124,6 +132,7 @@ export default function BranchesPage() {
           if (isMounted) {
             setBranches(loadedBranches);
             loadManagerProfiles(loadedBranches);
+            getManagersByBranch(tenant.orgId).then(setManagersByBranch).catch((err) => console.warn('Could not load branch managers:', err));
             setTargetOrgId(tenant.orgId);
             setIsLoading(false);
           }
@@ -157,12 +166,7 @@ export default function BranchesPage() {
   };
 
   const handleGeneratePassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
-    let pass = '';
-    for (let i = 0; i < 10; i++) {
-      pass += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setManagerPassword(`Strynkix@${pass}`);
+    setManagerPassword(generateTempPassword());
   };
 
   const handleCreateManager = async (e: React.FormEvent) => {
@@ -293,36 +297,22 @@ Please sign in and set up your batches and instructors!`;
 
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin']}>
-      <AppShell pageTitle="Branch & Campus Hubs">
+      <AppShell>
         <div className="space-y-6">
-          {/* Action Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
-            <div>
-              <p className="text-xs text-ink-3">
-                Manage physical campus locations and remote cohort learning hubs.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Organization Filter for Super Admin */}
-              {isSuperAdmin && organizations.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-ink-3 font-mono">Filter Org:</span>
-                  <select
-                    value={selectedOrgFilter}
-                    onChange={(e) => setSelectedOrgFilter(e.target.value)}
-                    className="px-2.5 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
-                  >
-                    <option value="all">All Organizations</option>
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name} ({org.id})
-                      </option>
-                    ))}
+          <PageHeader
+            eyebrow="Academy network"
+            title="Branches"
+            description="Your academy’s campuses and franchises. Open a branch to see its batches, people and performance."
+            actions={<>
+              {isSuperAdmin && organizations.length > 1 && (
+                <>
+                  <label htmlFor="org-filter" className="sr-only">Filter by organization</label>
+                  <select id="org-filter" value={selectedOrgFilter} onChange={(e) => setSelectedOrgFilter(e.target.value)} className={`${fieldClasses} w-56`}>
+                    <option value="all">All organizations</option>
+                    {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                   </select>
-                </div>
+                </>
               )}
-
               <button
                 type="button"
                 onClick={() => {
@@ -331,13 +321,12 @@ Please sign in and set up your batches and instructors!`;
                   }
                   setShowCreateModal(true);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-card transition"
+                className={buttonClasses('primary')}
               >
-                <Plus className="w-4 h-4" />
-                <span>Create Branch</span>
+                <Plus className="w-4 h-4" /> Create Branch
               </button>
-            </div>
-          </div>
+            </>}
+          />
 
           {/* Success Banner */}
           {successMsg && (
@@ -359,7 +348,7 @@ Please sign in and set up your batches and instructors!`;
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
               <Loader2 className="w-7 h-7 text-brand-ink animate-spin" />
-              <span className="text-xs text-ink-3 font-mono">Loading branches...</span>
+              <span className="text-xs text-ink-3">Loading branches...</span>
             </div>
           )}
 
@@ -377,106 +366,58 @@ Please sign in and set up your batches and instructors!`;
           {/* Branches Grid */}
           {!isLoading && branches.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {branches.map((b) => (
-                <div
-                  key={b.id}
-                  className="p-5 rounded-2xl bg-surface border border-line hover:border-line-strong transition space-y-4 shadow-card"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-brand-soft border border-brand-line flex items-center justify-center text-brand-ink">
-                      {b.location?.isRemote ? <Laptop className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-muted border border-line text-ink-2">
-                        {b.code}
-                      </span>
-                      <span
-                        className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
- b.status === 'active'
- ? 'bg-success-soft text-success-ink border-success-line'
- : 'bg-danger-soft text-danger-ink border-danger-line'
- }`}
-                      >
-                        {b.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-base font-bold text-ink tracking-tight">{b.name}</h3>
-                    <div className="text-xs font-mono text-brand-ink mt-0.5">ID: {b.id}</div>
-                  </div>
-
-                  <div className="pt-2 border-t border-line space-y-1.5 text-xs text-ink-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-3">Organization:</span>
-                      <span className="font-mono text-ink-2">{b.orgId}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-3">Location:</span>
-                      <span className="text-ink-2">
-                        {b.location?.isRemote
-                          ? 'Remote Online'
-                          : [b.location?.city, b.location?.state, b.location?.country].filter(Boolean).join(', ')}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-3">Assigned Admins:</span>
-                      <span className="font-mono text-ink-2">
-                        {b.branchAdminUserIds?.length || 0} manager(s)
-                      </span>
-                    </div>
-
-                    {/* Assigned Managers List */}
-                    {b.branchAdminUserIds && b.branchAdminUserIds.length > 0 && (
-                      <div className="pt-2 border-t border-line space-y-1.5">
-                        <div className="text-[11px] font-semibold text-ink-2">Active Managers:</div>
-                        <div className="space-y-1">
-                          {b.branchAdminUserIds.map((uid) => {
-                            const mgr = managersMap[uid];
-                            return (
-                              <div
-                                key={uid}
-                                className="flex items-center justify-between p-2 rounded-xl bg-surface-muted border border-line text-xs"
-                              >
-                                <div className="min-w-0 pr-2">
-                                  <div className="font-semibold text-ink truncate">
-                                    {mgr?.displayName || 'Branch Manager'}
-                                  </div>
-                                  <div className="text-[11px] text-ink-3 font-mono truncate">
-                                    {mgr?.email || uid}
-                                  </div>
-                                </div>
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-success-soft text-success-ink border border-success-line shrink-0">
-                                  Active
-                                </span>
-                              </div>
-                            );
-                          })}
+              {branches.map((b) => {
+                const place = b.location?.isRemote
+                  ? 'Remote virtual campus'
+                  : [b.location?.city, b.location?.state, b.location?.country].filter(Boolean).join(', ') || 'Location not set';
+                const linked = (b.branchAdminUserIds ?? []).map((uid) => managersMap[uid]).filter(Boolean);
+                const managers = managersByBranch[b.id]?.length ? managersByBranch[b.id] : linked;
+                return (
+                  <article key={b.id} className="group relative flex flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-silver hover:shadow-lift">
+                    <span aria-hidden="true" className="h-1 bg-gradient-to-r from-brand via-teal to-highlight" />
+                    <div className="flex flex-1 flex-col gap-4 p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-line bg-brand-soft text-brand-ink">
+                          {b.location?.isRemote ? <Laptop className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {b.code && <span className="rounded-md border border-line bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-ink-2">{b.code}</span>}
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold capitalize ${b.status === 'active' ? 'border-success-line bg-success-soft text-success-ink' : 'border-danger-line bg-danger-soft text-danger-ink'}`}>{b.status}</span>
                         </div>
                       </div>
-                    )}
-
-                    {/* Add Manager Action Button */}
-                    <div className="pt-2">
+                      <div>
+                        <h3 className="text-[17px] font-extrabold tracking-tight text-ink">
+                          <Link href={`/dashboard/branches/${b.id}`} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">{b.name}</Link>
+                        </h3>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink-3"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{place}</p>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
+                        <div className="min-w-0">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-4">Branch managers</div>
+                          <div className="truncate text-sm font-semibold text-ink-2">
+                            {managers.length ? managers.map((m) => m!.displayName).join(', ') : 'None assigned yet'}
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-brand-ink">Open <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleOpenAddManager(b)}
-                        className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-surface-muted hover:bg-brand-soft hover:text-brand-ink border border-line hover:border-brand-line text-xs font-semibold text-ink transition"
+                        className="relative z-10 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-muted px-3 py-2 text-[13px] font-bold text-ink transition hover:border-brand-line hover:bg-brand-soft hover:text-brand-ink"
                       >
-                        <UserPlus className="w-3.5 h-3.5 text-brand-ink" />
-                        <span>Add Branch Manager</span>
+                        <UserPlus className="w-4 h-4 text-brand-ink" />
+                        Add Branch Manager
                       </button>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
 
           {/* Create Branch Modal */}
           {showCreateModal && (
-            <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -485,7 +426,7 @@ Please sign in and set up your batches and instructors!`;
                   </div>
                   <button
                     onClick={() => setShowCreateModal(false)}
-                    className="text-ink-3 hover:text-ink text-xs font-mono"
+                    className="text-ink-3 hover:text-ink text-xs"
                   >
                     Cancel
                   </button>
@@ -509,7 +450,7 @@ Please sign in and set up your batches and instructors!`;
                         value={targetOrgId}
                         onChange={(e) => setTargetOrgId(e.target.value)}
                         required
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                       >
                         {organizations.map((org) => (
                           <option key={org.id} value={org.id}>
@@ -522,7 +463,7 @@ Please sign in and set up your batches and instructors!`;
                         type="text"
                         value={tenant?.orgId || ''}
                         disabled
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink-3 font-mono"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink-3 font-mono"
                       />
                     )}
                   </div>
@@ -538,7 +479,7 @@ Please sign in and set up your batches and instructors!`;
                       onChange={(e) => setBranchId(e.target.value)}
                       placeholder="e.g. branch_mumbai, branch_blr"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                     />
                   </div>
 
@@ -554,7 +495,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Mumbai Campus"
                         required
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                     <div className="space-y-1">
@@ -567,7 +508,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setCode(e.target.value)}
                         placeholder="MUM-01"
                         required
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono uppercase"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono uppercase"
                       />
                     </div>
                   </div>
@@ -581,7 +522,7 @@ Please sign in and set up your batches and instructors!`;
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                         placeholder="e.g. Mumbai"
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                     <div className="space-y-1">
@@ -591,7 +532,7 @@ Please sign in and set up your batches and instructors!`;
                         value={stateName}
                         onChange={(e) => setStateName(e.target.value)}
                         placeholder="e.g. Maharashtra"
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                   </div>
@@ -607,7 +548,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setCountry(e.target.value)}
                         placeholder="India"
                         required
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                     <div className="pt-5">
@@ -647,7 +588,7 @@ Please sign in and set up your batches and instructors!`;
 
           {/* Add Manager Modal */}
           {showAddManagerModal && selectedBranchForManager && (
-            <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -656,7 +597,7 @@ Please sign in and set up your batches and instructors!`;
                   </div>
                   <button
                     onClick={() => setShowAddManagerModal(false)}
-                    className="text-ink-3 hover:text-ink text-xs font-mono"
+                    className="text-ink-3 hover:text-ink text-xs"
                   >
                     Cancel
                   </button>
@@ -666,7 +607,7 @@ Please sign in and set up your batches and instructors!`;
                   <div className="font-semibold text-ink">
                     Assigning to: {selectedBranchForManager.name} ({selectedBranchForManager.code})
                   </div>
-                  <div className="text-ink-3 font-mono text-[11px]">
+                  <div className="text-ink-3 text-[11px]">
                     Branch ID: {selectedBranchForManager.id} • Org: {selectedBranchForManager.orgId}
                   </div>
                 </div>
@@ -690,7 +631,7 @@ Please sign in and set up your batches and instructors!`;
                       onChange={(e) => setManagerName(e.target.value)}
                       placeholder="e.g. Priya Sharma"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -705,7 +646,7 @@ Please sign in and set up your batches and instructors!`;
                       onChange={(e) => setManagerEmail(e.target.value)}
                       placeholder="manager@strynkix.com"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                     />
                   </div>
 
@@ -731,7 +672,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setManagerPassword(e.target.value)}
                         placeholder="••••••••••••"
                         required
-                        className="w-full pr-10 pl-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                        className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                       />
                       <button
                         type="button"
@@ -768,7 +709,7 @@ Please sign in and set up your batches and instructors!`;
 
           {/* Credentials Share Modal */}
           {createdCredentials && (
-            <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-md w-full rounded-2xl bg-surface border border-success-line shadow-lift p-6 space-y-5 animate-in fade-in-50 zoom-in-95">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-success-soft border border-success-line flex items-center justify-center text-success-ink">
@@ -780,7 +721,7 @@ Please sign in and set up your batches and instructors!`;
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-surface-muted border border-line space-y-2.5 font-mono text-xs">
+                <div className="p-4 rounded-xl bg-surface-muted border border-line space-y-2.5 text-xs">
                   <div className="flex items-center justify-between pb-2 border-b border-line text-[11px] text-ink-3">
                     <span>Role:</span>
                     <span className="font-semibold text-brand-ink">Branch Manager</span>

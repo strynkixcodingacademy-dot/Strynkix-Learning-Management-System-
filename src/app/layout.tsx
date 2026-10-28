@@ -1,12 +1,19 @@
-import type { Metadata } from 'next';
-import { Geist_Mono, Plus_Jakarta_Sans } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Fraunces, Geist_Mono, Manrope } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: '--font-jakarta',
+const manrope = Manrope({
+  variable: '--font-manrope',
   subsets: ['latin'],
   display: 'swap',
+});
+
+const fraunces = Fraunces({
+  variable: '--font-fraunces',
+  subsets: ['latin'],
+  display: 'swap',
+  axes: ['opsz', 'SOFT'],
 });
 
 const geistMono = Geist_Mono({
@@ -14,6 +21,11 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
   display: 'swap',
 });
+
+export const viewport: Viewport = {
+  colorScheme: 'light',
+  themeColor: '#f7f7f4',
+};
 
 export const metadata: Metadata = {
   title: 'Strynkix Live Books',
@@ -26,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${manrope.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-canvas text-ink">
         <AuthProvider>{children}</AuthProvider>
       </body>

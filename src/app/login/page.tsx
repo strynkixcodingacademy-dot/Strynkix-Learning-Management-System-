@@ -13,6 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 import { getRoleDefaultRedirect } from '@/lib/auth/redirect';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
+import { BrandMark } from '@/components/ui/Illustrations';
+import { buttonClasses } from '@/components/ui/Button';
 import {
   Lock,
   Mail,
@@ -89,18 +91,18 @@ function LoginForm() {
   // State: Suspended Account
   if (status === 'suspended') {
     return (
-      <div className="max-w-md w-full p-8 rounded-2xl bg-surface border border-danger-line shadow-lift space-y-5 text-center">
+      <div className="w-full max-w-[420px] space-y-5 rounded-card border border-danger-line bg-surface p-8 text-center shadow-lift">
         <ShieldAlert className="w-12 h-12 text-danger-ink mx-auto" />
         <div className="space-y-1">
-          <h2 className="text-xl font-bold text-ink">Account Inactive or Suspended</h2>
-          <p className="text-xs text-danger-ink leading-relaxed">
-            Your academy account has been suspended by administration. Please contact your campus manager or academy leadership.
+          <h2 className="font-display text-[26px] font-semibold text-ink">Your account is paused</h2>
+          <p className="text-sm text-ink-2 leading-relaxed">
+            An administrator has paused your access. Your work and progress are safe. Contact your branch manager to have it reactivated.
           </p>
         </div>
         <button
           type="button"
           onClick={() => signOut()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-muted hover:bg-surface-sunken text-ink-2 text-xs font-semibold transition"
+          className={buttonClasses('secondary')}
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
@@ -112,18 +114,18 @@ function LoginForm() {
   // State: Missing Profile
   if (status === 'no_profile') {
     return (
-      <div className="max-w-md w-full p-8 rounded-2xl bg-surface border border-warning-line shadow-lift space-y-5 text-center">
+      <div className="w-full max-w-[420px] space-y-5 rounded-card border border-warning-line bg-surface p-8 text-center shadow-lift">
         <AlertTriangle className="w-12 h-12 text-warning-ink mx-auto" />
         <div className="space-y-1">
-          <h2 className="text-xl font-bold text-ink">Profile Pending Provisioning</h2>
-          <p className="text-xs text-ink-3 leading-relaxed">
-            Your Firebase login is authenticated, but no Strynkix LMS profile record has been provisioned for your account. Please notify your administrator to assign your tenant organization and role.
+          <h2 className="font-display text-[26px] font-semibold text-ink">Your account isn’t set up yet</h2>
+          <p className="text-sm text-ink-2 leading-relaxed">
+            You signed in, but your academy hasn’t finished setting up your account (your branch and role). Ask your branch manager to complete it, then sign in again.
           </p>
         </div>
         <button
           type="button"
           onClick={() => signOut()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-muted hover:bg-surface-sunken text-ink-2 text-xs font-semibold transition"
+          className={buttonClasses('secondary')}
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
@@ -134,9 +136,9 @@ function LoginForm() {
 
   if (mode === 'reset') {
     return (
-      <div className="max-w-md w-full p-8 rounded-2xl bg-surface border border-line shadow-lift space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Reset your password</h1>
+      <div className="w-full max-w-[420px] space-y-6">
+        <div className="space-y-2">
+          <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight text-ink"><span className="marker">Reset your password</span></h1>
           <p className="text-sm text-ink-3">Enter your academy email and we&apos;ll send you a link to choose a new password.</p>
         </div>
         {resetSent ? (
@@ -155,10 +157,10 @@ function LoginForm() {
             <div className="space-y-1.5">
               <label htmlFor="reset-email" className="text-sm font-semibold text-ink-2">Email address</label>
               <input id="reset-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+                className="w-full h-12 px-3.5 rounded-xl bg-surface border border-line-strong text-[15px] text-ink placeholder-ink-4 shadow-card focus:outline-none focus:ring-3 focus:ring-brand/15 focus:border-brand" />
             </div>
             <button type="submit" disabled={isSubmitting}
-              className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-sm font-semibold shadow-card transition flex items-center justify-center gap-2">
+              className={buttonClasses('primary', 'lg', 'w-full')}>
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : null}
               Send reset link
             </button>
@@ -173,16 +175,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="max-w-md w-full p-8 rounded-2xl bg-surface border border-line shadow-lift space-y-6">
-      <div className="space-y-2 text-center">
-        <div className="h-12 w-12 rounded-xl bg-brand flex items-center justify-center font-bold text-xl text-white shadow-card mx-auto">
-          S
-        </div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink">
-          Sign In to Strynkix LMS
+    <div className="w-full max-w-[420px] space-y-7">
+      <div className="space-y-2">
+        <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight text-ink">
+          <span className="marker">Welcome back</span>
         </h1>
-        <p className="text-xs text-ink-3">
-          Enter your authorized academy credentials to access your courses and workspace.
+        <p className="text-[15px] text-ink-3">
+          Sign in with the email and password your academy gave you.
         </p>
       </div>
 
@@ -195,9 +194,9 @@ function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <label htmlFor="login-email" className="text-xs font-semibold text-ink-2">Email address</label>
+          <label htmlFor="login-email" className="text-sm font-semibold text-ink-2">Email address</label>
           <div className="relative">
-            <Mail className="w-4 h-4 text-ink-3 absolute left-3 top-3 pointer-events-none" />
+            <Mail className="w-4 h-4 text-ink-3 absolute left-3.5 top-4 pointer-events-none" />
             <input
               id="login-email"
               type="email"
@@ -206,21 +205,21 @@ function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="student@strynkix.com"
               required
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+              className="w-full h-12 pl-10 pr-3 rounded-xl bg-surface border border-line-strong text-[15px] text-ink placeholder-ink-4 shadow-card focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label htmlFor="login-password" className="text-xs font-semibold text-ink-2">Password</label>
+            <label htmlFor="login-password" className="text-sm font-semibold text-ink-2">Password</label>
             <button type="button" onClick={() => { setMode('reset'); setErrorMessage(null); }}
-              className="text-xs font-semibold text-brand-ink hover:underline">
+              className="text-sm font-semibold text-brand-ink hover:underline">
               Forgot password?
             </button>
           </div>
           <div className="relative">
-            <Lock className="w-4 h-4 text-ink-3 absolute left-3 top-3 pointer-events-none" />
+            <Lock className="w-4 h-4 text-ink-3 absolute left-3.5 top-4 pointer-events-none" />
             <input
               id="login-password"
               type="password"
@@ -229,7 +228,7 @@ function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••••••"
               required
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+              className="w-full h-12 pl-10 pr-3 rounded-xl bg-surface border border-line-strong text-[15px] text-ink placeholder-ink-4 shadow-card focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
             />
           </div>
         </div>
@@ -237,7 +236,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={isSubmitting || status === 'loading'}
-          className="w-full py-2.5 px-4 rounded-xl bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold shadow-card transition flex items-center justify-center gap-2"
+          className={buttonClasses('primary', 'lg', 'w-full')}
         >
           {isSubmitting || status === 'loading' ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -250,29 +249,73 @@ function LoginForm() {
         </button>
       </form>
 
-      <div className="pt-4 border-t border-line flex items-center justify-between text-[11px] text-ink-3">
-        <Link href="/" className="hover:text-ink-2 transition">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-5 text-[13px] text-ink-3">
+        <Link href="/" className="font-semibold hover:text-ink-2 transition">
           &larr; Back to Home
         </Link>
-        <span className="font-mono">Strynkix Academy</span>
+        <span>New here? Ask your branch manager for an account.</span>
       </div>
     </div>
   );
 }
 
+const POINTS = [
+  { title: 'A plan for every day', body: 'Lessons and one assignment, set by your instructor.' },
+  { title: 'Interactive Live Books', body: 'Code examples, quizzes and practice in every lesson.' },
+  { title: 'Feedback that helps', body: 'Marks, comments and a chance to correct your work.' },
+];
+
+function BrandPanel() {
+  return (
+    <aside className="relative hidden overflow-hidden border-r border-line bg-gradient-to-br from-surface via-silver-soft to-canvas lg:flex lg:w-[46%] lg:flex-col lg:justify-between lg:p-12">
+      <div aria-hidden="true" className="paper-dots absolute inset-0 opacity-70" />
+      <div aria-hidden="true" className="absolute -right-24 top-1/3 h-72 w-72 rounded-full bg-brand/10 blur-3xl" />
+      <div aria-hidden="true" className="absolute -left-16 bottom-10 h-56 w-56 rounded-full bg-highlight/40 blur-3xl" />
+      <Link href="/" className="relative flex items-center gap-3">
+        <BrandMark size={40} />
+        <span className="leading-tight">
+          <span className="block font-display text-[20px] font-semibold text-ink">Live Books</span>
+          <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-ink-3">Strynkix Coding Academy</span>
+        </span>
+      </Link>
+      <div className="relative max-w-md space-y-8">
+        <h2 className="font-display text-[44px] font-semibold leading-[1.08] tracking-tight text-ink">
+          Learn by doing, <span className="marker">one day at a time.</span>
+        </h2>
+        <ul className="space-y-4">
+          {POINTS.map((p, i) => (
+            <li key={p.title} className="flex gap-4 rounded-2xl border border-line bg-surface/80 p-4 shadow-card backdrop-blur-sm">
+              <span className="font-display text-[22px] font-semibold leading-none text-brand">{String(i + 1).padStart(2, '0')}</span>
+              <span>
+                <span className="block text-sm font-extrabold text-ink">{p.title}</span>
+                <span className="block text-sm text-ink-3">{p.body}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="relative text-xs font-semibold text-ink-4">© Strynkix Coding Academy</p>
+    </aside>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-canvas text-ink flex flex-col justify-center items-center p-4">
+    <div className="flex min-h-screen bg-canvas text-ink">
+      <BrandPanel />
+      <div className="flex flex-1 flex-col items-center justify-center p-6 sm:p-10">
+        <div className="mb-10 lg:hidden"><BrandMark size={44} /></div>
       <Suspense
         fallback={
           <div className="flex flex-col items-center justify-center space-y-3">
             <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
-            <span className="text-xs text-ink-3 font-mono">Loading authentication portal...</span>
+            <span className="text-xs text-ink-3">Loading authentication portal...</span>
           </div>
         }
       >
         <LoginForm />
       </Suspense>
+      </div>
     </div>
   );
 }

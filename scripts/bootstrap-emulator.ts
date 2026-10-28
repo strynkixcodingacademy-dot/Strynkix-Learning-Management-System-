@@ -199,6 +199,11 @@ async function main() {
           slug: 'strynkix',
           status: 'active',
           tier: 'enterprise',
+          settings: {
+            defaultTimezone: 'Asia/Kolkata',
+            allowedEmailDomains: [],
+            features: { liveBooksEnabled: true, interactivePlaygrounds: true, peerReviews: false },
+          },
           createdAt: now,
           updatedAt: now,
         });
@@ -554,9 +559,11 @@ const loadUserProfile = async (user: User | null) => {
         name: 'Pune Full Stack 2026',
         code: 'PUN-FS-26',
         instructorUserIds: [instructorUid],
+        instructorNames: [SEED_USERS.find((u) => u.email === 'instructor@strynkix.com')!.displayName],
         startDate: '2026-11-01T00:00:00.000Z',
         endDate: '2027-04-30T00:00:00.000Z',
         maxStudents: 30,
+        activeEnrollmentCount: SEED_USERS.filter((u) => u.role === 'student').length,
         status: 'in_progress',
         createdById: seededUids.get('manager.pune@strynkix.com')!,
         createdAt: now,

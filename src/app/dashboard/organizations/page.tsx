@@ -34,6 +34,7 @@ export default function OrganizationsPage() {
   const [slug, setSlug] = useState('');
   const [website, setWebsite] = useState('');
   const [allowedDomains, setAllowedDomains] = useState('');
+  const [timeZone, setTimeZone] = useState('Asia/Kolkata');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export default function OrganizationsPage() {
         slug: slug.trim().toLowerCase(),
         website: website.trim() ? website.trim() : undefined,
         allowedEmailDomains: parsedDomains,
+        defaultTimezone: timeZone,
       });
 
       setSuccessMsg(`Organization "${name}" created successfully!`);
@@ -110,7 +112,7 @@ export default function OrganizationsPage() {
 
   return (
     <RequireRole allowedRoles={['super_admin']}>
-      <AppShell pageTitle="Organization Management">
+      <AppShell pageTitle="Organizations">
         <div className="space-y-6">
           {/* Action Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
@@ -149,7 +151,7 @@ export default function OrganizationsPage() {
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
               <Loader2 className="w-7 h-7 text-lavender-ink animate-spin" />
-              <span className="text-xs text-ink-3 font-mono">Loading organizations...</span>
+              <span className="text-xs text-ink-3">Loading organizations...</span>
             </div>
           )}
 
@@ -177,7 +179,7 @@ export default function OrganizationsPage() {
                       {org.name.charAt(0).toUpperCase()}
                     </div>
                     <span
-                      className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
+                      className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border ${
  org.status === 'active'
  ? 'bg-success-soft text-success-ink border-success-line'
  : 'bg-danger-soft text-danger-ink border-danger-line'
@@ -189,13 +191,13 @@ export default function OrganizationsPage() {
 
                   <div>
                     <h3 className="text-base font-bold text-ink tracking-tight">{org.name}</h3>
-                    <div className="text-xs font-mono text-lavender-ink mt-0.5">ID: {org.id}</div>
+                    <div className="text-xs text-lavender-ink mt-0.5">ID: {org.id}</div>
                   </div>
 
                   <div className="pt-2 border-t border-line space-y-1.5 text-xs text-ink-3">
                     <div className="flex items-center justify-between">
                       <span className="text-ink-3">Slug:</span>
-                      <span className="font-mono text-ink-2">{org.slug}</span>
+                      <span className="text-ink-2">{org.slug}</span>
                     </div>
                     {org.website && (
                       <div className="flex items-center justify-between">
@@ -204,7 +206,7 @@ export default function OrganizationsPage() {
                           href={org.website}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-lavender-ink hover:underline inline-flex items-center gap-1 font-mono text-[11px] truncate max-w-[180px]"
+                          className="text-lavender-ink hover:underline inline-flex items-center gap-1 text-[11px] truncate max-w-[180px]"
                         >
                           <Globe className="w-3 h-3" />
                           <span>{org.website.replace(/^https?:\/\//, '')}</span>
@@ -212,8 +214,12 @@ export default function OrganizationsPage() {
                       </div>
                     )}
                     <div className="flex items-center justify-between">
+                      <span className="text-ink-3">Time zone:</span>
+                      <span className="text-ink-2">{org.settings?.defaultTimezone || 'Device time'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-ink-3">Live Books:</span>
-                      <span className="text-success-ink font-mono text-[11px]">
+                      <span className="text-success-ink text-[11px]">
                         {org.settings?.features?.liveBooksEnabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
@@ -225,7 +231,7 @@ export default function OrganizationsPage() {
 
           {/* Create Organization Modal */}
           {showCreateModal && (
-            <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2 text-lavender-ink font-bold text-sm">
@@ -234,7 +240,7 @@ export default function OrganizationsPage() {
                   </div>
                   <button
                     onClick={() => setShowCreateModal(false)}
-                    className="text-ink-3 hover:text-ink text-xs font-mono"
+                    className="text-ink-3 hover:text-ink text-xs"
                   >
                     Cancel
                   </button>
@@ -258,7 +264,7 @@ export default function OrganizationsPage() {
                       onChange={(e) => setOrgId(e.target.value)}
                       placeholder="e.g. strynkix, tech_academy"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                     />
                     <p className="text-[10px] text-ink-3">
                       Lowercase alphanumeric and underscores. Used in all tenant queries.
@@ -275,7 +281,7 @@ export default function OrganizationsPage() {
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Strynkix Coding Academy"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -289,7 +295,7 @@ export default function OrganizationsPage() {
                       onChange={(e) => setSlug(e.target.value)}
                       placeholder="e.g. strynkix-coding-academy"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                     />
                   </div>
 
@@ -300,7 +306,7 @@ export default function OrganizationsPage() {
                       value={website}
                       onChange={(e) => setWebsite(e.target.value)}
                       placeholder="https://strynkix.com"
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                     />
                   </div>
 
@@ -313,8 +319,17 @@ export default function OrganizationsPage() {
                       value={allowedDomains}
                       onChange={(e) => setAllowedDomains(e.target.value)}
                       placeholder="strynkix.com, edu.org (comma separated)"
-                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono text-[11px]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono text-[11px]"
                     />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="org-timezone" className="text-xs font-semibold text-ink-2">Academy time zone</label>
+                    <select id="org-timezone" value={timeZone} onChange={(e) => setTimeZone(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15">
+                      {['Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Europe/London', 'America/New_York', 'UTC'].map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+                    </select>
+                    <p className="text-[11px] text-ink-3">Decides what “today” means for daily plans, deadlines and analytics in every branch.</p>
                   </div>
 
                   <div className="pt-3 flex items-center justify-end gap-2">

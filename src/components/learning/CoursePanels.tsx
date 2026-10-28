@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/Page';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States';
 import { buttonClasses } from '@/components/ui/Button';
 import { cx } from '@/components/ui/tones';
-import { ArrowRight, Bookmark, ClipboardList, Flag, GraduationCap, Tag, Timer, Users } from 'lucide-react';
+import { ArrowRight, Bookmark, ClipboardList, Flag, GraduationCap, Tag, Timer, UserRoundCheck, Users } from 'lucide-react';
 
 export interface StudentCourseLearningData {
   plans: DailyPlan[];
@@ -203,6 +203,10 @@ export function CourseAboutPanel({ course, batch, lessonCount }: { course: Cours
     { icon: GraduationCap, label: 'Level', value: course.level.charAt(0).toUpperCase() + course.level.slice(1) },
     { icon: Timer, label: 'Duration', value: `${course.estimatedWeeks} weeks · ${lessonCount} lessons` },
     ...(batch ? [{ icon: Users, label: 'Your batch', value: `${batch.name} · ${batch.startDate.slice(0, 10)} → ${batch.endDate?.slice(0, 10) ?? 'open'}` }] : []),
+    // Display names only (D5); private staff profile fields are never shown.
+    ...(batch?.instructorNames?.length
+      ? [{ icon: UserRoundCheck, label: batch.instructorNames.length === 1 ? 'Your instructor' : 'Your instructors', value: batch.instructorNames.join(', ') }]
+      : []),
   ];
   return (
     <div className="grid gap-6 lg:grid-cols-3">

@@ -137,8 +137,35 @@ export function combineMetrics(list: LearningMetrics[]): LearningMetrics {
   };
 }
 
-/** Local calendar date (YYYY-MM-DD) for a Date in the viewer's timezone. */
-export function toLocalDateKey(date: Date): string {
+// Academy time zone (owner decision D4): set once at sign-in from the
+// organization's settings.defaultTimezone so every device agrees on "today".
+// Unset (tests, scripts, orgs without a zone) falls back to the device's zone.
+let academyTimeZone: string | undefined;
+
+/** Sets the academy time zone; ignores values the browser doesn't recognise. */
+export function setAcademyTimeZone(timeZone: string | undefined): void {
+  if (!timeZone) {
+    academyTimeZone = undefined;
+    return;
+  }
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone }).format(0);
+    academyTimeZone = timeZone;
+  } catch {
+    academyTimeZone = undefined;
+  }
+}
+
+export function getAcademyTimeZone(): string | undefined {
+  return academyTimeZone;
+}
+
+/** Calendar date (YYYY-MM-DD) for a Date in the academy's time zone (or the device's). */
+export function toLocalDateKey(date: Date, timeZone: string | undefined = academyTimeZone): string {
+  if (timeZone) {
+    // en-CA formats as YYYY-MM-DD.
+    return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+  }
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');

@@ -253,7 +253,7 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
                   <h2 className="text-base font-bold text-ink flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-success" /> Your Submission
                   </h2>
-                  <span className="text-xs font-mono text-ink-3">
+                  <span className="text-xs text-ink-3">
                     Attempt {submission.attemptCount ?? 1}
                   </span>
                 </div>
@@ -262,7 +262,7 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
                   <div>
                     Submitted {submission.submittedAt ? formatDateTime(submission.submittedAt) : '(confirming…)'}
                     {late && (
-                      <span className="ml-2 px-2 py-0.5 rounded-full bg-coral-soft text-coral-ink border border-coral-line text-[10px] font-mono uppercase font-semibold">
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-coral-soft text-coral-ink border border-coral-line text-[10px] font-bold uppercase tracking-[0.06em] font-semibold">
                         Late
                       </span>
                     )}

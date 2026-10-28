@@ -31,7 +31,7 @@ const EDITABLE_STATUSES: { value: BatchStatus; label: string }[] = [
 ];
 
 const inputClass =
-  'w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand';
+  'w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15';
 
 function toDateInput(iso?: string): string {
   return iso ? iso.slice(0, 10) : '';
@@ -160,14 +160,14 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
       <div className="max-w-lg w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-line">
           <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
             <Layers className="w-5 h-5" />
             <span>{isEdit ? 'Edit Batch' : 'Create Batch'}</span>
           </div>
-          <button onClick={onClose} className="text-ink-3 hover:text-ink text-xs font-mono">
+          <button onClick={onClose} className="text-ink-3 hover:text-ink text-xs">
             Cancel
           </button>
         </div>
@@ -190,7 +190,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
                 onChange={(e) => setBranchId(e.target.value)}
                 disabled={isEdit}
                 required
-                className={`${inputClass} font-mono disabled:opacity-60`}
+                className={`${inputClass} disabled:opacity-60`}
               >
                 {branches.length === 0 && <option value="">No branches available</option>}
                 {branches.map((b) => (
@@ -252,7 +252,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
                 required
                 minLength={2}
                 maxLength={30}
-                className={`${inputClass} font-mono uppercase`}
+                className={`${inputClass} font-bold uppercase tracking-[0.06em]`}
               />
             </div>
           </div>
@@ -314,7 +314,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-ink-2">Instructors</label>
-              <span className="text-[11px] font-mono text-ink-3">
+              <span className="text-[11px] text-ink-3">
                 {instructorIds.length}/{MAX_BATCH_INSTRUCTORS} selected
               </span>
             </div>
@@ -345,7 +345,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
                       className="rounded border-line text-brand-ink focus:ring-brand"
                     />
                     <span className="font-semibold">{inst.displayName}</span>
-                    <span className="text-ink-3 font-mono truncate">{inst.email}</span>
+                    <span className="text-ink-3 truncate">{inst.email}</span>
                   </label>
                 ))}
               </div>

@@ -113,3 +113,12 @@ A follow-up review re-ran the suites and the rendered app before trusting §6. I
   - Survey of 23 routes at 1280/820/390 px: 0 console errors; no horizontal overflow after fixes.
   - Daily-learning workflow: 48/48. Batch/enrollment workflow: 32/32.
   - Keyboard: skip link first, visible focus ring, arrow-key tabs.
+
+## 8. Phase 9 redesign — "Silver Atelier" (2026-10-28)
+
+- **Light only.** Warm off-white canvas, white cards, silver neutrals, one electric-cobalt accent and bright status colours (all text pairs ≥ 4.5:1). Code panels and modal backdrops are light. Tokens live in `src/app/globals.css`.
+- **Type.** Fraunces for page titles, Manrope for the interface, Geist Mono only for code and credentials. Signature: a highlighter `marker` under page titles and the active nav item.
+- **New pages.** Analytics (staff and student views, every metric states its definition), User Guide (role-filtered, searchable; `src/lib/help/guide.ts`), in-app help assistant (offline, answers only from the guide), My Profile, People (approve / suspend / reactivate), branch overview.
+- **Dead ends removed.** Branch cards open the branch; staff home "Shortcuts" replaced by KPIs and "Next steps"; profile reachable from the sidebar.
+- **Verification.** Browser QA on emulators: new features, roles, daily learning, batches/enrollment; survey of every route at 1280/820/390 with no overflow or console errors.
+

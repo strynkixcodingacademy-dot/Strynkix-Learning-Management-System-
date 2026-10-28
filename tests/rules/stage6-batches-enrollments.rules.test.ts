@@ -45,7 +45,7 @@ function validBatch(overrides: Record<string, unknown> = {}) {
     instructorUserIds: ['inst_pune'],
     startDate: '2026-11-01T00:00:00.000Z',
     endDate: '2027-03-01T00:00:00.000Z',
-    maxStudents: 30,
+    // Uncapped by default: seat accounting has its own suite (capacity.rules.test.ts).
     status: 'upcoming',
     createdAt: NOW,
     updatedAt: NOW,
@@ -190,7 +190,7 @@ describe('Stage 6 — Batch creation', () => {
   });
 
   it('branch_admin CAN create a valid batch in their own branch', async () => {
-    await assertSucceeds(setDoc(doc(as('ba_pune'), 'batches/new_batch'), validBatch()));
+    await assertSucceeds(setDoc(doc(as('ba_pune'), 'batches/new_batch'), validBatch({ maxStudents: 30, activeEnrollmentCount: 0 })));
   });
 
   it('branch_admin CANNOT create a batch in another branch', async () => {

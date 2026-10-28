@@ -43,6 +43,8 @@ interface CurriculumPageProps {
 
 function CurriculumBuilderView({ courseId }: { courseId: string }) {
   const { tenant } = useAuth();
+  // Only the Super Admin publishes shared courses and lessons (owner decision D3).
+  const canPublish = tenant?.role === 'super_admin';
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -237,7 +239,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-3">
         <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
-        <span className="text-xs text-ink-3 font-mono">Loading curriculum builder...</span>
+        <span className="text-xs text-ink-3">Loading curriculum builder...</span>
       </div>
     );
   }
@@ -275,11 +277,11 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono uppercase text-brand-ink font-semibold">
+              <span className="text-xs font-bold uppercase tracking-[0.06em] text-brand-ink font-semibold">
                 Curriculum Builder
               </span>
               <span
-                className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
+                className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border ${
  isPub
  ? 'bg-success-soft text-success-ink border-success-line'
  : 'bg-warning-soft text-warning-ink border-warning-line'
@@ -293,6 +295,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
         </div>
 
         <div className="flex items-center gap-2.5">
+{canPublish ? (<>
           {/* Publish / Unpublish Course */}
           <button
             type="button"
@@ -306,6 +309,9 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
             {isPub ? <XCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
             <span>{isPub ? 'Unpublish Course' : 'Publish Course'}</span>
           </button>
+          </>) : (
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface-muted px-3 py-2 text-xs font-semibold text-ink-3" title="Only the Super Admin publishes shared courses">{isPub ? 'Published course' : 'Draft · Super Admin publishes'}</span>
+          )}
 
           {/* Preview Syllabus */}
           <Link
@@ -361,7 +367,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                 {/* Module Bar */}
                 <div className="p-4 sm:p-5 bg-surface border-b border-line flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono uppercase text-brand-ink font-bold tracking-wider">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-brand-ink font-bold tracking-wider">
                       Module {mIdx + 1}
                     </span>
                     <h3 className="text-base font-bold text-ink">{m.title}</h3>
@@ -384,7 +390,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
                 {/* Lessons in Module */}
                 {moduleLessons.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-ink-3 font-mono">
+                  <div className="p-6 text-center text-xs text-ink-3">
                     No lessons in this module yet. Click &quot;Add Lesson&quot; to author content.
                   </div>
                 ) : (
@@ -397,7 +403,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                           className="p-4 hover:bg-surface-muted transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-surface-muted flex items-center justify-center text-ink-3 font-mono font-bold text-xs shrink-0">
+                            <div className="h-8 w-8 rounded-lg bg-surface-muted flex items-center justify-center text-ink-3 font-bold text-xs shrink-0">
                               {mIdx + 1}.{lIdx + 1}
                             </div>
                             <div>
@@ -406,7 +412,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                                   {l.title}
                                 </span>
                                 <span
-                                  className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded-full border ${
+                                  className={`text-[9px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border ${
  isLesPub
  ? 'bg-success-soft text-success-ink border-success-line'
  : 'bg-warning-soft text-warning-ink border-warning-line'
@@ -415,7 +421,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                                   {l.status}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-3 text-[11px] text-ink-3 font-mono mt-0.5">
+                              <div className="flex items-center gap-3 text-[11px] text-ink-3 mt-0.5">
                                 <span className="uppercase">{l.type}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
@@ -432,6 +438,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+{canPublish ? (<>
                             {/* Toggle Publish */}
                             <button
                               type="button"
@@ -445,6 +452,9 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                             >
                               {isLesPub ? 'Unpublish' : 'Publish'}
                             </button>
+                            </>) : (
+                              <span className="rounded-lg border border-line bg-surface-muted px-2 py-1 text-[11px] font-semibold text-ink-3">{isLesPub ? 'Published' : 'Draft'}</span>
+                            )}
 
                             {/* Preview Lesson */}
                             <Link
@@ -477,7 +487,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
       {/* Modal: Create Module */}
       {showModuleModal && (
-        <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
           <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -486,7 +496,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
               </div>
               <button
                 onClick={() => setShowModuleModal(false)}
-                className="text-ink-3 hover:text-ink text-xs font-mono"
+                className="text-ink-3 hover:text-ink text-xs"
               >
                 Cancel
               </button>
@@ -515,7 +525,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   }}
                   placeholder="e.g. Asynchronous TypeScript & Firestore Security"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 />
               </div>
 
@@ -529,7 +539,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   onChange={(e) => setModSlug(e.target.value)}
                   placeholder="async-ts-firestore"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink font-mono placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 />
               </div>
 
@@ -540,7 +550,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   value={modSummary}
                   onChange={(e) => setModSummary(e.target.value)}
                   placeholder="Brief chapter overview explaining what students will construct..."
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 />
               </div>
 
@@ -552,7 +562,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   value={modOrder}
                   onChange={(e) => setModOrder(Number(e.target.value))}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink font-mono focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 />
               </div>
 
@@ -580,7 +590,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
       {/* Modal: Create Lesson */}
       {showLessonModal && (
-        <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
           <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -589,7 +599,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
               </div>
               <button
                 onClick={() => setShowLessonModal(false)}
-                className="text-ink-3 hover:text-ink text-xs font-mono"
+                className="text-ink-3 hover:text-ink text-xs"
               >
                 Cancel
               </button>
@@ -609,7 +619,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   value={targetModuleId}
                   onChange={(e) => setTargetModuleId(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                 >
                   {modules.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -634,7 +644,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   }}
                   placeholder="e.g. Zero-Trust Security Invariants"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 />
               </div>
 
@@ -648,7 +658,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   onChange={(e) => setLesSlug(e.target.value)}
                   placeholder="zero-trust-invariants"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink font-mono placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 />
               </div>
 
@@ -658,7 +668,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   <select
                     value={lesType}
                     onChange={(e) => setLesType(e.target.value as LessonType)}
-                    className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                   >
                     <option value="concept">Concept Narrative</option>
                     <option value="interactive_code">Interactive Code</option>
@@ -676,7 +686,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                     value={lesMinutes}
                     onChange={(e) => setLesMinutes(Number(e.target.value))}
                     required
-                    className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink font-mono focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                   />
                 </div>
               </div>
@@ -689,7 +699,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   value={lesOrder}
                   onChange={(e) => setLesOrder(Number(e.target.value))}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink font-mono focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 />
               </div>
 
@@ -735,7 +745,7 @@ export default function CurriculumBuilderPage({ params }: CurriculumPageProps) {
       fallback={
         <div className="flex flex-col items-center justify-center py-24 space-y-3">
           <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
-          <span className="text-xs text-ink-3 font-mono">Loading curriculum builder...</span>
+          <span className="text-xs text-ink-3">Loading curriculum builder...</span>
         </div>
       }
     >

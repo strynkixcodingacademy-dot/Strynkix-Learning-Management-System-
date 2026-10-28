@@ -1,6 +1,6 @@
 # Staging Readiness — Phase 8.1 (Strynkix Coding Academy pilot)
 
-Status: **READY FOR STAGING PREPARATION.** This is not yet ready for staging deployment, because no separate staging Firebase project exists (§4).
+Status: **Phase 9 update (2026-10-28): staging project `strynkix-live-books-staging` exists (alias `staging` in `.firebaserc`). The owner approved D2, D3, D4 and D5 and staging-only deployment; see §11.** Production is unchanged.
 
 Scope: the academy's franchise workflow (Super Admin → Branch Admin → Instructor → Student). University customers are a separate, future product (§1.3). Findings and evidence carried over from Phase 8 are in `RELEASE_READINESS.md`.
 
@@ -275,3 +275,20 @@ These are covered by `tests/emulator/enrollment-migration.emulator.test.ts` and 
 - [ ] Snapshot → dry run → owner review → backup → apply → reconcile.
 - [ ] Deploy indexes, then `firestore.rules`; provision staff; monitor rules denials and errors for 48 h.
 - [ ] Rollback is ready: previous rules release, previous Vercel deployment, legacy enrollment archive.
+
+---
+
+## 11. Phase 9 — owner decisions implemented (2026-10-28)
+
+| Decision | Owner choice | Implementation | Tests |
+|---|---|---|---|
+| D2 capacity | Enforce with a counter | Capped batches carry `activeEnrollmentCount`. Every enrollment write that adds or removes an active seat moves it by exactly ±1 in the same atomic write (`seatChangeOk` / `seatTransitionOk` in `firestore.rules`), never past `maxStudents`. Clients use `writeBatch` + `increment`. Managers re-count legacy batches on opening them (`reconcileSeatCount`); changing `maxStudents` re-counts too. Uncapped batches are unaffected. | `tests/rules/capacity.rules.test.ts`, Phase 8 "fixed" race test |
+| D3 course governance | Recommended matrix | Super Admin publishes, unpublishes, archives and deletes courses and lessons. Other staff create draft courses, edit a course while it is a draft, and create/edit lessons and modules without changing their status. Publish buttons are hidden for non-Super-Admins. | Phase 8 audit "Course governance" suite; Stage 5 test updated deliberately |
+| D4 time zones | Organization time zone | `settings.defaultTimezone` is loaded at sign-in (`setAcademyTimeZone`); `toLocalDateKey` and analytics day windows use it. New organizations default to `Asia/Kolkata`, with a selector on the form. Deadline *times* typed in plan forms still use the instructor's device clock. | `tests/learning/timezone.test.ts` |
+| D5 instructor names | Show to students | Batches store `instructorNames` (display names only, validated as ≤ 5 short strings matching `instructorUserIds`), written whenever instructors change. Shown on the student's course "About" tab. | rules shape checks; browser QA |
+| D6 attachments | Not chosen | Text/code submissions only; documented in the User Guide. | — |
+
+### Security fixes in this phase
+- **Reverted `resource == null` on `/enrollments` and `/progress` reads** (commit `966f21b`). It let any active user probe whether a given enrollment or progress record exists. The underlying bug (enrolling a brand-new student failed because `enrollStudent` read a missing document) is fixed in the service with a branch-scoped query. Regression test in `academy-branch-isolation.rules.test.ts`.
+- **Account provisioning hardened** (`src/lib/admin/service.ts`): one `provisionAccount` path for managers, instructors and students; the new login is deleted again if the profile write is refused; "email already exists" reuses only a same-role account in the same branch; minimum password length 8; temporary passwords come from `crypto.getRandomValues` (14 characters). The profile write still runs under the admin's own session, so `firestore.rules` decide who may create which role where.
+

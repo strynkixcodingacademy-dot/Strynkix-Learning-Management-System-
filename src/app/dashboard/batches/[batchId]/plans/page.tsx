@@ -93,7 +93,7 @@ function PlansView({ batchId }: { batchId: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-3" role="status">
         <Loader2 className="w-7 h-7 text-brand-ink animate-spin" />
-        <span className="text-xs text-ink-3 font-mono">Loading daily plans...</span>
+        <span className="text-xs text-ink-3">Loading daily plans...</span>
       </div>
     );
   }
@@ -121,7 +121,7 @@ function PlansView({ batchId }: { batchId: string }) {
           <div className="space-y-1 flex-1">
             <label htmlFor="planDate" className="text-xs font-semibold text-ink-2">Plan a day</label>
             <input id="planDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} required
-              className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand" />
+              className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
           </div>
           <button type="submit" disabled={isCreating}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold">
@@ -144,7 +144,7 @@ function PlansView({ batchId }: { batchId: string }) {
             <li key={p.id}>
               <Link href={`/dashboard/batches/${batch.id}/plans/${p.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 hover:bg-surface-muted">
                 <div className="min-w-0">
-                  <div className="text-[11px] font-mono text-brand-ink">{formatPlanDate(p.date)}</div>
+                  <div className="text-[11px] text-brand-ink">{formatPlanDate(p.date)}</div>
                   <div className="text-sm font-semibold text-ink truncate">{p.title}</div>
                   <div className="text-[11px] text-ink-3 flex items-center gap-2">
                     {p.lessonIds.length} lesson{p.lessonIds.length === 1 ? '' : 's'}
@@ -152,7 +152,7 @@ function PlansView({ batchId }: { batchId: string }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[p.status]}`}>{p.status}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border ${STATUS_STYLES[p.status]}`}>{p.status}</span>
                   <ArrowRight className="w-4 h-4 text-ink-3" />
                 </div>
               </Link>

@@ -196,7 +196,7 @@ export default function BatchesPage() {
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
               <Loader2 className="w-7 h-7 text-brand-ink animate-spin" />
-              <span className="text-xs text-ink-3 font-mono">Loading batches...</span>
+              <span className="text-xs text-ink-3">Loading batches...</span>
             </div>
           )}
 
@@ -226,7 +226,7 @@ export default function BatchesPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="text-base font-bold text-ink tracking-tight truncate">{batch.name}</h3>
-                      <div className="text-[11px] font-mono text-brand-ink mt-0.5">{batch.code}</div>
+                      <div className="text-[11px] text-brand-ink mt-0.5">{batch.code}</div>
                     </div>
                     <BatchStatusBadge status={batch.status} />
                   </div>
@@ -238,13 +238,13 @@ export default function BatchesPage() {
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-ink-3">Branch</span>
-                      <span className="text-ink-2 font-mono">{branchName(batch.branchId)}</span>
+                      <span className="text-ink-2">{branchName(batch.branchId)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-ink-3 flex items-center gap-1">
                         <CalendarDays className="w-3.5 h-3.5" /> Schedule
                       </span>
-                      <span className="text-ink-2 font-mono">
+                      <span className="text-ink-2">
                         {formatDate(batch.startDate)} → {formatDate(batch.endDate)}
                       </span>
                     </div>
@@ -252,7 +252,7 @@ export default function BatchesPage() {
                       <span className="text-ink-3 flex items-center gap-1">
                         <Users className="w-3.5 h-3.5" /> Instructors
                       </span>
-                      <span className="text-ink-2 font-mono">
+                      <span className="text-ink-2">
                         {batch.instructorUserIds?.length || 0}
                         {batch.maxStudents ? ` • cap ${batch.maxStudents}` : ''}
                       </span>

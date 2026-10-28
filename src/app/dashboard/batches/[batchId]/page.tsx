@@ -22,14 +22,15 @@ import {
   getBatchEnrollments,
   getBatchProgress,
   getBranchStudents,
+  reconcileSeatCount,
+  updateBatch,
 } from '@/lib/batches/service';
 import { canManageBatchScope, grantsContentAccess, isBatchOpenForEnrollment } from '@/lib/batches/scope';
 import { buildRosterProgress, RosterRow } from '@/lib/batches/roster';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { Avatar } from '@/components/ui/DataViz';
 import { Batch, Course, Enrollment, EnrollmentStatus, Progress, UserProfile } from '@/types/domain';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
-import { createInstructor, createStudent, getBranchManagers } from '@/lib/admin/service';
+import { createInstructor, createStudent, generateTempPassword, getBranchManagers } from '@/lib/admin/service';
 import {
   AlertCircle,
   ArrowLeft,
@@ -52,7 +53,9 @@ interface BatchDetailPageProps {
 }
 
 function formatDate(iso?: string | null): string {
-  return iso ? iso.slice(0, 10) : '—';
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function ProgressCell({ row }: { row: RosterRow }) {
@@ -67,7 +70,7 @@ function ProgressCell({ row }: { row: RosterRow }) {
   }
   return (
     <div className="space-y-1 min-w-[140px]">
-      <div className="flex items-center justify-between text-[11px] font-mono">
+      <div className="flex items-center justify-between text-[11px]">
         <span className="text-success-ink font-bold">{row.percentage}%</span>
         <span className="text-ink-3">
           {row.completedCount}/{row.totalLessons} lessons
@@ -199,6 +202,12 @@ function BatchDetailView({ batchId }: { batchId: string }) {
           return;
         }
         setBatch(loaded);
+        // Managers keep a capped batch's seat counter accurate (legacy batches predate it).
+        if (typeof loaded.maxStudents === 'number' && canManageBatchScope(tenant, loaded)) {
+          reconcileSeatCount(loaded)
+            .then((count) => { if (isMounted) setBatch((b) => (b ? { ...b, activeEnrollmentCount: count } : b)); })
+            .catch((err) => console.warn('Could not reconcile seat count', err));
+        }
         const [loadedCourse] = await Promise.all([getCourseById(loaded.courseId).catch(() => null), loadRoster(loaded)]);
         if (isMounted) setCourse(loadedCourse);
 
@@ -256,12 +265,7 @@ function BatchDetailView({ batchId }: { batchId: string }) {
   }, [batch, canManage]);
 
   const handleGenerateInstructorPassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
-    let pass = '';
-    for (let i = 0; i < 10; i++) {
-      pass += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setInstructorPassword(`Strynkix@${pass}`);
+    setInstructorPassword(generateTempPassword());
   };
 
   const handleCreateAndAssignInstructor = async (e: React.FormEvent) => {
@@ -281,11 +285,7 @@ function BatchDetailView({ batchId }: { batchId: string }) {
       // Update batch document with new instructor UID
       const currentIds = batch.instructorUserIds || [];
       const updatedInstructorIds = Array.from(new Set([...currentIds, newInst.uid]));
-      const now = new Date().toISOString();
-      await updateDoc(doc(db, 'batches', batch.id), {
-        instructorUserIds: updatedInstructorIds,
-        updatedAt: now,
-      });
+      await updateBatch(batch, { instructorUserIds: updatedInstructorIds }, tenant);
 
       // Update local state
       setBatch((prev) => (prev ? { ...prev, instructorUserIds: updatedInstructorIds } : null));
@@ -333,12 +333,7 @@ Please log in to manage daily plans, post assignments, and review student code!`
   };
 
   const handleGenerateStudentPassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
-    let pass = '';
-    for (let i = 0; i < 10; i++) {
-      pass += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setStudentPassword(`Strynkix@${pass}`);
+    setStudentPassword(generateTempPassword());
   };
 
   const handleCreateAndEnrollStudent = async (e: React.FormEvent) => {
@@ -461,7 +456,7 @@ Please log in to start learning!`;
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-3">
         <Loader2 className="w-7 h-7 text-brand-ink animate-spin" />
-        <span className="text-xs text-ink-3 font-mono">Loading batch...</span>
+        <span className="text-xs text-ink-3">Loading batch...</span>
       </div>
     );
   }
@@ -505,8 +500,8 @@ Please log in to start learning!`;
       <section className="p-5 sm:p-6 rounded-2xl bg-surface border border-line space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-ink tracking-tight">{batch.name}</h2>
-            <div className="text-xs font-mono text-brand-ink mt-1">
+            <h1 className="font-display text-[28px] sm:text-[34px] font-semibold leading-tight tracking-tight text-ink"><span className="marker">{batch.name}</span></h1>
+            <div className="text-xs text-brand-ink mt-1">
               {batch.code} • {course?.title || batch.courseId}
             </div>
           </div>
@@ -515,24 +510,24 @@ Please log in to start learning!`;
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           <div className="p-3 rounded-xl bg-surface border border-line">
             <div className="text-ink-3">Schedule</div>
-            <div className="text-ink font-mono mt-1">
+            <div className="text-ink mt-1">
               {formatDate(batch.startDate)} → {formatDate(batch.endDate)}
             </div>
           </div>
           <div className="p-3 rounded-xl bg-surface border border-line">
             <div className="text-ink-3">Active students</div>
-            <div className="text-ink font-mono mt-1">
+            <div className="text-ink mt-1">
               {activeCount}
               {batch.maxStudents ? ` / ${batch.maxStudents}` : ''}
             </div>
           </div>
           <div className="p-3 rounded-xl bg-surface border border-line">
             <div className="text-ink-3">Published lessons</div>
-            <div className="text-ink font-mono mt-1">{progress === null ? '—' : publishedLessonIds.length}</div>
+            <div className="text-ink mt-1">{progress === null ? '—' : publishedLessonIds.length}</div>
           </div>
           <div className="p-3 rounded-xl bg-surface border border-line">
             <div className="text-ink-3">Avg. completion (active learners)</div>
-            <div className="text-ink font-mono mt-1">
+            <div className="text-ink mt-1">
               {averageCompletion === null ? '—' : `${averageCompletion}%`}
             </div>
           </div>
@@ -550,7 +545,7 @@ Please log in to start learning!`;
           <div className="flex items-center gap-2">
             <GraduationCap className="w-4 h-4 text-brand-ink" />
             <h3 className="text-sm font-bold text-ink">Lead Instructors</h3>
-            <span className="text-xs font-mono text-ink-3">({assignedInstructors.length})</span>
+            <span className="text-xs text-ink-3">({assignedInstructors.length})</span>
           </div>
           {canManage && (
             <button
@@ -577,11 +572,12 @@ Please log in to start learning!`;
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {assignedInstructors.map((inst) => (
               <div key={inst.id} className="p-3 rounded-xl bg-surface-muted border border-line flex items-center justify-between gap-2 text-xs">
-                <div className="min-w-0 pr-2">
+                <Avatar name={inst.displayName} size={34} />
+                <div className="min-w-0 flex-1 pr-2">
                   <div className="font-semibold text-ink truncate">{inst.displayName}</div>
-                  <div className="text-[11px] font-mono text-ink-3 truncate">{inst.email}</div>
+                  <div className="text-[11px] text-ink-3 truncate">{inst.email}</div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-brand/10 text-brand-ink border border-brand/20 shrink-0">
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-brand/10 text-brand-ink border border-brand/20 shrink-0">
                   Instructor
                 </span>
               </div>
@@ -641,7 +637,7 @@ Please log in to start learning!`;
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value)}
                 required
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                 aria-label="Student to enroll"
               >
                 <option value="">
@@ -677,7 +673,7 @@ Please log in to start learning!`;
             <Users className="w-4 h-4 text-brand-ink" />
             <span>Roster & Progress</span>
           </h3>
-          <span className="text-xs font-mono text-ink-3">{enrollments.length} enrollment(s)</span>
+          <span className="text-xs text-ink-3">{enrollments.length} enrollment(s)</span>
         </div>
 
         {progressError && (
@@ -708,11 +704,14 @@ Please log in to start learning!`;
               const busy = busyEnrollmentId === e.id;
               return (
                 <li key={e.id} className="p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
-                  <div className="min-w-0 lg:w-64">
-                    <div className="text-sm font-semibold text-ink truncate">
-                      {e.studentDisplayName || e.studentId}
+                  <div className="flex min-w-0 items-center gap-3 lg:w-64">
+                    <Avatar name={e.studentDisplayName || e.studentEmail || '?'} size={36} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-ink truncate">
+                        {e.studentDisplayName || e.studentId}
+                      </div>
+                      <div className="text-[11px] text-ink-3 truncate">{e.studentEmail || e.studentId}</div>
                     </div>
-                    <div className="text-[11px] font-mono text-ink-3 truncate">{e.studentEmail || e.studentId}</div>
                   </div>
                   <div className="lg:w-28">
                     <EnrollmentStatusBadge status={e.status} />
@@ -720,8 +719,8 @@ Please log in to start learning!`;
                   <div className="flex-1 min-w-0">
                     <ProgressCell row={row} />
                   </div>
-                  <div className="text-[11px] text-ink-3 font-mono lg:w-28">
-                    {row.lastAccessedAt ? `Last: ${formatDate(row.lastAccessedAt)}` : ''}
+                  <div className="text-[11px] text-ink-3 lg:w-28">
+                    {row.lastAccessedAt ? `Active ${formatDate(row.lastAccessedAt)}` : ''}
                   </div>
                   {canManage && (
                     <div className="flex flex-wrap gap-2 lg:justify-end lg:w-56">
@@ -767,7 +766,7 @@ Please log in to start learning!`;
 
       {/* Modal: Create & Assign Instructor */}
       {showCreateInstructorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
@@ -789,7 +788,7 @@ Please log in to start learning!`;
 
             <div className="p-3 rounded-xl bg-surface-muted border border-line text-xs space-y-1">
               <div className="font-semibold text-ink">Assigning to Batch:</div>
-              <div className="text-brand-ink font-mono">{batch.name} ({batch.code})</div>
+              <div className="text-brand-ink">{batch.name} ({batch.code})</div>
             </div>
 
             {instructorFormError && (
@@ -840,7 +839,7 @@ Please log in to start learning!`;
                   <input
                     type={showInstructorPassword ? 'text' : 'password'}
                     required
-                    minLength={6}
+                    minLength={8}
                     placeholder="Enter password"
                     value={instructorPassword}
                     onChange={(e) => setInstructorPassword(e.target.value)}
@@ -880,7 +879,7 @@ Please log in to start learning!`;
 
       {/* Modal: Share Instructor Credentials */}
       {createdInstructorCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
@@ -959,7 +958,7 @@ Please log in to start learning!`;
 
       {/* Modal: Create & Enroll Student */}
       {showCreateStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
@@ -981,7 +980,7 @@ Please log in to start learning!`;
 
             <div className="p-3 rounded-xl bg-surface-muted border border-line text-xs space-y-1">
               <div className="font-semibold text-ink">Enrolling into Batch:</div>
-              <div className="text-brand-ink font-mono">{batch.name} ({batch.code})</div>
+              <div className="text-brand-ink">{batch.name} ({batch.code})</div>
             </div>
 
             {studentFormError && (
@@ -1032,7 +1031,7 @@ Please log in to start learning!`;
                   <input
                     type={showStudentPassword ? 'text' : 'password'}
                     required
-                    minLength={6}
+                    minLength={8}
                     placeholder="Enter password"
                     value={studentPassword}
                     onChange={(e) => setStudentPassword(e.target.value)}
@@ -1072,7 +1071,7 @@ Please log in to start learning!`;
 
       {/* Modal: Share Student Credentials */}
       {createdStudentCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
@@ -1167,7 +1166,7 @@ export default function BatchDetailPage({ params }: BatchDetailPageProps) {
       fallback={
         <div className="min-h-screen bg-canvas flex flex-col items-center justify-center space-y-3">
           <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
-          <span className="text-xs text-ink-3 font-mono">Loading batch...</span>
+          <span className="text-xs text-ink-3">Loading batch...</span>
         </div>
       }
     >

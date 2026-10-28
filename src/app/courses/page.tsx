@@ -110,7 +110,7 @@ export default function CoursesPage() {
   }, [tenant?.orgId, tenant?.role, user?.uid, reloadKey]);
 
   return (
-    <AppShell pageTitle="Course Curriculum">
+    <AppShell pageTitle={isStudent ? "My Courses" : "Live Books Library"}>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
           <p className="text-sm text-ink-3 max-w-xl">

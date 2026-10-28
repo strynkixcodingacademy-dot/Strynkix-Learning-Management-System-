@@ -7,81 +7,94 @@
  * -line (borders on tints) and -ink (text on tints, >= 4.5:1).
  */
 @theme {
+  /*
+   * "Silver Atelier": warm off-white paper, white cards, a silver neutral
+   * system and one electric-cobalt accent. Light only, everywhere.
+   */
+
   /* Surfaces */
-  --color-canvas: #fafaf7;
+  --color-canvas: #f7f7f4;
   --color-surface: #ffffff;
-  --color-surface-muted: #f4f3ef;
-  --color-surface-sunken: #ecebe6;
+  --color-surface-muted: #f3f4f6;
+  --color-surface-sunken: #e9ebef;
 
   /* Ink (text) */
-  --color-ink: #202637;
-  --color-ink-2: #3e4659;
-  --color-ink-3: #687386;
-  --color-ink-4: #9aa0ac; /* decorative / disabled only */
+  --color-ink: #14171f;
+  --color-ink-2: #363d4c;
+  --color-ink-3: #5d6575;
+  --color-ink-4: #9aa1ae; /* decorative / disabled only */
 
-  /* Lines */
-  --color-line: #e8e9ed;
-  --color-line-strong: #d5d7de;
+  /* Silver lines */
+  --color-line: #e4e6eb;
+  --color-line-strong: #cfd3db;
+  --color-silver: #c3c8d2;
+  --color-silver-soft: #eef0f4;
 
-  /* Brand: cobalt (primary action, links, navigation) */
-  --color-brand: #4169e1;
-  --color-brand-strong: #3155c9;
-  --color-brand-soft: #eef2fd;
-  --color-brand-line: #c9d5f7;
-  --color-brand-ink: #2c4fc2;
+  /* Brand: electric cobalt (primary action, links, navigation) */
+  --color-brand: #2b59f0;
+  --color-brand-strong: #2449d8;
+  --color-brand-soft: #edf2ff;
+  --color-brand-line: #cbd8ff;
+  --color-brand-ink: #1f45d6;
+
+  /* Highlighter: the signature marker stroke behind titles and active nav */
+  --color-highlight: #ffe766;
+  --color-highlight-soft: #fff8cc;
 
   /* Meaning accents */
-  --color-success: #2ead70; /* completed, progress */
-  --color-success-soft: #e8f6ee;
-  --color-success-line: #bfe6cf;
-  --color-success-ink: #1b7a4c;
+  --color-success: #16a34a; /* completed, progress */
+  --color-success-strong: #15803d;
+  --color-success-soft: #e9f8ef;
+  --color-success-line: #bce8cd;
+  --color-success-ink: #167a4a;
 
-  --color-warning: #f4c95d; /* today, highlight, due soon */
-  --color-warning-soft: #fdf5dd;
-  --color-warning-line: #f0dc9c;
-  --color-warning-ink: #855e00;
+  --color-warning: #f5b70a; /* today, highlight, due soon */
+  --color-warning-soft: #fff6d6;
+  --color-warning-line: #f6dd94;
+  --color-warning-ink: #8a5a00;
 
-  --color-danger: #e5484d; /* overdue, errors, destructive */
-  --color-danger-soft: #fdeded;
-  --color-danger-line: #f6c4c4;
+  --color-danger: #ef4444; /* overdue, errors, destructive */
+  --color-danger-soft: #fff0ef;
+  --color-danger-line: #fbc8c4;
   --color-danger-ink: #b42318;
 
-  --color-coral: #ff8066; /* late, attention */
-  --color-coral-soft: #fff0ec;
-  --color-coral-line: #ffd0c4;
-  --color-coral-ink: #b4412a;
+  --color-coral: #ff7a59; /* late, attention */
+  --color-coral-soft: #fff1ec;
+  --color-coral-line: #ffd2c4;
+  --color-coral-ink: #b43d22;
 
-  --color-teal: #20b8a6; /* submissions, review */
-  --color-teal-soft: #e6f7f4;
-  --color-teal-line: #b6e6df;
-  --color-teal-ink: #0f766b;
+  --color-teal: #12b5a3; /* submissions, review */
+  --color-teal-soft: #e5f8f5;
+  --color-teal-line: #b3e8e0;
+  --color-teal-ink: #0e766a;
 
-  --color-lavender: #a997f5; /* administration */
-  --color-lavender-soft: #f2effe;
-  --color-lavender-line: #d9d1fb;
-  --color-lavender-ink: #5b45c4;
+  --color-lavender: #8b6cf6; /* administration */
+  --color-lavender-soft: #f3f0ff;
+  --color-lavender-line: #dcd3fd;
+  --color-lavender-ink: #5a3fd0;
 
-  /* Code panel (dark ink page inside the light book) + syntax colours (>= 4.5:1 on --color-code) */
-  --color-code: #1c2131;
-  --color-code-line: #2a3144;
-  --color-code-ink: #e7eaf3;
-  --color-code-muted: #8b93a7;
-  --color-syn-keyword: #c3b5ff;
-  --color-syn-string: #86e3bf;
-  --color-syn-number: #ffb895;
-  --color-syn-comment: #8b93a7;
-  --color-syn-fn: #9cbcff;
-  --color-syn-highlight: #2a3352;
+  /* Code panel: a light "silver sheet" (no dark surfaces anywhere). Syntax >= 4.5:1. */
+  --color-code: #f8f9fb;
+  --color-code-line: #e4e6eb;
+  --color-code-ink: #1f2937;
+  --color-code-muted: #6b7280;
+  --color-syn-keyword: #7a2fb8;
+  --color-syn-string: #0f7a55;
+  --color-syn-number: #b4501a;
+  --color-syn-comment: #6b7280;
+  --color-syn-fn: #1d4ed8;
+  --color-syn-highlight: #fff6c2;
 
   /* Type */
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
   /* Shape & depth */
-  --radius-card: 14px;
-  --shadow-card: 0 1px 2px rgb(32 38 55 / 0.04), 0 1px 1px rgb(32 38 55 / 0.03);
-  --shadow-lift: 0 6px 20px -8px rgb(32 38 55 / 0.18), 0 2px 4px rgb(32 38 55 / 0.05);
+  --radius-card: 16px;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 1px 2px rgb(20 23 31 / 0.04), 0 2px 6px -2px rgb(20 23 31 / 0.04);
+  --shadow-lift: 0 14px 32px -14px rgb(20 23 31 / 0.18), 0 3px 8px -2px rgb(20 23 31 / 0.06);
+  --shadow-float: 0 24px 60px -20px rgb(20 23 31 / 0.28), 0 6px 16px -6px rgb(20 23 31 / 0.08);
 
   /* Motion */
   --animate-rise: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -119,8 +132,12 @@
     font-feature-settings: "ss01", "cv11";
   }
 
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+
   ::selection {
-    background: var(--color-warning-soft);
+    background: var(--color-highlight);
     color: var(--color-ink);
   }
 
@@ -143,6 +160,29 @@
   line-height: 1.75;
   color: var(--color-ink-2);
   max-width: 68ch;
+}
+
+/* Signature: a highlighter-marker stroke behind a word or title. */
+@utility marker {
+  background-image: linear-gradient(104deg, transparent 0.4em, var(--color-highlight) 0.5em, var(--color-highlight) calc(100% - 0.3em), transparent calc(100% - 0.2em));
+  background-repeat: no-repeat;
+  background-size: 100% 0.42em;
+  background-position: 0 88%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding-inline: 0.08em;
+}
+
+/* Brushed-silver hairline used for dividers and the sidebar edge. */
+@utility silver-rule {
+  background-image: linear-gradient(90deg, transparent, var(--color-silver) 18%, var(--color-line-strong) 50%, var(--color-silver) 82%, transparent);
+  height: 1px;
+}
+
+/* Soft dotted paper texture for hero areas (very subtle, light only). */
+@utility paper-dots {
+  background-image: radial-gradient(rgb(20 23 31 / 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
 /* Skeleton placeholder. */

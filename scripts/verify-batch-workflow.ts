@@ -13,7 +13,7 @@
  */
 
 import { initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, increment, query, setDoc, updateDoc, where, writeBatch, WriteBatch } from 'firebase/firestore';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Batch, Enrollment, Progress } from '../src/types/domain';
@@ -127,7 +127,7 @@ async function main() {
       endDate: '2027-03-31T00:00:00.000Z',
       maxStudents: 25,
     });
-    const batchRecord = { id: BATCH, ...parsedBatch, createdById: 'wf_ba_pune', createdAt: now, updatedAt: now };
+    const batchRecord = { id: BATCH, ...parsedBatch, activeEnrollmentCount: 0, createdById: 'wf_ba_pune', createdAt: now, updatedAt: now };
     await expectAllowed('batch created with validated course, branch and instructor', () =>
       setDoc(doc(admin, 'batches', BATCH), batchRecord)
     );
@@ -159,8 +159,18 @@ async function main() {
       createdAt: now,
       updatedAt: now,
     });
-    await expectAllowed('Aarav enrolled', () =>
+    // The batch is capped (maxStudents), so seats move with every enrollment write (owner decision D2).
+    const withSeat = (delta: number, apply: (w: WriteBatch) => void) => {
+      const w = writeBatch(admin);
+      apply(w);
+      if (delta) w.update(doc(admin, 'batches', BATCH), { activeEnrollmentCount: increment(delta) });
+      return w.commit();
+    };
+    await expectDenied('an enrollment that skips the seat counter is rejected on a capped batch', () =>
       setDoc(doc(admin, 'enrollments', enrollmentIdFor(COURSE, 'wf_stu_aarav')), enrollmentFor('wf_stu_aarav', 'Aarav Patel'))
+    );
+    await expectAllowed('Aarav enrolled', () =>
+      withSeat(1, (w) => w.set(doc(admin, 'enrollments', enrollmentIdFor(COURSE, 'wf_stu_aarav')), enrollmentFor('wf_stu_aarav', 'Aarav Patel')))
     );
     await expectDenied('a second enrollment record for the same student and course is rejected', () =>
       setDoc(doc(admin, 'enrollments', 'duplicate_aarav'), enrollmentFor('wf_stu_aarav', 'Aarav Patel'))
@@ -200,7 +210,7 @@ async function main() {
     // -------------------------------------------------------------------------
     console.log('[Step 4] Instructor workflow...');
     await expectAllowed('Diya enrolled (no activity yet)', () =>
-      setDoc(doc(admin, 'enrollments', enrollmentIdFor(COURSE, 'wf_stu_diya')), enrollmentFor('wf_stu_diya', 'Diya Sharma'))
+      withSeat(1, (w) => w.set(doc(admin, 'enrollments', enrollmentIdFor(COURSE, 'wf_stu_diya')), enrollmentFor('wf_stu_diya', 'Diya Sharma')))
     );
     const priya = as('wf_inst_priya');
     const myBatches = await getDocs(
@@ -247,7 +257,7 @@ async function main() {
     // -------------------------------------------------------------------------
     console.log('[Step 5] Withdraw and reactivate...');
     const aaravEnrollment = doc(admin, 'enrollments', enrollmentIdFor(COURSE, 'wf_stu_aarav'));
-    await expectAllowed('Aarav withdrawn', () => updateDoc(aaravEnrollment, { status: 'dropped', updatedAt: now }));
+    await expectAllowed('Aarav withdrawn (frees a seat)', () => withSeat(-1, (w) => w.update(aaravEnrollment, { status: 'dropped', updatedAt: now })));
     await expectDenied('withdrawn Aarav loses course access', () => getDoc(doc(aarav, 'lessons', 'wf_les_2')));
     await expectDenied('withdrawn Aarav cannot record progress', () =>
       setDoc(doc(aarav, 'progress', `wf_stu_aarav_${COURSE}_wf_les_2`), {
@@ -255,7 +265,10 @@ async function main() {
         studentId: 'wf_stu_aarav', batchId: BATCH, status: 'in_progress', timeSpentSeconds: 30,
       })
     );
-    await expectAllowed('Aarav reactivated', () => updateDoc(aaravEnrollment, { status: 'active', updatedAt: now }));
+    await expectAllowed('Aarav reactivated (takes a seat)', () => withSeat(1, (w) => w.update(aaravEnrollment, { status: 'active', updatedAt: now })));
+    const seats = ((await getDoc(doc(admin, 'batches', BATCH))).data() as Batch).activeEnrollmentCount;
+    if (seats !== 2) throw new Error(`Seat counter should be 2 after enroll/withdraw/reactivate, got ${seats}`);
+    console.log('  ✓ Seat counter matches the active roster (2)');
     await expectAllowed('reactivated Aarav regains course access', () => getDoc(doc(aarav, 'lessons', 'wf_les_2')));
     console.log('');
 
@@ -271,9 +284,9 @@ async function main() {
     }
     console.log('  ✓ Instructor assignments preserved after archiving');
     const diyaEnrollment = doc(admin, 'enrollments', enrollmentIdFor(COURSE, 'wf_stu_diya'));
-    await expectAllowed('Diya withdrawn from the archived batch', () => updateDoc(diyaEnrollment, { status: 'dropped' }));
+    await expectAllowed('Diya withdrawn from the archived batch', () => withSeat(-1, (w) => w.update(diyaEnrollment, { status: 'dropped' })));
     await expectDenied('dropped enrollment cannot be reactivated into an archived batch', () =>
-      updateDoc(diyaEnrollment, { status: 'active' })
+      withSeat(1, (w) => w.update(diyaEnrollment, { status: 'active' }))
     );
     console.log('');
 

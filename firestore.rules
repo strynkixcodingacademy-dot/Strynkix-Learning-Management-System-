@@ -311,9 +311,20 @@ service cloud.firestore {
     function isValidBatchShape(data) {
       return data.keys().hasAll(['orgId', 'branchId', 'courseId', 'name', 'code', 'instructorUserIds', 'startDate', 'status']) &&
         data.keys().hasOnly([
-          'id', 'orgId', 'branchId', 'courseId', 'name', 'code', 'instructorUserIds',
-          'startDate', 'endDate', 'maxStudents', 'status', 'createdById', 'createdAt', 'updatedAt'
+          'id', 'orgId', 'branchId', 'courseId', 'name', 'code', 'instructorUserIds', 'instructorNames',
+          'startDate', 'endDate', 'maxStudents', 'activeEnrollmentCount', 'status', 'createdById', 'createdAt', 'updatedAt'
         ]) &&
+        (!('activeEnrollmentCount' in data) || (data.activeEnrollmentCount is int && data.activeEnrollmentCount >= 0)) &&
+        // Display names shown to students (D5): one short string per instructor, nothing else.
+        (!('instructorNames' in data) || (
+          data.instructorNames is list &&
+          data.instructorNames.size() == data.instructorUserIds.size() &&
+          (data.instructorNames.size() < 1 || (data.instructorNames[0] is string && data.instructorNames[0].size() <= 100)) &&
+          (data.instructorNames.size() < 2 || (data.instructorNames[1] is string && data.instructorNames[1].size() <= 100)) &&
+          (data.instructorNames.size() < 3 || (data.instructorNames[2] is string && data.instructorNames[2].size() <= 100)) &&
+          (data.instructorNames.size() < 4 || (data.instructorNames[3] is string && data.instructorNames[3].size() <= 100)) &&
+          (data.instructorNames.size() < 5 || (data.instructorNames[4] is string && data.instructorNames[4].size() <= 100))
+        )) &&
         data.name is string && data.name.size() >= 2 && data.name.size() <= 160 &&
         data.code is string && data.code.size() >= 2 && data.code.size() <= 30 &&
         isIsoTimestamp(data.startDate) &&
@@ -337,6 +348,31 @@ service cloud.firestore {
         isOptionalIsoTimestamp(data, 'completedAt') &&
         (!('studentDisplayName' in data) || (data.studentDisplayName is string && data.studentDisplayName.size() <= 100)) &&
         (!('studentEmail' in data) || (data.studentEmail is string && data.studentEmail.size() <= 255));
+    }
+
+    // Batch capacity (owner decision D2). On a batch with maxStudents, every
+    // enrollment write that adds or removes an active seat must move the batch's
+    // activeEnrollmentCount by exactly that amount in the same atomic write, and
+    // never past maxStudents. Concurrent enrollments therefore serialise on the
+    // batch document instead of both passing a client-side check.
+    function seatsOf(batchDoc) {
+      return batchDoc.data.get('activeEnrollmentCount', 0);
+    }
+
+    function seatChangeOk(batchId, delta) {
+      let before = get(/databases/$(database)/documents/batches/$(batchId));
+      let after = getAfter(/databases/$(database)/documents/batches/$(batchId));
+      return !('maxStudents' in before.data) || (
+        seatsOf(after) == seatsOf(before) + delta &&
+        (delta <= 0 || seatsOf(after) <= after.data.maxStudents)
+      );
+    }
+
+    function seatTransitionOk(batchId, wasActive, nowActive) {
+      return (wasActive && nowActive && seatChangeOk(batchId, 0)) ||
+        (!wasActive && nowActive && seatChangeOk(batchId, 1)) ||
+        (wasActive && !nowActive && seatChangeOk(batchId, -1)) ||
+        (!wasActive && !nowActive && seatChangeOk(batchId, 0));
     }
 
     // Verifies every relationship an active enrollment depends on: the batch is
@@ -503,11 +539,15 @@ service cloud.firestore {
         ))
       );
 
-      // createdById, when present, must be the caller; it and createdAt are immutable.
+      // Course governance (owner decision D3): courses are shared by every
+      // branch, so only the Super Admin publishes, unpublishes, archives or
+      // deletes them. Other staff create drafts and edit a course only while it
+      // is still a draft. createdById must be the caller; it and createdAt are immutable.
       allow create: if isSuperAdmin() || (
         isAuthenticated() && isAccountActive() &&
         (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
         getUserOrgId() == request.resource.data.orgId &&
+        request.resource.data.get('status', 'draft') == 'draft' &&
         request.resource.data.get('createdById', request.auth.uid) == request.auth.uid
       );
 
@@ -515,16 +555,14 @@ service cloud.firestore {
         isAuthenticated() && isAccountActive() &&
         (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
         getUserOrgId() == resource.data.orgId &&
+        resource.data.get('status', 'draft') == 'draft' &&
+        request.resource.data.get('status', 'draft') == 'draft' &&
         request.resource.data.orgId == resource.data.orgId &&
         request.resource.data.get('createdById', null) == resource.data.get('createdById', null) &&
         request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
       );
 
-      allow delete: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'branch_admin']) &&
-        getUserOrgId() == resource.data.orgId
-      );
+      allow delete: if isSuperAdmin();
     }
 
     // -------------------------------------------------------------------------
@@ -583,6 +621,7 @@ service cloud.firestore {
 
       // Tenant ownership is checked against the EXISTING document on update so a
       // foreign-org author cannot take over a record by relabelling its orgId.
+      // Modules are structure, not a release step; lesson and course status gate visibility.
       allow create: if canAuthorInOrg(request.resource.data.orgId) &&
         courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId);
 
@@ -610,12 +649,15 @@ service cloud.firestore {
         ))
       );
 
+      // Staff write content; only the Super Admin changes status (D3).
       allow create: if canAuthorInOrg(request.resource.data.orgId) &&
-        courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId);
+        courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId) &&
+        (isSuperAdmin() || request.resource.data.get('status', 'draft') == 'draft');
 
       allow update: if canAuthorInOrg(resource.data.orgId) &&
         request.resource.data.orgId == resource.data.orgId &&
-        request.resource.data.courseId == resource.data.courseId;
+        request.resource.data.courseId == resource.data.courseId &&
+        (isSuperAdmin() || request.resource.data.get('status', 'draft') == resource.data.get('status', 'draft'));
 
       allow delete: if isSuperAdmin();
     }
@@ -628,7 +670,6 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /enrollments/{enrollmentId} {
       allow read: if isAuthenticated() && isAccountActive() && (
-        resource == null ||
         isSuperAdmin() ||
         isUniversityAdmin(resource.data.orgId) ||
         isBranchAdmin(resource.data.orgId, resource.data.branchId) ||
@@ -641,7 +682,8 @@ service cloud.firestore {
         isValidEnrollmentShape(request.resource.data) &&
         request.resource.data.status == 'active' &&
         request.resource.data.get('enrolledById', request.auth.uid) == request.auth.uid &&
-        isValidEnrollmentTarget(request.resource.data);
+        isValidEnrollmentTarget(request.resource.data) &&
+        seatChangeOk(request.resource.data.batchId, 1);
 
       allow update: if canManageBranch(resource.data.orgId, resource.data.branchId) &&
         canManageBranch(request.resource.data.orgId, request.resource.data.branchId) &&
@@ -660,12 +702,16 @@ service cloud.firestore {
               request.resource.data.status != 'active' ||
               resource.data.status == 'active' ||
               isValidEnrollmentTarget(request.resource.data)
-            )
+            ) &&
+            seatTransitionOk(resource.data.batchId, resource.data.status == 'active', request.resource.data.status == 'active')
           ) ||
           (
             // Re-enrollment into another batch of the same course.
+            request.resource.data.batchId != resource.data.batchId &&
             request.resource.data.status == 'active' &&
-            isValidEnrollmentTarget(request.resource.data)
+            isValidEnrollmentTarget(request.resource.data) &&
+            seatChangeOk(request.resource.data.batchId, 1) &&
+            seatTransitionOk(resource.data.batchId, resource.data.status == 'active', false)
           )
         );
 
@@ -680,7 +726,6 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /progress/{progressId} {
       allow read: if isAuthenticated() && isAccountActive() && (
-        resource == null ||
         isSuperAdmin() ||
         (getUserOrgId() == resource.data.orgId && resource.data.studentId == request.auth.uid) ||
         isUniversityAdmin(resource.data.orgId) ||

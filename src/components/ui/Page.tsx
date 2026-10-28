@@ -47,9 +47,11 @@ export function PageHeader({
       {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1 min-w-0">
-          {eyebrow && <div className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-ink">{eyebrow}</div>}
-          <h1 className="font-display text-2xl sm:text-[28px] leading-tight font-extrabold tracking-tight text-ink">{title}</h1>
-          {description && <p className="text-sm text-ink-3 max-w-2xl">{description}</p>}
+          {eyebrow && <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">{eyebrow}</div>}
+          <h1 className="font-display text-[28px] sm:text-[34px] leading-[1.12] font-semibold tracking-[-0.01em] text-ink">
+            <span className="marker">{title}</span>
+          </h1>
+          {description && <p className="text-[15px] text-ink-3 max-w-2xl">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
       </div>
@@ -77,8 +79,8 @@ export function Section({
   return (
     <section aria-labelledby={headingId} className={cx('space-y-4', className)}>
       <div className="flex items-center justify-between gap-3">
-        <h2 id={headingId} className="flex items-center gap-2 text-lg font-bold text-ink tracking-tight">
-          {Icon && <Icon className="w-5 h-5 text-brand" />}
+        <h2 id={headingId} className="flex items-center gap-2.5 text-[17px] font-extrabold text-ink tracking-tight">
+          {Icon && <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand"><Icon className="w-4 h-4" /></span>}
           {title}
         </h2>
         {action}
@@ -98,7 +100,7 @@ export function Card({ children, className, as: As = 'div', interactive = false 
   return (
     <As className={cx(
       'rounded-card border border-line bg-surface shadow-card',
-      interactive && 'transition-[box-shadow,transform,border-color] duration-200 hover:shadow-lift hover:-translate-y-0.5 hover:border-line-strong',
+      interactive && 'transition-[box-shadow,transform,border-color] duration-200 hover:shadow-lift hover:-translate-y-0.5 hover:border-silver',
       className
     )}>
       {children}

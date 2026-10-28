@@ -119,9 +119,13 @@ export interface Batch {
   name: string; // e.g., "Full-Stack Alpha 2026"
   code: string; // e.g., "FSA-26"
   instructorUserIds: string[];
+  /** Display names for students, same order as instructorUserIds (owner decision D5). */
+  instructorNames?: string[];
   startDate: string;
   endDate?: string;
   maxStudents?: number;
+  /** Active seats on a capped batch, kept in step by every enrollment write (D2). */
+  activeEnrollmentCount?: number;
   status: BatchStatus;
   createdById?: string; // UID of the administrator who created the batch (immutable)
   createdAt: string;

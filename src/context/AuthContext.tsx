@@ -26,6 +26,7 @@ import { auth, db } from '@/lib/firebase/client';
 import { AuthContextValue, AuthStatus, TenantContext } from '@/types/auth';
 import { UserProfile } from '@/types/domain';
 import { validateUserProfile, formatAuthError } from '@/lib/auth/profile';
+import { setAcademyTimeZone } from '@/lib/learning/metrics';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -102,6 +103,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setTenant(null);
         setStatus('suspended');
         setError(validation.error || 'Your account has been suspended. Please contact your academy administrator.');
+        return;
+      }
+
+      // Academy time zone (D4) must be known before any page computes "today".
+      try {
+        const org = await getDoc(doc(db, 'organizations', validation.profile.orgId));
+        setAcademyTimeZone(org.exists() ? (org.data().settings?.defaultTimezone as string | undefined) : undefined);
+      } catch {
+        setAcademyTimeZone(undefined);
+      }
+      if (sequenceId !== activeSequenceRef.current) {
         return;
       }
 

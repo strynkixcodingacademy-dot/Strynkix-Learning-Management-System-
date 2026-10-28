@@ -1,14 +1,13 @@
 /**
  * Strynkix LMS — Phase 8 release-readiness rules audit.
  * Covers reassignment/removal, profile privacy, unauthenticated and pending
- * access, forged progress, branch scope and archived plans. "policy:" tests pin
- * CURRENT behaviour that needs product-owner approval (see docs/RELEASE_READINESS.md);
- * changing that behaviour must be a deliberate edit of the test.
+ * access, forged progress, branch scope and archived plans, plus the owner-approved
+ * course governance (D3) and batch capacity (D2) policies.
  */
 
-import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest';
 import { initializeTestEnvironment, RulesTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, Firestore } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch, Firestore } from 'firebase/firestore';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -186,38 +185,62 @@ describe('Phase 8 — branch scope and archived plans', () => {
   });
 });
 
-describe('Phase 8 — policy: current behaviour awaiting owner approval', () => {
-  it('policy: any instructor in the org can unpublish any course in the org (affects every branch)', async () => {
-    await assertSucceeds(updateDoc(doc(as('inst_other'), 'courses/course_x'), { status: 'draft' }));
+describe('Course governance (owner decision D3, approved)', () => {
+  it('instructors and branch managers cannot publish, unpublish or archive a shared course', async () => {
+    await assertFails(updateDoc(doc(as('inst_other'), 'courses/course_x'), { status: 'draft' }));
+    await assertFails(updateDoc(doc(as('ba_a'), 'courses/course_x'), { status: 'archived' }));
   });
 
-  it('policy: a branch admin can delete any course in the org (no UI calls this today)', async () => {
-    await assertSucceeds(deleteDoc(doc(as('ba_b'), 'courses/course_x')));
-  });
-
-  it('policy: an instructor can never delete courses or lessons', async () => {
+  it('only the Super Admin deletes courses; branch managers and instructors cannot', async () => {
+    await assertFails(deleteDoc(doc(as('ba_b'), 'courses/course_x')));
     await assertFails(deleteDoc(doc(as('inst_a'), 'courses/course_x')));
     await assertFails(deleteDoc(doc(as('inst_a'), 'lessons/les_1')));
   });
+
+  it('staff cannot edit a published course, but can create and edit drafts', async () => {
+    await assertFails(updateDoc(doc(as('inst_a'), 'courses/course_x'), { title: 'Renamed' }));
+    await assertFails(setDoc(doc(as('inst_a'), 'courses/course_new'), { orgId: 'strynkix', title: 'New', status: 'published' }));
+    await assertSucceeds(setDoc(doc(as('inst_a'), 'courses/course_new'), { orgId: 'strynkix', title: 'New', status: 'draft' }));
+    await assertSucceeds(updateDoc(doc(as('inst_a'), 'courses/course_new'), { title: 'New, edited' }));
+    await assertFails(updateDoc(doc(as('inst_a'), 'courses/course_new'), { status: 'published' }));
+  });
+
+  it('staff edit lesson content but cannot change lesson status', async () => {
+    await assertSucceeds(updateDoc(doc(as('inst_a'), 'lessons/les_1'), { title: 'Edited lesson' }));
+    await assertFails(updateDoc(doc(as('inst_a'), 'lessons/les_1'), { status: 'draft' }));
+    await assertFails(setDoc(doc(as('inst_a'), 'lessons/les_new'), { orgId: 'strynkix', courseId: 'course_x', moduleId: 'm1', status: 'published' }));
+    await assertSucceeds(setDoc(doc(as('inst_a'), 'lessons/les_new'), { orgId: 'strynkix', courseId: 'course_x', moduleId: 'm1', status: 'draft' }));
+  });
+
+  it('the Super Admin publishes, unpublishes and deletes', async () => {
+    await trusted((db) => setDoc(doc(db, 'users/super'), { role: 'super_admin', orgId: 'strynkix', status: 'active', email: 's@example.test', displayName: 'S' }));
+    await assertSucceeds(updateDoc(doc(as('super'), 'lessons/les_1'), { status: 'draft' }));
+    await assertSucceeds(updateDoc(doc(as('super'), 'courses/course_x'), { status: 'archived' }));
+    await assertSucceeds(deleteDoc(doc(as('super'), 'courses/course_x')));
+  });
 });
 
-describe('Phase 8 — known gap: batch capacity is not enforced by rules', () => {
-  it('known gap: two concurrent enrollments both succeed in a batch with maxStudents = 1', async () => {
+describe('Phase 8 — batch capacity (was a known gap; fixed by owner decision D2)', () => {
+  it('fixed: two concurrent enrollments into a batch with maxStudents = 1 — only one succeeds', async () => {
     await trusted(async (db) => {
-      await updateDoc(doc(db, 'batches/batch_a'), { maxStudents: 1 });
       await setDoc(doc(db, 'users/stu_3'), { role: 'student', orgId: 'strynkix', branchId: 'branch_a', status: 'active', email: 'stu_3@example.test', displayName: 'stu_3' });
       await setDoc(doc(db, 'users/stu_4'), { role: 'student', orgId: 'strynkix', branchId: 'branch_a', status: 'active', email: 'stu_4@example.test', displayName: 'stu_4' });
       await setDoc(doc(db, 'courses/course_y'), { orgId: 'strynkix', title: 'Y', status: 'published' });
       await setDoc(doc(db, 'batches/batch_cap'), {
         orgId: 'strynkix', branchId: 'branch_a', courseId: 'course_y', name: 'Cap', code: 'CAP',
-        instructorUserIds: [], startDate: NOW, status: 'upcoming', maxStudents: 1,
+        instructorUserIds: [], startDate: NOW, status: 'upcoming', maxStudents: 1, activeEnrollmentCount: 0,
       });
     });
-    const enroll = (admin: string, studentId: string) => setDoc(doc(as(admin), `enrollments/course_y_${studentId}`), {
-      orgId: 'strynkix', branchId: 'branch_a', courseId: 'course_y', batchId: 'batch_cap', studentId, status: 'active', enrolledAt: NOW,
-    });
-    // The service checks capacity client-side before writing; two admins racing
-    // both pass that check, and the rules accept both writes.
-    await Promise.all([assertSucceeds(enroll('ba_a', 'stu_3')), assertSucceeds(enroll('uni', 'stu_4'))]);
+    const enroll = (admin: string, studentId: string) => {
+      const db = as(admin);
+      const w = writeBatch(db);
+      w.set(doc(db, `enrollments/course_y_${studentId}`), {
+        orgId: 'strynkix', branchId: 'branch_a', courseId: 'course_y', batchId: 'batch_cap', studentId, status: 'active', enrolledAt: NOW,
+      });
+      w.update(doc(db, 'batches/batch_cap'), { activeEnrollmentCount: increment(1) });
+      return w.commit();
+    };
+    const results = await Promise.allSettled([enroll('ba_a', 'stu_3'), enroll('uni', 'stu_4')]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
   });
 });

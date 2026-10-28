@@ -22,16 +22,22 @@ import { Card, PageHeader, Section } from '@/components/ui/Page';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { formatPlanDate } from './LearningBits';
+import { KpiTile } from '@/components/ui/DataViz';
+import { TONE_CLASSES, Tone } from '@/components/ui/tones';
 import {
   ArrowRight,
+  BarChart3,
   Building2,
   CalendarCheck,
   CalendarPlus,
   ClipboardCheck,
   FileEdit,
   GitBranch,
-  MessageSquareWarning,
+  GraduationCap,
+  Layers,
   PenTool,
+  Sparkles,
+  UserPlus,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -89,10 +95,11 @@ function Stat({ value, total, label, tone }: { value: number | null; total?: num
   );
 }
 
-function QuickLink({ href, icon: Icon, title, body }: { href: string; icon: LucideIcon; title: string; body: string }) {
+function QuickLink({ href, icon: Icon, title, body, tone = 'brand' }: { href: string; icon: LucideIcon; title: string; body: string; tone?: Tone }) {
+  const t = TONE_CLASSES[tone];
   return (
-    <Link href={href} className="group flex items-start gap-3 rounded-card border border-line bg-surface p-4 shadow-card transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-lift">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lavender-soft text-lavender-ink"><Icon className="w-5 h-5" /></span>
+    <Link href={href} className="group flex items-start gap-3 rounded-card border border-line bg-surface p-4 shadow-card transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-silver hover:shadow-lift">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${t.soft} ${t.ink}`}><Icon className="w-5 h-5" /></span>
       <span className="min-w-0">
         <span className="flex items-center gap-1 text-sm font-bold text-ink">{title} <ArrowRight className="w-3.5 h-3.5 opacity-0 transition-opacity group-hover:opacity-100" /></span>
         <span className="block text-xs text-ink-3">{body}</span>
@@ -148,6 +155,9 @@ export function StaffHome() {
   const isManager = isBatchManagerRole(tenant.role);
   const needsReview = rows.reduce((n, r) => n + (r.needsReview ?? 0), 0);
   const unplanned = rows.filter((r) => !r.plan).length;
+  const activeStudents = rows.reduce((n, r) => n + r.activeStudents, 0);
+  const firstReview = rows.find((r) => r.plan && (r.needsReview ?? 0) > 0);
+  const firstUnplanned = rows.find((r) => !r.plan);
 
   return (
     <div className="space-y-10">
@@ -158,6 +168,15 @@ export function StaffHome() {
           ? 'You have no running batches right now.'
           : `${formatPlanDate(today, 'long')} · ${needsReview} submission${needsReview === 1 ? '' : 's'} to review · ${unplanned} batch${unplanned === 1 ? '' : 'es'} without a plan today`}
       />
+
+      {!isLoading && !error && rows.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <KpiTile label="Running batches" value={rows.length} icon={Layers} hint="Upcoming or in progress." />
+          <KpiTile label="Active students" value={activeStudents} icon={GraduationCap} tone="teal" hint="Enrolled and active in those batches." />
+          <KpiTile label="To review" value={needsReview} icon={ClipboardCheck} tone="coral" hint="Today’s submissions waiting for marks or feedback." />
+          <KpiTile label="Unplanned today" value={unplanned} icon={CalendarPlus} tone="warning" hint={unplanned ? 'Batches with no plan for today.' : 'Every batch has today planned.'} />
+        </div>
+      )}
 
       <Section id="today" title="Today across your batches" icon={CalendarCheck}
         action={<Link href="/dashboard/batches" className="text-sm font-semibold text-brand-ink hover:underline">All batches</Link>}>
@@ -208,18 +227,29 @@ export function StaffHome() {
         )}
       </Section>
 
-      <Section id="shortcuts" title="Shortcuts">
+      <Section id="next" title="Next steps" icon={Sparkles}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <QuickLink href="/dashboard/batches" icon={Users} title={isManager ? 'Batches & enrollment' : 'My batches'} body={isManager ? 'Create cohorts, assign instructors, enroll students.' : 'Rosters, daily plans and progress.'} />
-          <QuickLink href="/dashboard/courses" icon={PenTool} title="Course authoring" body="Modules, Live Book lessons and publishing." />
+          {firstReview && (
+            <QuickLink href={`/dashboard/batches/${firstReview.batch.id}/plans/${firstReview.plan!.id}`} icon={ClipboardCheck} tone="coral"
+              title={`Review ${needsReview} submission${needsReview === 1 ? '' : 's'}`} body={`Start with ${firstReview.batch.name}. Grade or request a correction.`} />
+          )}
+          {firstUnplanned && (
+            <QuickLink href={`/dashboard/batches/${firstUnplanned.batch.id}/plans`} icon={CalendarPlus} tone="warning"
+              title={`Plan today for ${unplanned} batch${unplanned === 1 ? '' : 'es'}`} body={`${firstUnplanned.batch.name} has no plan for today yet.`} />
+          )}
+          {isManager && (
+            <QuickLink href="/dashboard/batches" icon={UserPlus} title="Add or enroll students" body="Open a batch to create student accounts and enroll them in one step." />
+          )}
+          {(tenant.role === 'super_admin' || tenant.role === 'branch_admin') && (
+            <QuickLink href="/dashboard/people" icon={Users} title="Manage people" body="Approve pending sign-ups, suspend or reactivate accounts." />
+          )}
+          <QuickLink href="/dashboard/analytics" icon={BarChart3} tone="teal" title="See analytics" body="Completion, submissions, marks and students who need attention." />
           {(tenant.role === 'super_admin' || tenant.role === 'university_admin') && (
-            <QuickLink href="/dashboard/branches" icon={GitBranch} title="Branches" body={counts.branches !== undefined ? `${counts.branches} branch${counts.branches === 1 ? '' : 'es'} in scope.` : 'Campus locations and remote hubs.'} />
+            <QuickLink href="/dashboard/branches" icon={GitBranch} tone="lavender" title="Branches" body={counts.branches !== undefined ? `${counts.branches} branch${counts.branches === 1 ? '' : 'es'}. Open one to see its batches and team.` : 'Campuses and franchises.'} />
           )}
-          {tenant.role === 'super_admin' && (
-            <QuickLink href="/dashboard/organizations" icon={Building2} title="Organizations" body={counts.orgs !== undefined ? `${counts.orgs} organization${counts.orgs === 1 ? '' : 's'}.` : 'Academies and partners.'} />
-          )}
-          {tenant.role === 'instructor' && (
-            <QuickLink href="/dashboard/batches" icon={MessageSquareWarning} title="Review submissions" body="Open a batch’s daily plan to grade and give feedback." />
+          <QuickLink href="/dashboard/courses" icon={PenTool} tone="lavender" title="Write a lesson" body="Build courses, modules and interactive Live Book lessons." />
+          {tenant.role === 'super_admin' && counts.orgs !== undefined && (
+            <QuickLink href="/dashboard/organizations" icon={Building2} tone="lavender" title="Organization" body={`${counts.orgs} organization${counts.orgs === 1 ? '' : 's'} configured.`} />
           )}
         </div>
       </Section>

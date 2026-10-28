@@ -61,7 +61,7 @@ export function CodePanel({
   const lines = code.replace(/\n$/, '').split('\n');
   const highlight = new Set(highlightLines);
   return (
-    <figure className="my-6 overflow-hidden rounded-xl bg-code shadow-card">
+    <figure className="my-6 overflow-hidden rounded-xl border border-code-line bg-code shadow-card">
       <div className="flex items-center justify-between gap-3 border-b border-code-line px-4 py-2">
         <div className="flex min-w-0 items-center gap-2 text-xs text-code-muted">
           <FileCode className="w-4 h-4 shrink-0" aria-hidden="true" />

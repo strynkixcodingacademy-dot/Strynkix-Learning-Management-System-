@@ -23,7 +23,7 @@ const ENROLLMENT_LABELS: Record<EnrollmentStatus, string> = {
   suspended: 'deactivated',
 };
 
-const badgeClass = 'text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border whitespace-nowrap';
+const badgeClass = 'text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border whitespace-nowrap';
 
 export function BatchStatusBadge({ status }: { status: BatchStatus }) {
   return <span className={`${badgeClass} ${BATCH_STYLES[status] || BATCH_STYLES.archived}`}>{status.replace('_', ' ')}</span>;

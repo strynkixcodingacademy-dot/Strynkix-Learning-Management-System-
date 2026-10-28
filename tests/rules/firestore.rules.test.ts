@@ -1204,13 +1204,11 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
     );
   });
 
-  it('instructor CAN update their course and toggle publication status to published', async () => {
+  // Owner decision D3: shared courses are published by the Super Admin only.
+  it('instructor CAN edit their draft course but CANNOT publish it', async () => {
     const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
-    await assertSucceeds(
-      updateDoc(doc(instructorDb, 'courses/draft_course_1'), {
-        status: 'published',
-      })
-    );
+    await assertSucceeds(updateDoc(doc(instructorDb, 'courses/draft_course_1'), { title: 'Draft course, edited' }));
+    await assertFails(updateDoc(doc(instructorDb, 'courses/draft_course_1'), { status: 'published' }));
   });
 
   it('instructor CAN create modules and lessons for a course in their org', async () => {
