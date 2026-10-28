@@ -235,3 +235,10 @@
     display: none;
   }
 }
+
+/* Lesson reader: text runs the full column, like the reference layout. */
+.lesson-flow .prose-reading {
+  max-width: none;
+  font-size: 17px;
+  color: var(--color-ink);
+}

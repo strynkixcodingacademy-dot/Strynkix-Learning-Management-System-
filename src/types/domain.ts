@@ -228,6 +228,29 @@ export interface PracticeTaskBlock {
   expectedOutcome: string;
 }
 
+/** A YouTube video embedded in the lesson. */
+export interface VideoBlock {
+  id: string;
+  type: 'video';
+  url: string; // YouTube watch / share / embed URL
+  title: string;
+  caption?: string;
+}
+
+export interface ReferenceLink {
+  label: string;
+  url: string; // https only
+  description?: string;
+}
+
+/** Further reading: a titled list of external links. */
+export interface ReferencesBlock {
+  id: string;
+  type: 'references';
+  title?: string;
+  links: ReferenceLink[];
+}
+
 export type LessonBlock =
   | TextBlock
   | HeadingBlock
@@ -236,7 +259,9 @@ export type LessonBlock =
   | CalloutBlock
   | WorkedExampleBlock
   | QuizBlock
-  | PracticeTaskBlock;
+  | PracticeTaskBlock
+  | VideoBlock
+  | ReferencesBlock;
 
 // Backward-compatible alias for existing imports
 export type LessonContentBlock = LessonBlock;

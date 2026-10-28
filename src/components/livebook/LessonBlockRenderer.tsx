@@ -8,7 +8,8 @@
 import React from 'react';
 import { LessonBlock } from '@/types/domain';
 import { lessonBlockSchema } from '@/types/validation';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, PlayCircle } from 'lucide-react';
+import { youtubeEmbedUrl } from '@/lib/livebook/video';
 import { CodeBlockView } from './CodeBlockView';
 import { QuizBlockView } from './QuizBlockView';
 import { PracticeTaskView } from './PracticeTaskView';
@@ -108,6 +109,51 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
 
     case 'practice_task':
       return <PracticeTaskView block={validBlock} />;
+
+    case 'video': {
+      const src = youtubeEmbedUrl(validBlock.url);
+      if (!src) return null;
+      return (
+        <figure className="my-8 space-y-2">
+          <div className="relative aspect-video overflow-hidden rounded-xl border border-line bg-surface-sunken shadow-card">
+            <iframe
+              src={src}
+              title={validBlock.title}
+              loading="lazy"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full"
+            />
+          </div>
+          <figcaption className="flex items-center justify-center gap-1.5 text-center text-sm text-ink-3">
+            <PlayCircle className="h-4 w-4 text-coral" aria-hidden="true" />
+            <span className="font-semibold text-ink-2">{validBlock.title}</span>
+            {validBlock.caption && <span>· {validBlock.caption}</span>}
+          </figcaption>
+        </figure>
+      );
+    }
+
+    case 'references':
+      return (
+        <section className="my-10">
+          <h3 className="mb-2 text-lg font-extrabold text-ink">{validBlock.title || 'References & further reading'}</h3>
+          <ul className="space-y-3">
+            {validBlock.links.map((l) => (
+              <li key={l.url} className="flex gap-3 text-[15px] leading-relaxed text-ink-2">
+                <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-4" />
+                <span>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-ink underline decoration-brand-line underline-offset-2 hover:decoration-brand">
+                    {l.label}<span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                  {l.description && <> {l.description}</>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      );
 
     default:
       return (

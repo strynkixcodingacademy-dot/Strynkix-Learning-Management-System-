@@ -27,6 +27,8 @@ import {
   HeadingBlock,
   ImageBlock,
   PracticeTaskBlock,
+  ReferencesBlock,
+  VideoBlock,
   EntityStatus,
 } from '@/types/domain';
 import {
@@ -50,6 +52,8 @@ import {
   Heading,
   ImageIcon,
   Wrench,
+  PlayCircle,
+  Link2,
 } from 'lucide-react';
 
 interface LessonEditorPageProps {
@@ -290,6 +294,26 @@ function LessonBlockEditorView({
       starterCode: '',
       hints: [],
       expectedOutcome: 'Describe how the student knows they are done.',
+    };
+    setBlocks([...blocks, newBlock]);
+  };
+
+  const addVideoBlock = () => {
+    const newBlock: VideoBlock = {
+      id: `blk_video_${Date.now().toString(36)}`,
+      type: 'video',
+      url: 'https://www.youtube.com/watch?v=',
+      title: 'Video title',
+    };
+    setBlocks([...blocks, newBlock]);
+  };
+
+  const addReferencesBlock = () => {
+    const newBlock: ReferencesBlock = {
+      id: `blk_refs_${Date.now().toString(36)}`,
+      type: 'references',
+      title: 'References & further reading',
+      links: [{ label: 'Link title', url: 'https://', description: '' }],
     };
     setBlocks([...blocks, newBlock]);
   };
@@ -547,6 +571,22 @@ function LessonBlockEditorView({
                 <ImageIcon className="w-3.5 h-3.5 text-teal-ink" />
                 <span>Image</span>
               </button>
+              <button
+                type="button"
+                onClick={addVideoBlock}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink text-xs font-semibold transition"
+              >
+                <PlayCircle className="w-3.5 h-3.5 text-coral-ink" />
+                <span>Video</span>
+              </button>
+              <button
+                type="button"
+                onClick={addReferencesBlock}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink text-xs font-semibold transition"
+              >
+                <Link2 className="w-3.5 h-3.5 text-brand-ink" />
+                <span>References</span>
+              </button>
             </div>
           </div>
 
@@ -773,6 +813,61 @@ function LessonBlockEditorView({
                           onChange={(e) => updateBlockField(idx, 'caption', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {block.type === 'video' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label htmlFor={`vid-${block.id}`} className="text-xs font-medium text-ink-3">YouTube link</label>
+                      <input id={`vid-${block.id}`} type="url" value={block.url} maxLength={500}
+                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                      <p className="text-[11px] text-ink-3">Paste a youtube.com or youtu.be link. Add ?t=90 to start at 1:30. Videos play from YouTube&apos;s privacy-enhanced player.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <label htmlFor={`vt-${block.id}`} className="text-xs font-medium text-ink-3">Video title (required)</label>
+                        <input id={`vt-${block.id}`} type="text" value={block.title} maxLength={160}
+                          onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor={`vc-${block.id}`} className="text-xs font-medium text-ink-3">Caption</label>
+                        <input id={`vc-${block.id}`} type="text" value={block.caption || ''} maxLength={300}
+                          onChange={(e) => updateBlockField(idx, 'caption', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {block.type === 'references' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label htmlFor={`rt-${block.id}`} className="text-xs font-medium text-ink-3">Section title</label>
+                      <input id={`rt-${block.id}`} type="text" value={block.title || ''} maxLength={100}
+                        onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                    </div>
+                    {block.links.map((link, li) => {
+                      const setLink = (patch: Partial<typeof link>) =>
+                        updateBlockField(idx, 'links', block.links.map((l, j) => (j === li ? { ...l, ...patch } : l)));
+                      return (
+                        <div key={li} className="grid grid-cols-1 gap-2 rounded-xl border border-line p-3 sm:grid-cols-[1fr_1.4fr_auto]">
+                          <input aria-label={`Link ${li + 1} title`} type="text" value={link.label} maxLength={160} placeholder="Link title"
+                            onChange={(e) => setLink({ label: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                          <input aria-label={`Link ${li + 1} URL`} type="url" value={link.url} maxLength={1000} placeholder="https://"
+                            onChange={(e) => setLink({ url: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                          <button type="button" onClick={() => updateBlockField(idx, 'links', block.links.filter((_, j) => j !== li))}
+                            disabled={block.links.length === 1} className="inline-flex h-10 items-center justify-center rounded-lg px-2 text-ink-3 hover:bg-danger-soft hover:text-danger-ink disabled:opacity-40" aria-label={`Remove link ${li + 1}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <input aria-label={`Link ${li + 1} description`} type="text" value={link.description || ''} maxLength={400} placeholder="Why it's worth reading (optional)"
+                            onChange={(e) => setLink({ description: e.target.value })} className={`${'w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15'} sm:col-span-3`} />
+                        </div>
+                      );
+                    })}
+                    <button type="button" onClick={() => updateBlockField(idx, 'links', [...block.links, { label: '', url: 'https://', description: '' }])}
+                      disabled={block.links.length >= 20} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-ink hover:underline disabled:opacity-40">
+                      <Plus className="h-3.5 w-3.5" /> Add link
+                    </button>
                   </div>
                 )}
 

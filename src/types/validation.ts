@@ -4,6 +4,7 @@
  * and security barriers against privilege escalation.
  */
 
+import { youtubeId } from '@/lib/livebook/video';
 import { z } from 'zod';
 
 // -----------------------------------------------------------------------------
@@ -285,6 +286,27 @@ export const practiceTaskBlockSchema = z.object({
   expectedOutcome: z.string().min(2).max(5000),
 });
 
+export const videoBlockSchema = z.object({
+  id: idSchema,
+  type: z.literal('video'),
+  url: z.string().min(1).max(500).refine((u) => youtubeId(u) !== null, { message: 'Use a YouTube link (youtube.com/watch?v=…, youtu.be/…)' }),
+  title: z.string().min(2).max(160).trim(),
+  caption: z.string().max(300).optional(),
+});
+
+export const referenceLinkSchema = z.object({
+  label: z.string().min(1).max(160).trim(),
+  url: z.string().max(1000).refine((u) => /^https:\/\/[^\s]+$/.test(u), { message: 'Links must start with https://' }),
+  description: z.string().max(400).optional(),
+});
+
+export const referencesBlockSchema = z.object({
+  id: idSchema,
+  type: z.literal('references'),
+  title: z.string().max(100).optional(),
+  links: z.array(referenceLinkSchema).min(1).max(20),
+});
+
 export const lessonBlockSchema = z.discriminatedUnion('type', [
   textBlockSchema,
   headingBlockSchema,
@@ -294,6 +316,8 @@ export const lessonBlockSchema = z.discriminatedUnion('type', [
   workedExampleBlockSchema,
   quizBlockSchema,
   practiceTaskBlockSchema,
+  videoBlockSchema,
+  referencesBlockSchema,
 ]);
 
 // Backward-compatible alias

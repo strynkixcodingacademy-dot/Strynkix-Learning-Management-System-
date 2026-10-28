@@ -23,16 +23,15 @@ import {
   CourseSchedulePanel,
   StudentCourseLearningData,
 } from '@/components/learning/CoursePanels';
-import { LearningPath } from '@/components/learning/LearningPath';
+import { CoursePath } from '@/components/livebook/CoursePath';
+import { LiveBooksFrame } from '@/components/livebook/LiveBooksFrame';
 import { AppShell } from '@/components/dashboard/AppShell';
-import { Breadcrumbs, Card } from '@/components/ui/Page';
-import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
-import { ProgressRing } from '@/components/ui/Progress';
+import { CourseIcon } from '@/components/ui/CourseIcon';
 import { Tabs } from '@/components/ui/Tabs';
 import { buttonClasses } from '@/components/ui/Button';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
-import { ArrowRight, CalendarDays, ClipboardList, Info, Route, Timer } from 'lucide-react';
+import { CalendarDays, ClipboardList, Info, Route, Timer } from 'lucide-react';
 
 const TABS = [
   { id: 'path', label: 'Learning Path', icon: Route },
@@ -168,45 +167,34 @@ function CourseDetailView({ courseId }: { courseId: string }) {
   const completedSet = new Set(progressList.filter((p) => p.status === 'completed').map((p) => p.lessonId));
   const { percentage, completedCount, totalCount } = calculateCourseProgress(lessons.length, completedSet);
   const resumeLesson = getResumeLesson(modules, lessons, progressList);
-  const { tone } = courseIdentity(course);
   const totalMinutes = lessons.reduce((n, l) => n + (l.estimatedMinutes || 0), 0);
   const allDone = totalCount > 0 && completedCount === totalCount;
 
   return (
-    <div className="space-y-6">
-      <Breadcrumbs items={[{ label: isStudent ? 'Home' : 'Live Books', href: isStudent ? '/dashboard' : '/courses' }, { label: course.title }]} />
-
-      {/* Book cover */}
-      <Card as="section" className="relative overflow-hidden animate-rise">
-        <span aria-hidden="true" className={cx('absolute inset-y-0 left-0 w-2', SPINE[tone])} />
-        <div className="flex flex-col gap-6 p-6 pl-8 sm:p-8 sm:pl-10 md:flex-row md:items-center">
+    <LiveBooksFrame>
+      <div className="h-full overflow-y-auto px-5 py-8 sm:px-12 sm:py-10">
+        {/* Course header */}
+        <div className="flex flex-col gap-5 md:flex-row md:items-center">
           <CourseIcon course={course} size="lg" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-3">
-              <span className="uppercase tracking-[0.08em]">{course.level}</span>
+          <div className="min-w-0 flex-1">
+            <Link href="/courses" className="text-[13px] font-semibold text-ink-3 hover:text-ink">← All Live Books</Link>
+            <h2 className="text-[26px] font-extrabold leading-tight tracking-tight text-ink sm:text-[30px]">{course.title}</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
+              <span className="font-semibold capitalize">{course.level}</span>
               <span aria-hidden="true">·</span>
-              <span className="inline-flex items-center gap-1"><Timer className="w-3.5 h-3.5" aria-hidden="true" /> {course.estimatedWeeks} weeks · {Math.max(1, Math.round(totalMinutes / 60))} h of lessons</span>
-              {course.status !== 'published' && <span className="rounded-md bg-warning-soft px-1.5 py-0.5 text-warning-ink">Preview — {course.status}</span>}
+              <span className="inline-flex items-center gap-1"><Timer className="h-3.5 w-3.5" aria-hidden="true" /> {course.estimatedWeeks} weeks · {Math.max(1, Math.round(totalMinutes / 60))} h of lessons</span>
+              {course.status !== 'published' && <span className="rounded-md bg-warning-soft px-1.5 py-0.5 font-semibold text-warning-ink">Preview — {course.status}</span>}
             </div>
-            <h1 className="font-display text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-3xl">{course.title}</h1>
-            {course.tagline && <p className="max-w-2xl text-[15px] text-ink-2">{course.tagline}</p>}
           </div>
-          <div className="flex items-center gap-5 md:flex-col md:items-end">
-            <ProgressRing value={totalCount ? percentage : null} tone={allDone ? 'success' : tone} size={72} label="Course progress">
-              <span className="text-sm">{totalCount ? `${percentage}%` : '—'}</span>
-            </ProgressRing>
-            <div className="space-y-2 md:text-right">
-              <div className="text-xs text-ink-3">{completedCount} of {totalCount} lessons</div>
-              {resumeLesson && (
-                <Link href={`/courses/${course.id}/lessons/${resumeLesson.id}`} className={buttonClasses('primary', 'md')}>
-                  {completedCount === 0 ? 'Start course' : allDone ? 'Review course' : 'Continue'} <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                </Link>
-              )}
+          <div className="w-full max-w-[300px] md:text-right">
+            <div className="h-2.5 overflow-hidden rounded-full border border-line bg-surface-muted" role="progressbar" aria-label="Course progress" aria-valuenow={percentage} aria-valuemin={0} aria-valuemax={100}>
+              <div className={cx('h-full rounded-full', allDone ? 'bg-success' : 'bg-brand')} style={{ width: `${totalCount ? percentage : 0}%` }} />
             </div>
+            <div className="mt-2 text-[13px] text-ink-3">{totalCount ? percentage : 0}% Completed · {completedCount} of {totalCount} lessons</div>
           </div>
         </div>
-      </Card>
 
+        <div className="mt-8">
       <Tabs
         idPrefix="course"
         label="Course sections"
@@ -218,13 +206,13 @@ function CourseDetailView({ courseId }: { courseId: string }) {
         }))}
       />
 
-      <div id="course-panel" role="tabpanel" aria-labelledby={`course-tab-${tab}`} className="animate-fade" key={tab}>
+      <div id="course-panel" role="tabpanel" aria-labelledby={`course-tab-${tab}`} className="mt-8 animate-fade" key={tab}>
         {tab === 'path' && (
           modules.length === 0 ? (
             <EmptyState illustration="book" title="Lessons are on the way">This course doesn&apos;t have published modules yet.</EmptyState>
           ) : (
-            <LearningPath courseId={course.id} modules={modules} lessons={lessons} progress={progressList}
-              currentLessonId={allDone ? null : resumeLesson?.id ?? null} todayLessonIds={todayLessonIds} />
+            <CoursePath courseId={course.id} modules={modules} lessons={lessons} progress={progressList}
+              resumeLessonId={allDone ? null : resumeLesson?.id ?? null} todayLessonIds={todayLessonIds} />
           )
         )}
         {tab === 'schedule' && (
@@ -236,14 +224,16 @@ function CourseDetailView({ courseId }: { courseId: string }) {
         )}
         {tab === 'about' && <CourseAboutPanel course={course} batch={batch} lessonCount={lessons.length} />}
       </div>
-    </div>
+        </div>
+      </div>
+    </LiveBooksFrame>
   );
 }
 
 function CoursePageContent({ params }: CoursePageProps) {
   const { courseId } = use(params);
   return (
-    <AppShell>
+    <AppShell fit>
       <CourseDetailView courseId={courseId} />
     </AppShell>
   );
