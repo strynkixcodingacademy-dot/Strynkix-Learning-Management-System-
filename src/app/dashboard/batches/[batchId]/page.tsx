@@ -27,14 +27,21 @@ import { canManageBatchScope, grantsContentAccess, isBatchOpenForEnrollment } fr
 import { buildRosterProgress, RosterRow } from '@/lib/batches/roster';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Batch, Course, Enrollment, EnrollmentStatus, Progress, UserProfile } from '@/types/domain';
+import { createStudent } from '@/lib/admin/service';
 import {
   AlertCircle,
   ArrowLeft,
   CalendarDays,
+  Check,
   CheckCircle2,
+  Copy,
+  Eye,
+  EyeOff,
   Loader2,
+  Sparkles,
   UserPlus,
   Users,
+  X,
 } from 'lucide-react';
 
 interface BatchDetailPageProps {
@@ -164,25 +171,123 @@ function BatchDetailView({ batchId }: { batchId: string }) {
     };
   }, [batchId, tenant, user, loadRoster]);
 
+  // Provisioning Modal State
+  const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
+  const [studentName, setStudentName] = useState('');
+  const [studentEmail, setStudentEmail] = useState('');
+  const [studentPassword, setStudentPassword] = useState('');
+  const [showStudentPassword, setShowStudentPassword] = useState(false);
+  const [isSubmittingStudent, setIsSubmittingStudent] = useState(false);
+  const [studentFormError, setStudentFormError] = useState<string | null>(null);
+
+  // Student Credentials Modal State
+  const [createdStudentCreds, setCreatedStudentCreds] = useState<{
+    name: string;
+    email: string;
+    password?: string;
+    batchName: string;
+    loginUrl: string;
+  } | null>(null);
+  const [copiedStudentCreds, setCopiedStudentCreds] = useState(false);
+
   // Enrollment candidates are only needed by administrators.
+  const loadStudents = useCallback(async (targetBatch: Batch) => {
+    try {
+      const loaded = await getBranchStudents(targetBatch);
+      setStudents(loaded);
+      setStudentsError(null);
+    } catch (err) {
+      console.error('Failed to load students', err);
+      setStudentsError('Unable to load students for this branch.');
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
-    async function loadStudents() {
-      if (!batch || !canManage) return;
-      setStudentsError(null);
-      try {
-        const loaded = await getBranchStudents(batch);
-        if (isMounted) setStudents(loaded);
-      } catch (err) {
-        console.error('Failed to load students', err);
-        if (isMounted) setStudentsError('Unable to load students for this branch.');
-      }
+    if (batch && canManage) {
+      getBranchStudents(batch)
+        .then((loaded) => {
+          if (isMounted) {
+            setStudents(loaded);
+            setStudentsError(null);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load students', err);
+          if (isMounted) setStudentsError('Unable to load students for this branch.');
+        });
     }
-    loadStudents();
     return () => {
       isMounted = false;
     };
   }, [batch, canManage]);
+
+  const handleGenerateStudentPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let pass = '';
+    for (let i = 0; i < 10; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setStudentPassword(`Strynkix@${pass}`);
+  };
+
+  const handleCreateAndEnrollStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batch || !user) return;
+    setIsSubmittingStudent(true);
+    setStudentFormError(null);
+    try {
+      const newStudent = await createStudent({
+        email: studentEmail,
+        password: studentPassword,
+        displayName: studentName,
+        orgId: batch.orgId,
+        branchId: batch.branchId,
+      });
+
+      // Automatically enroll into this batch
+      await enrollStudent(batch, newStudent.uid, tenant, user.uid);
+
+      // Open Credentials Modal
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      setCreatedStudentCreds({
+        name: newStudent.displayName,
+        email: newStudent.email,
+        password: studentPassword,
+        batchName: batch.name,
+        loginUrl: `${origin}/login`,
+      });
+
+      setShowCreateStudentModal(false);
+      setStudentName('');
+      setStudentEmail('');
+      setStudentPassword('');
+      setSuccessMsg(`Student "${newStudent.displayName}" created and enrolled successfully!`);
+
+      // Refresh roster & candidates
+      await Promise.all([loadRoster(batch), loadStudents(batch)]);
+    } catch (err: unknown) {
+      setStudentFormError((err as Error).message || 'Failed to create student.');
+    } finally {
+      setIsSubmittingStudent(false);
+    }
+  };
+
+  const handleCopyStudentCreds = () => {
+    if (!createdStudentCreds) return;
+    const shareText = `🎓 Welcome to Strynkix Coding Academy!
+
+You have been enrolled in: ${createdStudentCreds.batchName}
+Role: Student
+Login URL: ${createdStudentCreds.loginUrl}
+Email: ${createdStudentCreds.email}
+Password: ${createdStudentCreds.password}
+
+Please log in to start learning!`;
+    navigator.clipboard.writeText(shareText);
+    setCopiedStudentCreds(true);
+    setTimeout(() => setCopiedStudentCreds(false), 3000);
+  };
 
   const rosterRows = useMemo(
     () => buildRosterProgress(enrollments, progress, publishedLessonIds),
@@ -345,10 +450,29 @@ function BatchDetailView({ batchId }: { batchId: string }) {
       {/* Enrollment form (administrators only) */}
       {canManage && (
         <section className="p-5 rounded-2xl bg-surface border border-line space-y-3">
-          <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-brand-ink" />
-            <span>Enroll a Student</span>
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-brand-ink" />
+              <span>Enroll a Student</span>
+            </h3>
+            {enrollmentOpen && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStudentName('');
+                  setStudentEmail('');
+                  setStudentPassword('');
+                  setStudentFormError(null);
+                  handleGenerateStudentPassword();
+                  setShowCreateStudentModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-xs font-semibold text-brand-ink border border-line transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>+ Create & Enroll New Student</span>
+              </button>
+            )}
+          </div>
           {!enrollmentOpen ? (
             <p className="text-xs text-ink-3">
               This batch is {batch.status.replace('_', ' ')} and is not accepting enrollments.
@@ -484,6 +608,194 @@ function BatchDetailView({ batchId }: { batchId: string }) {
           </ul>
         )}
       </section>
+
+      {/* Modal: Create & Enroll Student */}
+      {showCreateStudentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand-ink">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-ink">Create & Enroll Student</h3>
+                  <p className="text-xs text-ink-3">Set up a student account and enroll them into this cohort</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreateStudentModal(false)}
+                className="p-1 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-surface-muted border border-line text-xs space-y-1">
+              <div className="font-semibold text-ink">Enrolling into Batch:</div>
+              <div className="text-brand-ink font-mono">{batch.name} ({batch.code})</div>
+            </div>
+
+            {studentFormError && (
+              <div className="p-3 rounded-xl bg-danger-soft border border-danger-line flex items-center gap-2 text-danger-ink text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{studentFormError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateAndEnrollStudent} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-ink">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-canvas border border-line text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-ink">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. rahul@strynkix.com"
+                  value={studentEmail}
+                  onChange={(e) => setStudentEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-canvas border border-line text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-ink">Initial Password</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateStudentPassword}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-ink hover:underline"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Generate Strong
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showStudentPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    placeholder="Enter password"
+                    value={studentPassword}
+                    onChange={(e) => setStudentPassword(e.target.value)}
+                    className="w-full pl-3.5 pr-10 py-2 rounded-xl bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowStudentPassword(!showStudentPassword)}
+                    className="absolute right-3 top-2.5 text-ink-3 hover:text-ink"
+                  >
+                    {showStudentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateStudentModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-ink hover:bg-surface-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingStudent || !studentName || !studentEmail || !studentPassword}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-brand/20 transition-all"
+                >
+                  {isSubmittingStudent && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmittingStudent ? 'Creating & Enrolling...' : 'Create & Enroll Student'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Share Student Credentials */}
+      {createdStudentCreds && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-success/15 border border-success/30 flex items-center justify-center text-success-ink">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-ink">Student Enrolled Successfully!</h3>
+                  <p className="text-xs text-ink-3">Share these login credentials with the student</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCreatedStudentCreds(null)}
+                className="p-1 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 p-4 rounded-xl bg-surface-muted border border-line text-xs font-mono">
+              <div className="flex justify-between items-center pb-2 border-b border-line">
+                <span className="text-ink-3">Cohort / Batch:</span>
+                <span className="font-bold text-ink">{createdStudentCreds.batchName}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-line">
+                <span className="text-ink-3">Full Name:</span>
+                <span className="font-bold text-ink">{createdStudentCreds.name}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-line">
+                <span className="text-ink-3">Email:</span>
+                <span className="font-bold text-brand-ink">{createdStudentCreds.email}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-line">
+                <span className="text-ink-3">Password:</span>
+                <span className="font-bold text-ink">{createdStudentCreds.password}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-ink-3">Login URL:</span>
+                <span className="text-ink underline">{createdStudentCreds.loginUrl}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2 border-t border-line">
+              <button
+                type="button"
+                onClick={handleCopyStudentCreds}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface border border-line hover:bg-surface-sunken text-xs font-semibold text-ink transition-colors"
+              >
+                {copiedStudentCreds ? (
+                  <>
+                    <Check className="w-4 h-4 text-success-ink" />
+                    <span className="text-success-ink">Copied to Clipboard!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Credentials to Share</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatedStudentCreds(null)}
+                className="w-full sm:w-auto px-5 py-2 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {dialog}
     </div>
