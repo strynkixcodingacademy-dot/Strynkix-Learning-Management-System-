@@ -304,3 +304,96 @@ export async function getBranchManagers(managerUids: string[]): Promise<{ id: st
   return profiles.filter((p): p is { id: string; displayName: string; email: string } => p !== null);
 }
 
+/**
+ * Creates a student account in Firebase Auth and provisions their profile in Firestore.
+ * Automatically links to the student's branch and organization.
+ */
+export async function createStudent(params: {
+  email: string;
+  password: string;
+  displayName: string;
+  orgId: string;
+  branchId: string;
+}): Promise<{
+  uid: string;
+  email: string;
+  displayName: string;
+  role: string;
+  branchId: string;
+  orgId: string;
+}> {
+  const cleanEmail = params.email.trim();
+  const cleanName = params.displayName.trim();
+  const cleanPassword = params.password.trim();
+
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw new Error('Please enter a valid email address.');
+  }
+  if (!cleanPassword || cleanPassword.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+  if (!cleanName || cleanName.length < 2) {
+    throw new Error('Please enter student full name.');
+  }
+
+  const config = getFirebaseConfig();
+  const tempAppName = `TempStudentApp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const tempApp = initializeApp(
+    {
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      storageBucket: config.storageBucket,
+      messagingSenderId: config.messagingSenderId,
+      appId: config.appId,
+      measurementId: config.measurementId,
+    },
+    tempAppName
+  );
+
+  let newUid = '';
+  try {
+    const tempAuth = getAuth(tempApp);
+    const userCred = await createUserWithEmailAndPassword(tempAuth, cleanEmail, cleanPassword);
+    newUid = userCred.user.uid;
+    await signOut(tempAuth);
+  } catch (err: unknown) {
+    const e = err as { code?: string; message?: string };
+    if (e.code === 'auth/email-already-in-use') {
+      throw new Error('An account with this email address already exists.');
+    } else if (e.code === 'auth/weak-password') {
+      throw new Error('The password is too weak. Please use at least 6 characters.');
+    }
+    throw new Error(e.message || 'Failed to create student account.');
+  } finally {
+    try {
+      await deleteApp(tempApp);
+    } catch {}
+  }
+
+  const now = new Date().toISOString();
+  const userDocRef = doc(db, 'users', newUid);
+  const profileRecord = {
+    id: newUid,
+    email: cleanEmail,
+    displayName: cleanName,
+    role: 'student' as const,
+    orgId: params.orgId,
+    branchId: params.branchId,
+    status: 'active' as const,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await setDoc(userDocRef, profileRecord);
+
+  return {
+    uid: newUid,
+    email: cleanEmail,
+    displayName: cleanName,
+    role: 'student',
+    branchId: params.branchId,
+    orgId: params.orgId,
+  };
+}
+
