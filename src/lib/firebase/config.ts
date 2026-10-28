@@ -23,28 +23,34 @@ export type FirebaseClientConfig = z.infer<typeof firebaseEnvSchema>;
 export function getFirebaseConfig(): FirebaseClientConfig {
   const useEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 
-  // In emulator, build-time, or dev mode, provide safe placeholders if environment variables are unset
-  const isPrerenderOrServer = typeof window === 'undefined';
-  const defaultProjectId = 'learning-management-syst-b9bf3';
+  // Staging public web client configuration fallback (for hosting environments like Vercel where .env.local is omitted)
+  const defaultProjectId = 'strynkix-live-books-staging';
+  const defaultApiKey = 'AIzaSyBlSt-d1Muunm9dDA2jHgW7zwOPuwngyCI';
+  const defaultAuthDomain = 'strynkix-live-books-staging.firebaseapp.com';
+  const defaultStorageBucket = 'strynkix-live-books-staging.firebasestorage.app';
+  const defaultMessagingSenderId = '490375217281';
+  const defaultAppId = '1:490375217281:web:777d784f5a4597fa1f8d80';
+  const defaultMeasurementId = 'G-ZS9FDW7Q8E';
 
   const rawConfig = {
     apiKey:
       process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
-      (useEmulator || isPrerenderOrServer ? 'build-mock-api-key' : ''),
+      (useEmulator ? 'build-mock-api-key' : defaultApiKey),
     authDomain:
       process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ||
-      (useEmulator || isPrerenderOrServer ? `${defaultProjectId}.firebaseapp.com` : ''),
+      (useEmulator ? `${defaultProjectId}.firebaseapp.com` : defaultAuthDomain),
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || defaultProjectId,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || defaultStorageBucket,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || defaultMessagingSenderId,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || defaultAppId,
+    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || defaultMeasurementId,
     useEmulator,
     authEmulatorHost: process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099',
     firestoreEmulatorHost: process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080',
   };
 
   // Only enforce strict validation in live production browser environments
+  const isPrerenderOrServer = typeof window === 'undefined';
   if (!useEmulator && process.env.NODE_ENV === 'production' && !isPrerenderOrServer) {
     const result = firebaseEnvSchema.safeParse(rawConfig);
     if (!result.success) {
