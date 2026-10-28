@@ -18,16 +18,14 @@ import { getBranches, getOrganizations } from '@/lib/admin/service';
 import { ROLE_LABELS } from '@/components/dashboard/AppShell';
 import { Batch, DailyPlan } from '@/types/domain';
 import { buttonClasses } from '@/components/ui/Button';
-import { Card, PageHeader, Section } from '@/components/ui/Page';
+import { Card, Section } from '@/components/ui/Page';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { formatPlanDate } from './LearningBits';
 import { KpiTile } from '@/components/ui/DataViz';
-import { TONE_CLASSES, Tone } from '@/components/ui/tones';
+import { AppGrid, AppTile, helpTile, HomeHero, useScopeNames } from '@/components/home/HomeBlocks';
+import { getPeople } from '@/lib/account/service';
 import {
-  ArrowRight,
-  BarChart3,
-  Building2,
   CalendarCheck,
   CalendarPlus,
   ClipboardCheck,
@@ -35,11 +33,7 @@ import {
   GitBranch,
   GraduationCap,
   Layers,
-  PenTool,
-  Sparkles,
-  UserPlus,
-  Users,
-  type LucideIcon,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface BatchToday {
@@ -95,19 +89,6 @@ function Stat({ value, total, label, tone }: { value: number | null; total?: num
   );
 }
 
-function QuickLink({ href, icon: Icon, title, body, tone = 'brand' }: { href: string; icon: LucideIcon; title: string; body: string; tone?: Tone }) {
-  const t = TONE_CLASSES[tone];
-  return (
-    <Link href={href} className="group flex items-start gap-3 rounded-card border border-line bg-surface p-4 shadow-card transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-silver hover:shadow-lift">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${t.soft} ${t.ink}`}><Icon className="w-5 h-5" /></span>
-      <span className="min-w-0">
-        <span className="flex items-center gap-1 text-sm font-bold text-ink">{title} <ArrowRight className="w-3.5 h-3.5 opacity-0 transition-opacity group-hover:opacity-100" /></span>
-        <span className="block text-xs text-ink-3">{body}</span>
-      </span>
-    </Link>
-  );
-}
-
 export function StaffHome() {
   const { user, profile, tenant } = useAuth();
   const [rows, setRows] = useState<BatchToday[]>([]);
@@ -115,7 +96,21 @@ export function StaffHome() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [pendingPeople, setPendingPeople] = useState(0);
+  const scopeNames = useScopeNames();
   const today = toLocalDateKey(new Date());
+
+  // Accounts awaiting approval, for the People tile badge (managers and Super Admin).
+  useEffect(() => {
+    let alive = true;
+    if (!tenant || (tenant.role !== 'super_admin' && tenant.role !== 'branch_admin')) return;
+    getPeople(tenant)
+      .then((people) => { if (alive) setPendingPeople(people.filter((p) => p.status === 'pending_verification' || p.status === 'invited').length); })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [tenant]);
 
   useEffect(() => {
     let isMounted = true;
@@ -158,15 +153,36 @@ export function StaffHome() {
   const activeStudents = rows.reduce((n, r) => n + r.activeStudents, 0);
   const firstReview = rows.find((r) => r.plan && (r.needsReview ?? 0) > 0);
   const firstUnplanned = rows.find((r) => !r.plan);
+  const role = tenant.role;
+  const isAcademyAdmin = role === 'super_admin' || role === 'university_admin';
+  const tiles: AppTile[] = [
+    ...(isAcademyAdmin ? [{ label: 'Branches', art: 'branch' as const, href: '/dashboard/branches' }] : []),
+    { label: isManager ? 'Batches' : 'My Batches', art: 'clipboard', href: '/dashboard/batches' },
+    { label: 'Review Work', art: 'review', href: firstReview ? `/dashboard/batches/${firstReview.batch.id}/plans/${firstReview.plan!.id}` : '/dashboard#today', badge: needsReview, badgeLabel: 'submissions to review' },
+    { label: 'Daily Plans', art: 'calendar', href: firstUnplanned ? `/dashboard/batches/${firstUnplanned.batch.id}/plans` : rows[0] ? `/dashboard/batches/${rows[0].batch.id}/plans` : '/dashboard/batches', badge: unplanned, badgeLabel: 'batches without a plan today' },
+    ...(role === 'super_admin' || role === 'branch_admin' ? [{ label: 'People', art: 'people' as const, href: '/dashboard/people', badge: pendingPeople, badgeLabel: 'accounts waiting for approval' }] : []),
+    { label: 'Analytics', art: 'chart', href: '/dashboard/analytics' },
+    { label: 'Course Authoring', art: 'pen', href: '/dashboard/courses' },
+    { label: 'Live Books', art: 'preview', href: '/courses' },
+    ...(role === 'super_admin' ? [{ label: 'Organizations', art: 'building' as const, href: '/dashboard/organizations' }] : []),
+    { label: 'User Guide', art: 'guide', href: '/dashboard/guide' },
+    { label: 'My Profile', art: 'profile', href: '/dashboard/profile' },
+    helpTile,
+  ];
 
   return (
     <div className="space-y-10">
-      <PageHeader
-        eyebrow={ROLE_LABELS[tenant.role]}
-        title={`Hello, ${(profile?.displayName || '').split(' ')[0] || 'there'}`}
-        description={isLoading ? 'Loading today’s overview…' : rows.length === 0
-          ? 'You have no running batches right now.'
-          : `${formatPlanDate(today, 'long')} · ${needsReview} submission${needsReview === 1 ? '' : 's'} to review · ${unplanned} batch${unplanned === 1 ? '' : 'es'} without a plan today`}
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 space-y-8">
+      <HomeHero
+        name={profile?.displayName || 'there'}
+        academy={scopeNames.org}
+        facts={[
+          { icon: ShieldCheck, text: <>{ROLE_LABELS[tenant.role]}{scopeNames.branch ? <> · {scopeNames.branch}</> : tenant.role === 'super_admin' ? ' · every branch' : null}</> },
+          ...(counts.branches !== undefined ? [{ icon: GitBranch, text: `${counts.branches} branch${counts.branches === 1 ? '' : 'es'} in the academy` }] : []),
+          { icon: Layers, text: isLoading ? 'Loading your batches…' : rows.length ? `${rows.length} running batch${rows.length === 1 ? '' : 'es'} · ${activeStudents} active student${activeStudents === 1 ? '' : 's'}` : 'No running batches yet' },
+          { icon: CalendarCheck, text: isLoading ? formatPlanDate(today, 'long') : `${formatPlanDate(today, 'long')} · ${needsReview} to review · ${unplanned} without a plan today` },
+        ]}
       />
 
       {!isLoading && !error && rows.length > 0 && (
@@ -195,8 +211,8 @@ export function StaffHome() {
               const planHref = r.plan ? `/dashboard/batches/${r.batch.id}/plans/${r.plan.id}` : `/dashboard/batches/${r.batch.id}/plans`;
               return (
                 <Card as="li" key={r.batch.id} className="p-4 sm:p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                    <div className="min-w-0 lg:w-72">
+                  <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center">
+                    <div className="min-w-0 2xl:w-72">
                       <Link href={`/dashboard/batches/${r.batch.id}`} className="text-base font-bold text-ink hover:text-brand-ink">{r.batch.name}</Link>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-3">
                         <span>{r.activeStudents} student{r.activeStudents === 1 ? '' : 's'}</span>
@@ -216,7 +232,7 @@ export function StaffHome() {
                       <Stat value={r.needsReview} label="need review" tone="attention" />
                       <Stat value={r.corrections} label="awaiting fixes" />
                     </div>
-                    <Link href={planHref} className={buttonClasses(r.plan ? (r.needsReview ? 'primary' : 'secondary') : 'primary', 'sm', 'self-start lg:self-center')}>
+                    <Link href={planHref} className={buttonClasses(r.plan ? (r.needsReview ? 'primary' : 'secondary') : 'primary', 'sm', 'self-start 2xl:self-center')}>
                       {r.plan ? (r.needsReview ? <><ClipboardCheck className="w-3.5 h-3.5" /> Review</> : 'Open plan') : <><CalendarPlus className="w-3.5 h-3.5" /> Plan today</>}
                     </Link>
                   </div>
@@ -227,32 +243,12 @@ export function StaffHome() {
         )}
       </Section>
 
-      <Section id="next" title="Next steps" icon={Sparkles}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {firstReview && (
-            <QuickLink href={`/dashboard/batches/${firstReview.batch.id}/plans/${firstReview.plan!.id}`} icon={ClipboardCheck} tone="coral"
-              title={`Review ${needsReview} submission${needsReview === 1 ? '' : 's'}`} body={`Start with ${firstReview.batch.name}. Grade or request a correction.`} />
-          )}
-          {firstUnplanned && (
-            <QuickLink href={`/dashboard/batches/${firstUnplanned.batch.id}/plans`} icon={CalendarPlus} tone="warning"
-              title={`Plan today for ${unplanned} batch${unplanned === 1 ? '' : 'es'}`} body={`${firstUnplanned.batch.name} has no plan for today yet.`} />
-          )}
-          {isManager && (
-            <QuickLink href="/dashboard/batches" icon={UserPlus} title="Add or enroll students" body="Open a batch to create student accounts and enroll them in one step." />
-          )}
-          {(tenant.role === 'super_admin' || tenant.role === 'branch_admin') && (
-            <QuickLink href="/dashboard/people" icon={Users} title="Manage people" body="Approve pending sign-ups, suspend or reactivate accounts." />
-          )}
-          <QuickLink href="/dashboard/analytics" icon={BarChart3} tone="teal" title="See analytics" body="Completion, submissions, marks and students who need attention." />
-          {(tenant.role === 'super_admin' || tenant.role === 'university_admin') && (
-            <QuickLink href="/dashboard/branches" icon={GitBranch} tone="lavender" title="Branches" body={counts.branches !== undefined ? `${counts.branches} branch${counts.branches === 1 ? '' : 'es'}. Open one to see its batches and team.` : 'Campuses and franchises.'} />
-          )}
-          <QuickLink href="/dashboard/courses" icon={PenTool} tone="lavender" title="Write a lesson" body="Build courses, modules and interactive Live Book lessons." />
-          {tenant.role === 'super_admin' && counts.orgs !== undefined && (
-            <QuickLink href="/dashboard/organizations" icon={Building2} tone="lavender" title="Organization" body={`${counts.orgs} organization${counts.orgs === 1 ? '' : 's'} configured.`} />
-          )}
         </div>
-      </Section>
+
+        <aside className="space-y-8">
+          <AppGrid tiles={tiles} />
+        </aside>
+      </div>
     </div>
   );
 }

@@ -29,38 +29,29 @@ import { buttonClasses } from '@/components/ui/Button';
 import { Card, Section } from '@/components/ui/Page';
 import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
 import { EmptyState, ErrorState, Notice, Skeleton } from '@/components/ui/States';
-import { ProgressBar, ProgressRing } from '@/components/ui/Progress';
+import { ProgressBar } from '@/components/ui/Progress';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { cx } from '@/components/ui/tones';
+import { getBatchById } from '@/lib/batches/service';
+import { AppGrid, AppTile, helpTile, HomeHero, useScopeNames } from '@/components/home/HomeBlocks';
+import { MyDayPanel, MyDayStep } from './MyDayPanel';
 import {
   AlertCircle,
   ArrowRight,
   BookOpen,
   CalendarDays,
-  Check,
   CheckCheck,
   CircleDashed,
   CircleDot,
   ClipboardList,
-  Flag,
+  GraduationCap,
   MessageSquareWarning,
   Star,
-  PartyPopper,
-  RefreshCw,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 
-interface Step {
-  key: string;
-  kind: 'lesson' | 'assignment';
-  title: string;
-  detail: string;
-  href: string;
-  done: boolean;
-  needsAction: boolean;
-  status: React.ReactNode;
-  actionLabel: string;
-}
+type Step = MyDayStep;
 
 interface DayGroup {
   overview: StudentCourseOverview;
@@ -102,97 +93,8 @@ function assignmentStep(courseId: string, assignment: Assignment, submission: Su
     needsAction: !done,
     status: <DeadlineBadge state={state} size="sm" />,
     actionLabel: correction ? 'Fix & resubmit' : submission ? 'View' : 'Submit',
+    due: assignment.deadline,
   };
-}
-
-function MyDayGroup({ group, isFocus }: { group: DayGroup; isFocus: boolean }) {
-  const { overview, plan, steps } = group;
-  const done = steps.filter((s) => s.done).length;
-  const pct = steps.length ? Math.round((done / steps.length) * 100) : null;
-  const next = steps.find((s) => s.needsAction);
-  const allDone = steps.length > 0 && done === steps.length;
-  const { tone } = courseIdentity(overview.course);
-
-  return (
-    <Card as="article" className="overflow-hidden">
-      <div className="flex items-start gap-4 border-b border-line p-5">
-        <CourseIcon course={overview.course} size="md" />
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-ink-3">{overview.course.title}</div>
-          <h3 className="text-lg font-bold leading-snug text-ink">{plan.title}</h3>
-          <p className="mt-0.5 text-xs text-ink-3">Lessons {formatDue(plan.learningDueAt, new Date())}</p>
-        </div>
-        <ProgressRing value={pct} tone={allDone ? 'success' : tone} label={`${plan.title} progress`} size={52}>
-          {done}/{steps.length}
-        </ProgressRing>
-      </div>
-
-      {plan.objectives.length > 0 && (
-        <div className="border-b border-line bg-canvas px-5 py-3">
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">Today&apos;s targets</div>
-          <ul className="flex flex-wrap gap-2">
-            {plan.objectives.map((o, i) => (
-              <li key={i} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs text-ink-2">
-                <Flag className="w-3 h-3 text-coral" aria-hidden="true" /> {o}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {steps.length === 0 ? (
-        <p className="p-5 text-sm text-ink-3">Your instructor hasn&apos;t added lessons or an assignment to this day yet.</p>
-      ) : (
-        <ol className="relative px-5 py-4">
-          {steps.map((step, i) => {
-            const isNext = isFocus && next?.key === step.key;
-            return (
-              <li key={step.key} className="relative flex gap-4 pb-4 last:pb-0">
-                {i < steps.length - 1 && (
-                  <span aria-hidden="true" className={cx('absolute left-[15px] top-8 bottom-0 w-0.5', step.done ? 'bg-success-line' : 'bg-line')} />
-                )}
-                <span
-                  aria-hidden="true"
-                  className={cx(
-                    'relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors',
-                    step.done ? 'border-success bg-success text-white animate-pop' : isNext ? 'border-brand bg-brand-soft text-brand-ink' : 'border-line-strong bg-surface text-ink-3'
-                  )}
-                >
-                  {step.done ? <Check className="w-4 h-4" strokeWidth={3} /> : step.kind === 'assignment' ? <ClipboardList className="w-4 h-4" /> : i + 1}
-                </span>
-                <div className={cx('flex min-w-0 flex-1 flex-col gap-2 rounded-xl p-3 -m-1 sm:flex-row sm:items-center', isNext && 'bg-brand-soft/60')}>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={cx('text-sm font-semibold', step.done ? 'text-ink-3 line-through decoration-ink-4' : 'text-ink')}>{step.title}</span>
-                      {isNext && <span className="text-[11px] font-bold uppercase tracking-wider text-brand-ink">Up next</span>}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-3">
-                      {step.status}
-                      <span>{step.detail}</span>
-                    </div>
-                  </div>
-                  <Link
-                    href={step.href}
-                    className={buttonClasses(isNext ? 'primary' : 'secondary', 'sm', 'self-start sm:self-center')}
-                    aria-label={`${step.actionLabel}: ${step.title}`}
-                  >
-                    {step.actionLabel} <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-
-      {allDone && (
-        <div className="flex items-center gap-3 border-t border-success-line bg-success-soft px-5 py-3 text-sm text-success-ink animate-rise">
-          <span className="celebrate inline-flex"><PartyPopper className="w-5 h-5" aria-hidden="true" /></span>
-          <span><strong>Today&apos;s plan is complete.</strong> Nice work — your instructor can see it.</span>
-        </div>
-      )}
-    </Card>
-  );
 }
 
 function CourseTile({ overview }: { overview: StudentCourseOverview }) {
@@ -380,6 +282,21 @@ export function StudentDashboard() {
     };
   }, [tenant?.orgId, user?.uid, reloadKey]);
 
+  // Batch names (and their instructors) for the greeting card; students may read their own batches.
+  const scopeNames = useScopeNames();
+  const [batchInfo, setBatchInfo] = useState<{ name: string; instructors: string[] }[]>([]);
+  const batchIds = overviews.map((o) => o.enrollment.batchId).join(',');
+  useEffect(() => {
+    let alive = true;
+    if (!batchIds) return;
+    Promise.all(batchIds.split(',').map((id) => getBatchById(id).catch(() => null))).then((batches) => {
+      if (alive) setBatchInfo(batches.flatMap((b) => (b ? [{ name: b.name, instructors: b.instructorNames ?? [] }] : [])));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [batchIds]);
+
   const today = toLocalDateKey(now);
   const metrics = useMemo(() => combineMetrics(overviews.map((o) => o.metrics)), [overviews]);
 
@@ -426,50 +343,77 @@ export function StudentDashboard() {
   const lessonInfo = (id: string) => overviews.flatMap((o) => o.lessons.map((l) => ({ l, courseId: o.course.id }))).find((x) => x.l.id === id);
 
 
-  return (
-    <div className="space-y-8">
-      {/* Welcome */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-rise">
-        <div className="flex items-center gap-4">
-          <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-warning-soft text-xl font-extrabold text-warning-ink">
-            {firstName.charAt(0).toUpperCase()}
-          </span>
-          <div>
-            <p className="text-sm font-medium text-ink-3">{formatPlanDate(today, 'long')}</p>
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">{greeting(now)}, {firstName}</h1>
-            <p className="mt-1 text-sm text-ink-2">{statusLine}</p>
-          </div>
-        </div>
-        <button type="button" onClick={reload} className={buttonClasses('ghost', 'sm', 'self-start sm:self-center')}>
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh
-        </button>
-      </header>
+  const firstCourse = overviews[0]?.course;
+  const corrections = attention.filter((a) => a.kind === 'correction').length;
+  const openAssignments = metrics.overdueAssignments.length + corrections +
+    allSteps.filter((st) => st.kind === 'assignment' && st.needsAction).length;
+  const tiles: AppTile[] = [
+    { label: 'Live Books', art: 'books', href: '/courses' },
+    { label: 'Schedule', art: 'calendar', href: firstCourse ? `/courses/${firstCourse.id}?tab=schedule` : '/courses' },
+    { label: 'Assignments', art: 'clipboard', href: firstCourse ? `/courses/${firstCourse.id}?tab=assignments` : '/courses', badge: openAssignments, badgeLabel: 'assignments need your attention' },
+    { label: 'My Progress', art: 'chart', href: '/dashboard/analytics' },
+    { label: 'User Guide', art: 'guide', href: '/dashboard/guide' },
+    { label: 'My Profile', art: 'profile', href: '/dashboard/profile' },
+    helpTile,
+  ];
+  const instructors = [...new Set(batchInfo.flatMap((b) => b.instructors))];
 
-      {/* Prominent Continue Learning Action Banner */}
-      {primaryResume && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-brand-soft/70 border border-brand-line shadow-sm">
-          <div className="flex items-center gap-3.5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-sm">
-              <BookOpen className="w-5 h-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-brand-ink">Up next</span>
-                <span className="text-xs text-ink-3">·</span>
-                <span className="text-xs font-medium text-ink-3">{primaryResume.context}</span>
+  return (
+    <div className="space-y-10">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 space-y-8">
+          <HomeHero
+            name={profile?.displayName || firstName}
+            academy={scopeNames.org}
+            facts={[
+              { icon: GraduationCap, text: <>Student{scopeNames.branch ? <> · {scopeNames.branch}</> : null}</> },
+              ...(batchInfo.length ? [{ icon: Users, text: <>{batchInfo.map((b) => b.name).join(', ')}{instructors.length ? <> · with {instructors.join(', ')}</> : null}</> }] : []),
+              ...(overviews.length ? [{ icon: BookOpen, text: overviews.map((o) => o.course.title).join(', ') }] : []),
+              { icon: CalendarDays, text: <>{greeting(now)}, {firstName}. {statusLine}</> },
+            ]}
+          />
+
+          {primaryResume && (
+            <div className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-line bg-brand-soft/70 p-4 shadow-card sm:flex-row sm:items-center sm:p-5">
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
+                  <BookOpen className="w-5 h-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-brand-ink">Up next</span>
+                    <span className="text-xs text-ink-3">·</span>
+                    <span className="text-xs font-medium text-ink-3">{primaryResume.context}</span>
+                  </div>
+                  <h2 className="truncate text-base font-bold text-ink">{primaryResume.title}</h2>
+                  <p className="text-xs text-ink-3">{primaryResume.detail}</p>
+                </div>
               </div>
-              <h2 className="text-base font-bold text-ink truncate">{primaryResume.title}</h2>
-              <p className="text-xs text-ink-3">{primaryResume.detail}</p>
+              <Link href={primaryResume.href} className={buttonClasses('primary', 'md', 'self-start shrink-0 sm:self-center')}>
+                {primaryResume.actionLabel} <ArrowRight className="ml-1 w-4 h-4" aria-hidden="true" />
+              </Link>
             </div>
-          </div>
-          <Link
-            href={primaryResume.href}
-            className={buttonClasses('primary', 'md', 'self-start sm:self-center shrink-0 shadow-sm')}
-          >
-            {primaryResume.actionLabel} <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-          </Link>
+          )}
+
+          {overviews.length === 0 && failedCount === 0 ? (
+            <EmptyState illustration="sprout" title="Your Live Books will appear here"
+              action={<Link href="/courses" className={buttonClasses('secondary')}>Browse my courses</Link>}>
+              You&apos;re not enrolled in a batch yet. Once your academy adds you, your courses, daily plan and assignments show up here automatically.
+            </EmptyState>
+          ) : (
+            <MyDayPanel
+              groups={dayGroups.map((g) => ({ course: g.overview.course, plan: g.plan, steps: g.steps }))}
+              nextPlan={nextPlan}
+              fallback={overviews[0] ? { href: `/courses/${overviews[0].course.id}`, label: `Continue ${overviews[0].course.title}` } : undefined}
+              onRefresh={reload}
+            />
+          )}
         </div>
-      )}
+
+        <aside className="space-y-8">
+          <AppGrid tiles={tiles} />
+        </aside>
+      </div>
 
       {attention.length > 0 && (
         <Section id="attention" title="Needs your attention" icon={MessageSquareWarning}>
@@ -505,71 +449,50 @@ export function StudentDashboard() {
         </Notice>
       )}
 
-      {overviews.length === 0 && failedCount === 0 ? (
-        <EmptyState illustration="sprout" title="Your Live Books will appear here"
-          action={<Link href="/courses" className={buttonClasses('secondary')}>Browse my courses</Link>}>
-          You&apos;re not enrolled in a batch yet. Once your academy adds you, your courses, daily plan and assignments show up here automatically.
-        </EmptyState>
-      ) : (
+      {overviews.length > 0 && (
         <>
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* My Day */}
-            <Section id="my-day" title="My Day" icon={CalendarDays} className="lg:col-span-2">
-              {dayGroups.length === 0 ? (
-                <EmptyState compact illustration="calendar" title="No plan for today"
-                  action={overviews[0] && <Link href={`/courses/${overviews[0].course.id}`} className={buttonClasses('secondary', 'sm')}>Continue {overviews[0].course.title}</Link>}>
-                  {nextPlan ? <>Next up is <strong className="text-ink-2">{nextPlan.plan.title}</strong> ({nextPlan.course.title}) on {formatPlanDate(nextPlan.plan.date)}.</> : 'Your instructor hasn’t published the next plan yet.'}
-                </EmptyState>
-              ) : (
-                <div className="space-y-5">
-                  {dayGroups.map((g, i) => <MyDayGroup key={g.plan.id} group={g} isFocus={i === dayGroups.findIndex((x) => x.steps.some((s) => s.needsAction))} />)}
+          <Section id="progress" title="My progress" icon={TrendingUp}
+            action={<Link href="/dashboard/analytics" className="text-sm font-semibold text-brand-ink hover:underline">Details</Link>}>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="p-5"><MetricRow title="Learning completion" ratio={metrics.learningCompletion} unit="lessons" tone="success"
+                emptyText="Nothing assigned yet" explanation="Assigned lessons you’ve marked complete, up to today." /></Card>
+              <Card className="p-5"><MetricRow title="Assignments submitted" ratio={metrics.submissionRate} unit="due" tone="teal"
+                emptyText="Nothing due yet" explanation={`Counts assignments whose deadline has passed.${metrics.upcomingAssignments ? ` ${metrics.upcomingAssignments} upcoming not counted.` : ''}${metrics.lateSubmissions ? ` ${metrics.lateSubmissions} submitted late.` : ''}`} /></Card>
+              <Card className="p-5"><MetricRow title="Assessment" ratio={metrics.assessment} unit="marks" tone="brand"
+                emptyText="Nothing graded yet" explanation={`Marks from ${metrics.assessment.gradedCount} graded submission${metrics.assessment.gradedCount === 1 ? '' : 's'}. Work awaiting review isn’t counted.`} /></Card>
+            </div>
+            {overdueCount > 0 && (
+              <Card className="space-y-2 border-coral-line bg-coral-soft/40 p-5">
+                <div className="flex items-baseline justify-between">
+                  <h3 className="flex items-center gap-1.5 text-sm font-bold text-coral-ink">
+                    <AlertCircle className="w-4 h-4 text-coral" aria-hidden="true" /> Overdue work
+                  </h3>
+                  <span className="text-xl font-extrabold text-coral-ink">{overdueCount}</span>
                 </div>
-              )}
-            </Section>
-
-            {/* Progress */}
-            <Section id="progress" title="My progress" icon={TrendingUp}>
-              <Card className="divide-y divide-line">
-                <div className="p-5"><MetricRow title="Learning completion" ratio={metrics.learningCompletion} unit="lessons" tone="success"
-                  emptyText="Nothing assigned yet" explanation="Assigned lessons you’ve marked complete, up to today." /></div>
-                <div className="p-5"><MetricRow title="Assignments submitted" ratio={metrics.submissionRate} unit="due" tone="teal"
-                  emptyText="Nothing due yet" explanation={`Counts assignments whose deadline has passed.${metrics.upcomingAssignments ? ` ${metrics.upcomingAssignments} upcoming not counted.` : ''}${metrics.lateSubmissions ? ` ${metrics.lateSubmissions} submitted late.` : ''}`} /></div>
-                <div className="p-5"><MetricRow title="Assessment" ratio={metrics.assessment} unit="marks" tone="brand"
-                  emptyText="Nothing graded yet" explanation={`Marks from ${metrics.assessment.gradedCount} graded submission${metrics.assessment.gradedCount === 1 ? '' : 's'}. Work awaiting review isn’t counted.`} /></div>
-                {overdueCount > 0 && (
-                  <div className="p-5 space-y-2 bg-coral-soft/30 border-t border-coral-line">
-                    <div className="flex items-baseline justify-between">
-                      <h3 className="text-sm font-bold text-coral-ink flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4 text-coral" aria-hidden="true" /> Overdue Work
-                      </h3>
-                      <span className="text-xl font-extrabold text-coral-ink">{overdueCount}</span>
-                    </div>
-                    <ul className="space-y-1.5 text-sm">
-                      {metrics.overdueAssignments.slice(0, 3).map((o) => {
-                        const found = assignmentTitle(o.assignmentId);
-                        return (
-                          <li key={o.assignmentId} className="flex items-start gap-2">
-                            <ClipboardList className="mt-0.5 w-4 h-4 shrink-0 text-coral" aria-hidden="true" />
-                            {found ? <Link href={`/courses/${found.courseId}/assignments/${o.assignmentId}`} className="text-ink font-medium hover:text-brand-ink hover:underline">{found.a.title}</Link> : o.assignmentId}
-                          </li>
-                        );
-                      })}
-                      {metrics.overdueLessons.slice(0, 3).map((o) => {
-                        const found = lessonInfo(o.lessonId);
-                        return (
-                          <li key={o.lessonId} className="flex items-start gap-2">
-                            <BookOpen className="mt-0.5 w-4 h-4 shrink-0 text-coral" aria-hidden="true" />
-                            {found ? <Link href={`/courses/${found.courseId}/lessons/${o.lessonId}`} className="text-ink font-medium hover:text-brand-ink hover:underline">{found.l.title}</Link> : 'Lesson'}
-                          </li>
-                        );
-                      })}
-                      <li className="text-xs text-coral-ink font-medium">Catch up when you can — late work still counts.</li>
-                    </ul>
-                  </div>
-                )}
+                <ul className="space-y-1.5 text-sm">
+                  {metrics.overdueAssignments.slice(0, 3).map((o) => {
+                    const found = assignmentTitle(o.assignmentId);
+                    return (
+                      <li key={o.assignmentId} className="flex items-start gap-2">
+                        <ClipboardList className="mt-0.5 w-4 h-4 shrink-0 text-coral" aria-hidden="true" />
+                        {found ? <Link href={`/courses/${found.courseId}/assignments/${o.assignmentId}`} className="font-medium text-ink hover:text-brand-ink hover:underline">{found.a.title}</Link> : o.assignmentId}
+                      </li>
+                    );
+                  })}
+                  {metrics.overdueLessons.slice(0, 3).map((o) => {
+                    const found = lessonInfo(o.lessonId);
+                    return (
+                      <li key={o.lessonId} className="flex items-start gap-2">
+                        <BookOpen className="mt-0.5 w-4 h-4 shrink-0 text-coral" aria-hidden="true" />
+                        {found ? <Link href={`/courses/${found.courseId}/lessons/${o.lessonId}`} className="font-medium text-ink hover:text-brand-ink hover:underline">{found.l.title}</Link> : 'Lesson'}
+                      </li>
+                    );
+                  })}
+                  <li className="text-xs font-medium text-coral-ink">Catch up when you can — late work still counts.</li>
+                </ul>
               </Card>
-            </Section>
-          </div>
+            )}
+          </Section>
 
           {/* Courses */}
           <Section id="my-courses" title="My courses" icon={BookOpen}

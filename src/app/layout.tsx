@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Geist_Mono, Manrope } from 'next/font/google';
+import { Geist_Mono, Manrope } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 
@@ -9,12 +9,6 @@ const manrope = Manrope({
   display: 'swap',
 });
 
-const fraunces = Fraunces({
-  variable: '--font-fraunces',
-  subsets: ['latin'],
-  display: 'swap',
-  axes: ['opsz', 'SOFT'],
-});
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
@@ -38,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-canvas text-ink">
         <AuthProvider>{children}</AuthProvider>
       </body>

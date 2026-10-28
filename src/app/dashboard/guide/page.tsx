@@ -33,7 +33,7 @@ function TopicCard({ topic, index }: { topic: GuideTopic; index: number }) {
   return (
     <article id={topic.id} className="scroll-mt-24 rounded-card border border-line bg-surface p-5 shadow-card sm:p-6 target:ring-2 target:ring-highlight">
       <div className="flex items-start gap-3">
-        <span className="font-display text-[22px] font-semibold leading-none text-ink-4 tabular-nums">{String(index).padStart(2, '0')}</span>
+        <span className="font-display text-[22px] font-extrabold leading-none text-ink-4 tabular-nums">{String(index).padStart(2, '0')}</span>
         <div className="min-w-0 flex-1 space-y-3">
           <div>
             <h3 className="text-[16px] font-extrabold tracking-tight text-ink">{topic.title}</h3>
