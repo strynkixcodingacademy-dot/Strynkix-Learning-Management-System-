@@ -18,20 +18,24 @@ import { getBranches, getOrganizations } from '@/lib/admin/service';
 import { ROLE_LABELS } from '@/components/dashboard/AppShell';
 import { Batch, DailyPlan } from '@/types/domain';
 import { buttonClasses } from '@/components/ui/Button';
-import { Card, Section } from '@/components/ui/Page';
+import { Card } from '@/components/ui/Page';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { formatPlanDate } from './LearningBits';
-import { KpiTile } from '@/components/ui/DataViz';
-import { AppGrid, AppTile, helpTile, HomeHero, useScopeNames } from '@/components/home/HomeBlocks';
+import { helpTile, HomeHero, useScopeNames } from '@/components/home/HomeBlocks';
+import { HomeApp, HomeBoard } from '@/components/home/HomeBoard';
+import { RestDayArt } from '@/components/home/AppArt';
+import { cx } from '@/components/ui/tones';
 import { getPeople } from '@/lib/account/service';
 import {
+  ArrowRight,
   CalendarCheck,
+  Check,
+  ChevronRight,
   CalendarPlus,
   ClipboardCheck,
   FileEdit,
   GitBranch,
-  GraduationCap,
   Layers,
   ShieldCheck,
 } from 'lucide-react';
@@ -89,6 +93,86 @@ function Stat({ value, total, label, tone }: { value: number | null; total?: num
   );
 }
 
+/** "Today across your batches": batches on the left, the selected batch's day on the right. */
+function StaffDayPanel({ rows, isManager, loading, error }: { rows: BatchToday[]; isManager: boolean; loading: React.ReactNode; error: boolean }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const firstAttention = rows.find((r) => (r.needsReview ?? 0) > 0) ?? rows.find((r) => !r.plan) ?? rows[0];
+  const selected = rows.find((r) => r.batch.id === selectedId) ?? firstAttention;
+  const card = 'grid min-h-[360px] grid-cols-1 overflow-hidden rounded-card border border-line bg-surface shadow-card md:grid-cols-[260px_minmax(0,1fr)] lg:min-h-0 lg:flex-1';
+
+  return (
+    <section aria-labelledby="today-heading" className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="today-heading" className="text-[18px] font-extrabold tracking-tight text-ink">Today across your batches</h2>
+        <Link href="/dashboard/batches" className="inline-flex items-center gap-1 text-[15px] font-medium text-ink-3 hover:text-ink">
+          All batches <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+      {loading || error ? loading : !selected ? (
+        <div className="paper-dots flex min-h-[360px] flex-col items-center justify-center gap-3 rounded-card border border-line bg-surface px-6 py-10 text-center lg:min-h-0 lg:flex-1">
+          <RestDayArt />
+          <p className="text-[15px] font-semibold text-ink-2">No running batches</p>
+          <p className="max-w-sm text-sm text-ink-3">{isManager ? 'Create a batch to start planning daily learning.' : 'When you’re assigned to a batch, today’s plan and submissions appear here.'}</p>
+          {isManager && <Link href="/dashboard/batches" className={buttonClasses('primary', 'sm', 'mt-1')}>Create a batch</Link>}
+        </div>
+      ) : (
+        <div className={card}>
+          <ol aria-label="Batches" className="min-w-0 divide-y divide-line border-b border-line md:border-b-0 md:border-r lg:overflow-y-auto">
+            {rows.map((r) => {
+              const active = r.batch.id === selected.batch.id;
+              return (
+                <li key={r.batch.id}>
+                  <button type="button" onClick={() => setSelectedId(r.batch.id)} aria-pressed={active}
+                    className={cx('flex w-full items-start gap-3 border-l-[3px] px-4 py-3.5 text-left transition-colors', active ? 'border-l-brand bg-brand-soft/60' : 'border-l-transparent hover:bg-canvas')}>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[12px] font-semibold text-ink-3">{r.activeStudents} student{r.activeStudents === 1 ? '' : 's'}{r.plan ? ` · ${r.plan.status === 'published' ? 'Published' : 'Draft'}` : ' · No plan today'}</span>
+                      <span className="mt-0.5 block truncate text-[14px] font-bold text-ink">{r.batch.name}</span>
+                      {r.plan && <span className="block truncate text-[12px] text-ink-3">{r.plan.title}</span>}
+                    </span>
+                    {(r.needsReview ?? 0) > 0 ? (
+                      <span className="mt-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-coral-ink px-1.5 text-[11px] font-extrabold text-white" title="Submissions to review">{r.needsReview}</span>
+                    ) : (
+                      <span aria-hidden="true" className={cx('mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border', r.plan ? 'border-success bg-success text-white' : 'border-line-strong text-ink-3')}>
+                        {r.plan ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : <CalendarPlus className="h-3.5 w-3.5" />}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="paper-dots flex min-w-0 flex-col gap-5 p-5 sm:p-6 lg:overflow-y-auto">
+            <div>
+              <div className="text-xs font-semibold text-ink-3">{selected.batch.code}</div>
+              <Link href={`/dashboard/batches/${selected.batch.id}`} className="text-[17px] font-extrabold leading-snug text-ink hover:text-brand-ink">{selected.batch.name}</Link>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-3">
+                {selected.plan ? (
+                  selected.plan.status === 'published'
+                    ? <StatusPill tone="success" icon={CalendarCheck} size="sm">Published</StatusPill>
+                    : <StatusPill tone="warning" icon={FileEdit} size="sm">Draft — not visible</StatusPill>
+                ) : <StatusPill tone="neutral" icon={CalendarPlus} size="sm">No plan today</StatusPill>}
+                {selected.plan && <span className="truncate">{selected.plan.title}</span>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-line bg-surface p-4 shadow-card sm:grid-cols-4">
+              <Stat value={selected.plan?.lessonIds.length ? selected.finishedLessons : null} total={selected.activeStudents} label="finished lessons" />
+              <Stat value={selected.plan?.assignmentId ? selected.submitted : null} total={selected.activeStudents} label="submitted" />
+              <Stat value={selected.needsReview} label="need review" tone="attention" />
+              <Stat value={selected.corrections} label="awaiting fixes" />
+            </div>
+            <Link
+              href={selected.plan ? `/dashboard/batches/${selected.batch.id}/plans/${selected.plan.id}` : `/dashboard/batches/${selected.batch.id}/plans`}
+              className={buttonClasses('primary', 'md', 'mt-auto self-start')}
+            >
+              {selected.plan ? (selected.needsReview ? <><ClipboardCheck className="h-4 w-4" /> Review submissions</> : <>Open plan <ArrowRight className="h-4 w-4" /></>) : <><CalendarPlus className="h-4 w-4" /> Plan today</>}
+            </Link>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function StaffHome() {
   const { user, profile, tenant } = useAuth();
   const [rows, setRows] = useState<BatchToday[]>([]);
@@ -97,6 +181,7 @@ export function StaffHome() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [pendingPeople, setPendingPeople] = useState(0);
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const scopeNames = useScopeNames();
   const today = toLocalDateKey(new Date());
 
@@ -151,63 +236,13 @@ export function StaffHome() {
   const needsReview = rows.reduce((n, r) => n + (r.needsReview ?? 0), 0);
   const unplanned = rows.filter((r) => !r.plan).length;
   const activeStudents = rows.reduce((n, r) => n + r.activeStudents, 0);
-  const firstReview = rows.find((r) => r.plan && (r.needsReview ?? 0) > 0);
   const firstUnplanned = rows.find((r) => !r.plan);
   const role = tenant.role;
   const isAcademyAdmin = role === 'super_admin' || role === 'university_admin';
-  const tiles: AppTile[] = [
-    ...(isAcademyAdmin ? [{ label: 'Branches', art: 'branch' as const, href: '/dashboard/branches' }] : []),
-    { label: isManager ? 'Batches' : 'My Batches', art: 'clipboard', href: '/dashboard/batches' },
-    { label: 'Review Work', art: 'review', href: firstReview ? `/dashboard/batches/${firstReview.batch.id}/plans/${firstReview.plan!.id}` : '/dashboard#today', badge: needsReview, badgeLabel: 'submissions to review' },
-    { label: 'Daily Plans', art: 'calendar', href: firstUnplanned ? `/dashboard/batches/${firstUnplanned.batch.id}/plans` : rows[0] ? `/dashboard/batches/${rows[0].batch.id}/plans` : '/dashboard/batches', badge: unplanned, badgeLabel: 'batches without a plan today' },
-    ...(role === 'super_admin' || role === 'branch_admin' ? [{ label: 'People', art: 'people' as const, href: '/dashboard/people', badge: pendingPeople, badgeLabel: 'accounts waiting for approval' }] : []),
-    { label: 'Analytics', art: 'chart', href: '/dashboard/analytics' },
-    { label: 'Course Authoring', art: 'pen', href: '/dashboard/courses' },
-    { label: 'Live Books', art: 'preview', href: '/courses' },
-    ...(role === 'super_admin' ? [{ label: 'Organizations', art: 'building' as const, href: '/dashboard/organizations' }] : []),
-    { label: 'User Guide', art: 'guide', href: '/dashboard/guide' },
-    { label: 'My Profile', art: 'profile', href: '/dashboard/profile' },
-    helpTile,
-  ];
 
-  return (
-    <div className="space-y-10">
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="min-w-0 space-y-8">
-      <HomeHero
-        name={profile?.displayName || 'there'}
-        academy={scopeNames.org}
-        facts={[
-          { icon: ShieldCheck, text: <>{ROLE_LABELS[tenant.role]}{scopeNames.branch ? <> · {scopeNames.branch}</> : tenant.role === 'super_admin' ? ' · every branch' : null}</> },
-          ...(counts.branches !== undefined ? [{ icon: GitBranch, text: `${counts.branches} branch${counts.branches === 1 ? '' : 'es'} in the academy` }] : []),
-          { icon: Layers, text: isLoading ? 'Loading your batches…' : rows.length ? `${rows.length} running batch${rows.length === 1 ? '' : 'es'} · ${activeStudents} active student${activeStudents === 1 ? '' : 's'}` : 'No running batches yet' },
-          { icon: CalendarCheck, text: isLoading ? formatPlanDate(today, 'long') : `${formatPlanDate(today, 'long')} · ${needsReview} to review · ${unplanned} without a plan today` },
-        ]}
-      />
-
-      {!isLoading && !error && rows.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiTile label="Running batches" value={rows.length} icon={Layers} hint="Upcoming or in progress." />
-          <KpiTile label="Active students" value={activeStudents} icon={GraduationCap} tone="teal" hint="Enrolled and active in those batches." />
-          <KpiTile label="To review" value={needsReview} icon={ClipboardCheck} tone="coral" hint="Today’s submissions waiting for marks or feedback." />
-          <KpiTile label="Unplanned today" value={unplanned} icon={CalendarPlus} tone="warning" hint={unplanned ? 'Batches with no plan for today.' : 'Every batch has today planned.'} />
-        </div>
-      )}
-
-      <Section id="today" title="Today across your batches" icon={CalendarCheck}
-        action={<Link href="/dashboard/batches" className="text-sm font-semibold text-brand-ink hover:underline">All batches</Link>}>
-        {isLoading ? (
-          <div className="space-y-3" role="status"><span className="sr-only">Loading batches…</span><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
-        ) : error ? (
-          <ErrorState onRetry={() => setReloadKey((k) => k + 1)}>{error}</ErrorState>
-        ) : rows.length === 0 ? (
-          <EmptyState compact illustration="calendar" title="No running batches"
-            action={isManager ? <Link href="/dashboard/batches" className={buttonClasses('primary', 'sm')}>Create a batch</Link> : undefined}>
-            {isManager ? 'Create a batch to start planning daily learning.' : 'When you’re assigned to a batch, today’s plan and submissions appear here.'}
-          </EmptyState>
-        ) : (
+  const renderRows = (list: BatchToday[]) => (
           <ul className="space-y-3">
-            {rows.map((r) => {
+            {list.map((r) => {
               const planHref = r.plan ? `/dashboard/batches/${r.batch.id}/plans/${r.plan.id}` : `/dashboard/batches/${r.batch.id}/plans`;
               return (
                 <Card as="li" key={r.batch.id} className="p-4 sm:p-5">
@@ -240,15 +275,50 @@ export function StaffHome() {
               );
             })}
           </ul>
-        )}
-      </Section>
+  );
+  const loadingOrError = isLoading ? (
+    <div className="space-y-3" role="status"><span className="sr-only">Loading batches…</span><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
+  ) : error ? (
+    <ErrorState onRetry={() => setReloadKey((k) => k + 1)}>{error}</ErrorState>
+  ) : null;
+  const reviewRows = rows.filter((r) => (r.needsReview ?? 0) > 0 || (r.corrections ?? 0) > 0);
 
-        </div>
+  const apps: HomeApp[] = [
+    { label: isManager ? 'Batches' : 'My Batches', art: 'clipboard', href: '/dashboard/batches' },
+    { label: 'Daily Plans', art: 'calendar', href: firstUnplanned ? `/dashboard/batches/${firstUnplanned.batch.id}/plans` : rows[0] ? `/dashboard/batches/${rows[0].batch.id}/plans` : '/dashboard/batches', badge: unplanned, badgeLabel: 'batches without a plan today' },
+    { label: 'Review Work', art: 'review', badge: needsReview, badgeLabel: 'submissions to review',
+      sheet: loadingOrError ?? (reviewRows.length ? renderRows(reviewRows) : (
+        <EmptyState compact illustration="inbox" title="Nothing to review">New submissions for today’s plans will appear here.</EmptyState>
+      )) },
+    ...(role === 'super_admin' || role === 'branch_admin' ? [{ label: 'People', art: 'people' as const, href: '/dashboard/people', badge: pendingPeople, badgeLabel: 'accounts waiting for approval' }] : []),
+    ...(isAcademyAdmin ? [{ label: 'Branches', art: 'branch' as const, href: '/dashboard/branches' }] : []),
+    { label: 'Analytics', art: 'chart', href: '/dashboard/analytics' },
+    { label: 'Course Authoring', art: 'pen', href: '/dashboard/courses' },
+    { label: 'Live Books', art: 'preview', href: '/courses' },
+    ...(role === 'super_admin' ? [{ label: 'Organizations', art: 'building' as const, href: '/dashboard/organizations' }] : []),
+    { label: 'User Guide', art: 'guide', href: '/dashboard/guide' },
+    { label: 'My Profile', art: 'profile', href: '/dashboard/profile' },
+    helpTile,
+  ];
 
-        <aside className="space-y-8">
-          <AppGrid tiles={tiles} />
-        </aside>
-      </div>
-    </div>
+  return (
+    <HomeBoard
+      hero={
+        <HomeHero
+          name={profile?.displayName || 'there'}
+          academy={scopeNames.org}
+          facts={[
+            { icon: ShieldCheck, text: <>{ROLE_LABELS[tenant.role]}{scopeNames.branch ? <> · {scopeNames.branch}</> : tenant.role === 'super_admin' ? ' · every branch' : null}</> },
+            ...(counts.branches !== undefined ? [{ icon: GitBranch, text: `${counts.branches} branch${counts.branches === 1 ? '' : 'es'} in the academy` }] : []),
+            { icon: Layers, text: isLoading ? 'Loading your batches…' : rows.length ? `${rows.length} running batch${rows.length === 1 ? '' : 'es'} · ${activeStudents} active student${activeStudents === 1 ? '' : 's'}` : 'No running batches yet' },
+            { icon: CalendarCheck, text: isLoading ? formatPlanDate(today, 'long') : `${formatPlanDate(today, 'long')} · ${needsReview} to review · ${unplanned} without a plan today` },
+          ]}
+        />
+      }
+      day={<StaffDayPanel rows={rows} isManager={isManager} loading={loadingOrError} error={!!error} />}
+      apps={apps}
+      openKey={openSection}
+      onOpenChange={setOpenSection}
+    />
   );
 }

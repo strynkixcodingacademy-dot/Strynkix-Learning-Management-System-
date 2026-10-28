@@ -14,7 +14,7 @@ import { ProgressRing } from '@/components/ui/Progress';
 import { cx } from '@/components/ui/tones';
 import { RestDayArt } from '@/components/home/AppArt';
 import { formatPlanDate, formatTime } from './LearningBits';
-import { ArrowRight, BookOpen, Check, ClipboardList, Flag, RefreshCw } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, ChevronRight, ClipboardList, Flag } from 'lucide-react';
 
 export interface MyDayStep {
   key: string;
@@ -45,39 +45,47 @@ export function MyDayPanel({
   groups,
   nextPlan,
   fallback,
-  onRefresh,
+  scheduleHref,
 }: {
   groups: MyDayGroup[];
   nextPlan?: { plan: DailyPlan; course: Course };
   fallback?: { href: string; label: string };
-  onRefresh: () => void;
+  /** Link for "View Schedule". */
+  scheduleHref?: string;
 }) {
   const slots: Slot[] = groups.flatMap((group) => group.steps.map((step) => ({ step, group })));
   const firstOpen = slots.find((s) => s.step.needsAction) ?? slots[0];
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const selected = slots.find((s) => s.step.key === selectedKey) ?? firstOpen;
 
+  const schedule = scheduleHref ?? (groups[0] ? `/courses/${groups[0].course.id}?tab=schedule` : undefined);
   const header = (
     <div className="flex items-center justify-between gap-3">
       <h2 id="my-day-heading" className="text-[18px] font-extrabold tracking-tight text-ink">My Day</h2>
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={onRefresh} className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-3 hover:text-ink">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
-        {groups[0] && (
-          <Link href={`/courses/${groups[0].course.id}?tab=schedule`} className="inline-flex items-center gap-1 text-sm font-semibold text-ink-3 hover:text-ink">
-            View schedule <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        )}
-      </div>
+      {schedule && (
+        <Link href={schedule} className="inline-flex items-center gap-1 text-[15px] font-medium text-ink-3 hover:text-ink">
+          View Schedule <ChevronRight className="h-4 w-4" />
+        </Link>
+      )}
     </div>
   );
+  // Card shell shared by both states; on desktop it fills the remaining height.
+  const card = 'grid min-h-[360px] grid-cols-1 overflow-hidden rounded-card border border-line bg-surface shadow-card md:grid-cols-[240px_minmax(0,1fr)] lg:min-h-0 lg:flex-1';
 
   if (!selected) {
     return (
-      <section aria-labelledby="my-day-heading" className="space-y-4">
+      <section aria-labelledby="my-day-heading" className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
         {header}
-        <div className="paper-dots flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-card border border-line bg-surface px-6 py-10 text-center">
+        <div className={card}>
+          <div className="border-b border-line px-4 py-4 text-[13px] text-ink-3 md:border-b-0 md:border-r">
+            {nextPlan ? (
+              <>
+                <div className="font-semibold">Next plan · {formatPlanDate(nextPlan.plan.date)}</div>
+                <div className="mt-0.5 text-[14px] font-bold text-ink-2">{nextPlan.plan.title}</div>
+              </>
+            ) : 'No plan published for today.'}
+          </div>
+        <div className="paper-dots flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
           <RestDayArt />
           <p className="text-[15px] font-semibold text-ink-2">Looks like nothing is planned today</p>
           <p className="max-w-sm text-sm text-ink-3">
@@ -86,6 +94,7 @@ export function MyDayPanel({
               : 'Your instructor hasn’t published the next plan yet. A good time to read ahead.'}
           </p>
           {fallback && <Link href={fallback.href} className={buttonClasses('secondary', 'sm', 'mt-1')}>{fallback.label}</Link>}
+        </div>
         </div>
       </section>
     );
@@ -96,11 +105,11 @@ export function MyDayPanel({
   const pct = group.steps.length ? Math.round((done / group.steps.length) * 100) : null;
 
   return (
-    <section aria-labelledby="my-day-heading" className="space-y-4">
+    <section aria-labelledby="my-day-heading" className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
       {header}
-      <div className="grid grid-cols-1 overflow-hidden rounded-card border border-line bg-surface shadow-card md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+      <div className={card}>
         {/* Time slots */}
-        <ol aria-label="Today's steps" className="min-w-0 divide-y divide-line border-b border-line md:border-b-0 md:border-r">
+        <ol aria-label="Today's steps" className="min-w-0 divide-y divide-line border-b border-line md:border-b-0 md:border-r lg:overflow-y-auto">
           {slots.map(({ step: s, group: g }) => {
             const active = s.key === step.key;
             const due = s.due ?? (s.kind === 'lesson' ? g.plan.learningDueAt : undefined);
@@ -135,7 +144,7 @@ export function MyDayPanel({
         </ol>
 
         {/* Selected step */}
-        <div className="paper-dots flex min-w-0 flex-col gap-5 p-5 sm:p-6">
+        <div className="paper-dots flex min-w-0 flex-col gap-5 p-5 sm:p-6 lg:overflow-y-auto">
           <div className="flex items-start gap-4">
             <div className="min-w-0 flex-1">
               <div className="text-xs font-semibold text-ink-3">{group.course.title}</div>

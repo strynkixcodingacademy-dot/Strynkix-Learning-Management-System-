@@ -205,9 +205,11 @@ interface AppShellProps {
   bare?: boolean;
   /** Content for the bare layout's top bar (e.g. breadcrumbs). */
   topBar?: ReactNode;
+  /** Desktop: the page fills exactly one screen and does not scroll (home board). */
+  fit?: boolean;
 }
 
-export function AppShell({ children, pageTitle, bare = false, topBar }: AppShellProps) {
+export function AppShell({ children, pageTitle, bare = false, topBar, fit = false }: AppShellProps) {
   const { tenant, profile, signOut } = useAuth();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -295,7 +297,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar }: AppShell
             </div>
           </header>
 
-          <main id="main" className={cx('flex-1', bare ? 'pb-24' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-12')}>
+          <main id="main" className={cx('flex-1', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-12')}>
             {pageTitle && (
               <h1 className="mb-6 text-[26px] font-extrabold tracking-tight text-ink sm:text-[30px]">{pageTitle}</h1>
             )}
@@ -322,7 +324,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar }: AppShell
           </div>
         )}
       </div>
-      <HelpAssistant />
+      <HelpAssistant showLauncher={!fit} />
     </RequireAuth>
   );
 }

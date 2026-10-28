@@ -26,17 +26,17 @@ import {
   MetricRow,
 } from './LearningBits';
 import { buttonClasses } from '@/components/ui/Button';
-import { Card, Section } from '@/components/ui/Page';
+import { Card } from '@/components/ui/Page';
 import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
 import { EmptyState, ErrorState, Notice, Skeleton } from '@/components/ui/States';
 import { ProgressBar } from '@/components/ui/Progress';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { cx } from '@/components/ui/tones';
 import { getBatchById } from '@/lib/batches/service';
-import { AppGrid, AppTile, helpTile, HomeHero, useScopeNames } from '@/components/home/HomeBlocks';
+import { helpTile, HomeHero, useScopeNames } from '@/components/home/HomeBlocks';
+import { HomeApp, HomeBoard } from '@/components/home/HomeBoard';
 import { MyDayPanel, MyDayStep } from './MyDayPanel';
 import {
-  AlertCircle,
   ArrowRight,
   BookOpen,
   CalendarDays,
@@ -47,7 +47,6 @@ import {
   GraduationCap,
   MessageSquareWarning,
   Star,
-  TrendingUp,
   Users,
 } from 'lucide-react';
 
@@ -178,36 +177,6 @@ function getAttentionItems(overviews: StudentCourseOverview[], now: Date): Atten
 }
 
 /** The single most useful next action: today's next step, else the next unfinished lesson. */
-function getPrimaryResume(dayGroups: DayGroup[], overviews: StudentCourseOverview[]) {
-    // If today's plan has an active next step:
-    const todayNext = dayGroups.flatMap((g) => g.steps).find((s) => s.needsAction);
-    if (todayNext) {
-      return {
-        title: todayNext.title,
-        detail: todayNext.detail,
-        href: todayNext.href,
-        kind: todayNext.kind,
-        actionLabel: todayNext.actionLabel,
-        context: 'Today’s schedule',
-      };
-    }
-    // Otherwise look across enrolled courses for the next unfinished lesson:
-    for (const o of overviews) {
-      const resume = getResumeLesson(o.modules, o.lessons, o.progress);
-      if (resume) {
-        return {
-          title: resume.title,
-          detail: `${o.course.title} · ${resume.estimatedMinutes ?? 15} min`,
-          href: `/courses/${o.course.id}/lessons/${resume.id}`,
-          kind: 'lesson' as const,
-          actionLabel: 'Continue learning',
-          context: o.course.title,
-        };
-      }
-    }
-    return null;
-}
-
 function DashboardSkeleton() {
   return (
     <div className="space-y-8" role="status" aria-live="polite">
@@ -227,6 +196,7 @@ export function StudentDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [now, setNow] = useState(() => new Date());
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
 
@@ -334,10 +304,6 @@ export function StudentDashboard() {
       : doneSteps === 0 ? `You have ${allSteps.length} step${allSteps.length === 1 ? '' : 's'} planned today. Start with the first one below.`
         : `You’re ${doneSteps} of ${allSteps.length} steps through today.`;
 
-  // When today's plan has a next step, My Day already leads with it; the banner
-  // is the "pick up where you left off" fallback, so it never duplicates My Day.
-  const hasPlannedNextStep = dayGroups.some((g) => g.steps.some((s) => s.needsAction));
-  const primaryResume = hasPlannedNextStep ? null : getPrimaryResume(dayGroups, overviews);
   const attention = getAttentionItems(overviews, now);
   const assignmentTitle = (id: string) => overviews.flatMap((o) => o.assignments.map((a) => ({ a, courseId: o.course.id }))).find((x) => x.a.id === id);
   const lessonInfo = (id: string) => overviews.flatMap((o) => o.lessons.map((l) => ({ l, courseId: o.course.id }))).find((x) => x.l.id === id);
@@ -347,162 +313,131 @@ export function StudentDashboard() {
   const corrections = attention.filter((a) => a.kind === 'correction').length;
   const openAssignments = metrics.overdueAssignments.length + corrections +
     allSteps.filter((st) => st.kind === 'assignment' && st.needsAction).length;
-  const tiles: AppTile[] = [
+  const instructors = [...new Set(batchInfo.flatMap((b) => b.instructors))];
+
+  const myDayContent = overviews.length === 0 && failedCount === 0 ? (
+    <EmptyState illustration="sprout" title="Your Live Books will appear here"
+      action={<Link href="/courses" className={buttonClasses('secondary')}>Browse my courses</Link>}>
+      You&apos;re not enrolled in a batch yet. Once your academy adds you, your courses, daily plan and assignments show up here automatically.
+    </EmptyState>
+  ) : (
+    <MyDayPanel
+      groups={dayGroups.map((g) => ({ course: g.overview.course, plan: g.plan, steps: g.steps }))}
+      nextPlan={nextPlan}
+      fallback={overviews[0] ? { href: `/courses/${overviews[0].course.id}`, label: `Continue ${overviews[0].course.title}` } : undefined}
+    />
+  );
+
+  const attentionContent = (
+    <div className="space-y-4">
+      {failedCount > 0 && (
+        <Notice kind="warning" action={<button onClick={reload} className="text-sm font-semibold text-warning-ink hover:underline">Retry</button>}>
+          {failedCount} of your courses couldn&apos;t be loaded, so it&apos;s missing from these figures.
+        </Notice>
+      )}
+      {attention.length === 0 && overdueCount === 0 ? (
+        <EmptyState compact illustration="sprout" title="You’re all caught up">No corrections requested and no new marks this week.</EmptyState>
+      ) : (
+        <Card as="section" className="divide-y divide-line">
+          {attention.map((item) => (
+            <Link key={item.key} href={item.href} className="group flex items-start gap-3 p-4 transition-colors hover:bg-canvas sm:items-center">
+              <span aria-hidden="true" className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+                item.kind === 'correction' ? 'bg-warning-soft text-warning-ink' : 'bg-success-soft text-success-ink')}>
+                {item.kind === 'correction' ? <MessageSquareWarning className="w-4.5 h-4.5" /> : <Star className="w-4.5 h-4.5" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <StatusPill tone={item.kind === 'correction' ? 'warning' : 'success'} size="sm">
+                    {item.kind === 'correction' ? 'Correction requested' : 'Graded'}
+                  </StatusPill>
+                  <span className="text-sm font-semibold text-ink">{item.title}</span>
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-ink-3">{item.courseTitle} · {item.detail}</span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-ink">
+                {item.kind === 'correction' ? 'Fix & resubmit' : 'View feedback'}
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </span>
+            </Link>
+          ))}
+          {metrics.overdueAssignments.map((o) => {
+            const found = assignmentTitle(o.assignmentId);
+            return (
+              <Link key={o.assignmentId} href={found ? `/courses/${found.courseId}/assignments/${o.assignmentId}` : '/courses'} className="flex items-center gap-3 p-4 hover:bg-canvas">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-coral-soft text-coral-ink"><ClipboardList className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-ink">{found?.a.title ?? 'Assignment'}</span><span className="text-xs text-coral-ink">Past deadline, not submitted — late work still counts</span></span>
+              </Link>
+            );
+          })}
+          {metrics.overdueLessons.map((o) => {
+            const found = lessonInfo(o.lessonId);
+            return (
+              <Link key={o.lessonId} href={found ? `/courses/${found.courseId}/lessons/${o.lessonId}` : '/courses'} className="flex items-center gap-3 p-4 hover:bg-canvas">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-coral-soft text-coral-ink"><BookOpen className="h-4 w-4" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-ink">{found?.l.title ?? 'Lesson'}</span><span className="text-xs text-coral-ink">Lesson overdue</span></span>
+              </Link>
+            );
+          })}
+        </Card>
+      )}
+    </div>
+  );
+
+  const progressContent = (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="p-5"><MetricRow title="Learning completion" ratio={metrics.learningCompletion} unit="lessons" tone="success"
+          emptyText="Nothing assigned yet" explanation="Assigned lessons you’ve marked complete, up to today." /></Card>
+        <Card className="p-5"><MetricRow title="Assignments submitted" ratio={metrics.submissionRate} unit="due" tone="teal"
+          emptyText="Nothing due yet" explanation={`Counts assignments whose deadline has passed.${metrics.upcomingAssignments ? ` ${metrics.upcomingAssignments} upcoming not counted.` : ''}${metrics.lateSubmissions ? ` ${metrics.lateSubmissions} submitted late.` : ''}`} /></Card>
+        <Card className="p-5"><MetricRow title="Assessment" ratio={metrics.assessment} unit="marks" tone="brand"
+          emptyText="Nothing graded yet" explanation={`Marks from ${metrics.assessment.gradedCount} graded submission${metrics.assessment.gradedCount === 1 ? '' : 's'}. Work awaiting review isn’t counted.`} /></Card>
+      </div>
+      <Link href="/dashboard/analytics" className={buttonClasses('secondary')}>Open full progress report <ArrowRight className="h-4 w-4" /></Link>
+    </div>
+  );
+
+  const coursesContent = overviews.length ? (
+    <div className="grid gap-5 sm:grid-cols-2">
+      {overviews.map((o) => <CourseTile key={o.course.id} overview={o} />)}
+    </div>
+  ) : (
+    <EmptyState compact illustration="book" title="No courses yet" action={<Link href="/courses" className={buttonClasses('secondary', 'sm')}>Open Live Books</Link>}>
+      Courses appear once you’re enrolled in a batch.
+    </EmptyState>
+  );
+
+  const attentionCount = attention.length + overdueCount;
+  const apps: HomeApp[] = [
     { label: 'Live Books', art: 'books', href: '/courses' },
     { label: 'Schedule', art: 'calendar', href: firstCourse ? `/courses/${firstCourse.id}?tab=schedule` : '/courses' },
     { label: 'Assignments', art: 'clipboard', href: firstCourse ? `/courses/${firstCourse.id}?tab=assignments` : '/courses', badge: openAssignments, badgeLabel: 'assignments need your attention' },
-    { label: 'My Progress', art: 'chart', href: '/dashboard/analytics' },
+    { label: 'Needs Attention', art: 'review', sheet: attentionContent, badge: attentionCount, badgeLabel: 'items need your attention' },
+    { label: 'My Progress', art: 'chart', sheet: progressContent },
+    { label: 'My Courses', art: 'pen', sheet: coursesContent },
     { label: 'User Guide', art: 'guide', href: '/dashboard/guide' },
     { label: 'My Profile', art: 'profile', href: '/dashboard/profile' },
     helpTile,
   ];
-  const instructors = [...new Set(batchInfo.flatMap((b) => b.instructors))];
 
   return (
-    <div className="space-y-10">
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="min-w-0 space-y-8">
-          <HomeHero
-            name={profile?.displayName || firstName}
-            academy={scopeNames.org}
-            facts={[
-              { icon: GraduationCap, text: <>Student{scopeNames.branch ? <> · {scopeNames.branch}</> : null}</> },
-              ...(batchInfo.length ? [{ icon: Users, text: <>{batchInfo.map((b) => b.name).join(', ')}{instructors.length ? <> · with {instructors.join(', ')}</> : null}</> }] : []),
-              ...(overviews.length ? [{ icon: BookOpen, text: overviews.map((o) => o.course.title).join(', ') }] : []),
-              { icon: CalendarDays, text: <>{greeting(now)}, {firstName}. {statusLine}</> },
-            ]}
-          />
-
-          {primaryResume && (
-            <div className="flex flex-col justify-between gap-4 rounded-2xl border border-brand-line bg-brand-soft/70 p-4 shadow-card sm:flex-row sm:items-center sm:p-5">
-              <div className="flex items-center gap-3.5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
-                  <BookOpen className="w-5 h-5" aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-brand-ink">Up next</span>
-                    <span className="text-xs text-ink-3">·</span>
-                    <span className="text-xs font-medium text-ink-3">{primaryResume.context}</span>
-                  </div>
-                  <h2 className="truncate text-base font-bold text-ink">{primaryResume.title}</h2>
-                  <p className="text-xs text-ink-3">{primaryResume.detail}</p>
-                </div>
-              </div>
-              <Link href={primaryResume.href} className={buttonClasses('primary', 'md', 'self-start shrink-0 sm:self-center')}>
-                {primaryResume.actionLabel} <ArrowRight className="ml-1 w-4 h-4" aria-hidden="true" />
-              </Link>
-            </div>
-          )}
-
-          {overviews.length === 0 && failedCount === 0 ? (
-            <EmptyState illustration="sprout" title="Your Live Books will appear here"
-              action={<Link href="/courses" className={buttonClasses('secondary')}>Browse my courses</Link>}>
-              You&apos;re not enrolled in a batch yet. Once your academy adds you, your courses, daily plan and assignments show up here automatically.
-            </EmptyState>
-          ) : (
-            <MyDayPanel
-              groups={dayGroups.map((g) => ({ course: g.overview.course, plan: g.plan, steps: g.steps }))}
-              nextPlan={nextPlan}
-              fallback={overviews[0] ? { href: `/courses/${overviews[0].course.id}`, label: `Continue ${overviews[0].course.title}` } : undefined}
-              onRefresh={reload}
-            />
-          )}
-        </div>
-
-        <aside className="space-y-8">
-          <AppGrid tiles={tiles} />
-        </aside>
-      </div>
-
-      {attention.length > 0 && (
-        <Section id="attention" title="Needs your attention" icon={MessageSquareWarning}>
-          <Card as="section" className="divide-y divide-line">
-            {attention.map((item) => (
-              <Link key={item.key} href={item.href} className="group flex items-start gap-3 p-4 transition-colors hover:bg-canvas sm:items-center">
-                <span aria-hidden="true" className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-                  item.kind === 'correction' ? 'bg-warning-soft text-warning-ink' : 'bg-success-soft text-success-ink')}>
-                  {item.kind === 'correction' ? <MessageSquareWarning className="w-4.5 h-4.5" /> : <Star className="w-4.5 h-4.5" />}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <StatusPill tone={item.kind === 'correction' ? 'warning' : 'success'} size="sm">
-                      {item.kind === 'correction' ? 'Correction requested' : 'Graded'}
-                    </StatusPill>
-                    <span className="text-sm font-semibold text-ink">{item.title}</span>
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-ink-3">{item.courseTitle} · {item.detail}</span>
-                </span>
-                <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-ink">
-                  {item.kind === 'correction' ? 'Fix & resubmit' : 'View feedback'}
-                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                </span>
-              </Link>
-            ))}
-          </Card>
-        </Section>
-      )}
-
-      {failedCount > 0 && (
-        <Notice kind="warning" action={<button onClick={reload} className="text-sm font-semibold text-warning-ink hover:underline">Retry</button>}>
-          {failedCount} of your courses couldn&apos;t be loaded, so it&apos;s missing from the figures below.
-        </Notice>
-      )}
-
-      {overviews.length > 0 && (
-        <>
-          <Section id="progress" title="My progress" icon={TrendingUp}
-            action={<Link href="/dashboard/analytics" className="text-sm font-semibold text-brand-ink hover:underline">Details</Link>}>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="p-5"><MetricRow title="Learning completion" ratio={metrics.learningCompletion} unit="lessons" tone="success"
-                emptyText="Nothing assigned yet" explanation="Assigned lessons you’ve marked complete, up to today." /></Card>
-              <Card className="p-5"><MetricRow title="Assignments submitted" ratio={metrics.submissionRate} unit="due" tone="teal"
-                emptyText="Nothing due yet" explanation={`Counts assignments whose deadline has passed.${metrics.upcomingAssignments ? ` ${metrics.upcomingAssignments} upcoming not counted.` : ''}${metrics.lateSubmissions ? ` ${metrics.lateSubmissions} submitted late.` : ''}`} /></Card>
-              <Card className="p-5"><MetricRow title="Assessment" ratio={metrics.assessment} unit="marks" tone="brand"
-                emptyText="Nothing graded yet" explanation={`Marks from ${metrics.assessment.gradedCount} graded submission${metrics.assessment.gradedCount === 1 ? '' : 's'}. Work awaiting review isn’t counted.`} /></Card>
-            </div>
-            {overdueCount > 0 && (
-              <Card className="space-y-2 border-coral-line bg-coral-soft/40 p-5">
-                <div className="flex items-baseline justify-between">
-                  <h3 className="flex items-center gap-1.5 text-sm font-bold text-coral-ink">
-                    <AlertCircle className="w-4 h-4 text-coral" aria-hidden="true" /> Overdue work
-                  </h3>
-                  <span className="text-xl font-extrabold text-coral-ink">{overdueCount}</span>
-                </div>
-                <ul className="space-y-1.5 text-sm">
-                  {metrics.overdueAssignments.slice(0, 3).map((o) => {
-                    const found = assignmentTitle(o.assignmentId);
-                    return (
-                      <li key={o.assignmentId} className="flex items-start gap-2">
-                        <ClipboardList className="mt-0.5 w-4 h-4 shrink-0 text-coral" aria-hidden="true" />
-                        {found ? <Link href={`/courses/${found.courseId}/assignments/${o.assignmentId}`} className="font-medium text-ink hover:text-brand-ink hover:underline">{found.a.title}</Link> : o.assignmentId}
-                      </li>
-                    );
-                  })}
-                  {metrics.overdueLessons.slice(0, 3).map((o) => {
-                    const found = lessonInfo(o.lessonId);
-                    return (
-                      <li key={o.lessonId} className="flex items-start gap-2">
-                        <BookOpen className="mt-0.5 w-4 h-4 shrink-0 text-coral" aria-hidden="true" />
-                        {found ? <Link href={`/courses/${found.courseId}/lessons/${o.lessonId}`} className="font-medium text-ink hover:text-brand-ink hover:underline">{found.l.title}</Link> : 'Lesson'}
-                      </li>
-                    );
-                  })}
-                  <li className="text-xs font-medium text-coral-ink">Catch up when you can — late work still counts.</li>
-                </ul>
-              </Card>
-            )}
-          </Section>
-
-          {/* Courses */}
-          <Section id="my-courses" title="My courses" icon={BookOpen}
-            action={<Link href="/courses" className="text-sm font-semibold text-brand-ink hover:underline">View all</Link>}>
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {overviews.map((o) => <CourseTile key={o.course.id} overview={o} />)}
-            </div>
-          </Section>
-        </>
-      )}
-    </div>
+    <HomeBoard
+      hero={
+        <HomeHero
+          name={profile?.displayName || firstName}
+          academy={scopeNames.org}
+          facts={[
+            { icon: GraduationCap, text: <>Student{scopeNames.branch ? <> · {scopeNames.branch}</> : null}</> },
+            ...(batchInfo.length ? [{ icon: Users, text: <>{batchInfo.map((b) => b.name).join(', ')}{instructors.length ? <> · with {instructors.join(', ')}</> : null}</> }] : []),
+            ...(overviews.length ? [{ icon: BookOpen, text: overviews.map((o) => o.course.title).join(', ') }] : []),
+            { icon: CalendarDays, text: <>{greeting(now)}, {firstName}. {statusLine}</> },
+          ]}
+        />
+      }
+      day={myDayContent}
+      apps={apps}
+      openKey={openSection}
+      onOpenChange={setOpenSection}
+    />
   );
 }
