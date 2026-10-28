@@ -1,0 +1,18 @@
+name: Auto Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+jobs:
+  deploy:
+    name: Trigger Vercel Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Vercel Deploy Hook
+        run: |
+          echo "Triggering Vercel Deploy Hook..."
+          curl -s -X POST "https://api.vercel.com/v1/integrations/deploy/prj_tSdp4Zjh6GiWbibDnabn4kQyoFH8/xSgWOJaORw"
+          echo "Deployment triggered successfully!"
