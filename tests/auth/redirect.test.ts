@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { getRoleDefaultRedirect } from '@/lib/auth/redirect';
 
 describe('Role Default Redirects', () => {
-  it('redirects student to /courses catalog', () => {
-    expect(getRoleDefaultRedirect('student')).toBe('/courses');
+  // Stage 7: the Live Books dashboard (/dashboard) is the student home page.
+  it('redirects student to the Live Books dashboard', () => {
+    expect(getRoleDefaultRedirect('student')).toBe('/dashboard');
   });
 
   it('redirects instructor to /dashboard', () => {

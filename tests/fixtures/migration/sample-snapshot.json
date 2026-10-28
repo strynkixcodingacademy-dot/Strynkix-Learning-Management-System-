@@ -1,0 +1,58 @@
+{
+  "users": [
+    { "id": "stu_canon", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_legacy", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_multi", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_branchmis", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_nobatch", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_ghostbatch", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_progress1", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_progress0", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_none", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_conflict", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_derived", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" },
+    { "id": "stu_suspended", "role": "student", "orgId": "strynkix", "branchId": "branch_pune", "status": "suspended" },
+    { "id": "stu_nobranch", "role": "student", "orgId": "strynkix", "status": "active" },
+    { "id": "stu_badbranch", "role": "student", "orgId": "strynkix", "branchId": "branch_rival", "status": "active" },
+    { "id": "legacy_pending", "role": "pending_verification", "orgId": "strynkix", "status": "active" },
+    { "id": "inst_1", "role": "instructor", "orgId": "strynkix", "branchId": "branch_pune", "status": "active" }
+  ],
+  "branches": [
+    { "id": "branch_pune", "orgId": "strynkix" },
+    { "id": "branch_mumbai", "orgId": "strynkix" },
+    { "id": "branch_rival", "orgId": "rival_org" }
+  ],
+  "courses": [
+    { "id": "course_fs", "orgId": "strynkix", "status": "published" },
+    { "id": "course_ds", "orgId": "strynkix", "status": "published" },
+    { "id": "course_ml", "orgId": "strynkix", "status": "published" }
+  ],
+  "batches": [
+    { "id": "b_pune_fs", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_fs", "status": "in_progress" },
+    { "id": "b_pune_fs2", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_fs", "status": "upcoming" },
+    { "id": "b_pune_fs_old", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_fs", "status": "archived" },
+    { "id": "b_mumbai_fs", "orgId": "strynkix", "branchId": "branch_mumbai", "courseId": "course_fs", "status": "in_progress" },
+    { "id": "b_pune_ds", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_ds", "status": "completed" }
+  ],
+  "enrollments": [
+    { "id": "course_fs_stu_canon", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_fs", "batchId": "b_pune_fs", "studentId": "stu_canon", "status": "active", "enrolledAt": "2026-09-01T00:00:00.000Z" },
+    { "id": "b_pune_fs_stu_canon", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_fs", "batchId": "b_pune_fs", "studentId": "stu_canon", "status": "active" },
+    { "id": "b_pune_fs_stu_legacy", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_fs", "batchId": "b_pune_fs", "studentId": "stu_legacy", "status": "active", "enrolledAt": "2026-08-15T00:00:00.000Z" },
+    { "id": "legacy_multi_1", "orgId": "strynkix", "courseId": "course_fs", "batchId": "b_pune_fs", "studentId": "stu_multi", "status": "active" },
+    { "id": "legacy_multi_2", "orgId": "strynkix", "courseId": "course_fs", "batchId": "b_pune_fs2", "studentId": "stu_multi", "status": "active" },
+    { "id": "legacy_branchmis", "orgId": "strynkix", "courseId": "course_fs", "batchId": "b_mumbai_fs", "studentId": "stu_branchmis", "status": "active" },
+    { "id": "legacy_nobatch", "orgId": "strynkix", "courseId": "course_fs", "studentId": "stu_nobatch", "status": "active" },
+    { "id": "legacy_ghost", "orgId": "strynkix", "courseId": "course_fs", "batchId": "b_missing", "studentId": "stu_ghostbatch", "status": "active" },
+    { "id": "course_fs_stu_conflict", "orgId": "strynkix", "branchId": "branch_pune", "courseId": "course_fs", "batchId": "b_pune_fs", "studentId": "stu_conflict", "status": "active" },
+    { "id": "legacy_conflict", "orgId": "strynkix", "courseId": "course_fs", "batchId": "b_pune_fs2", "studentId": "stu_conflict", "status": "active" },
+    { "id": "legacy_derived", "orgId": "strynkix", "batchId": "b_pune_ds", "studentId": "stu_derived", "status": "completed", "completedAt": "2026-07-01T00:00:00.000Z" },
+    { "id": "legacy_suspended", "orgId": "strynkix", "courseId": "course_fs", "batchId": "b_pune_fs", "studentId": "stu_suspended", "status": "active" }
+  ],
+  "progress": [
+    { "id": "stu_legacy_course_fs_l1", "orgId": "strynkix", "studentId": "stu_legacy", "courseId": "course_fs" },
+    { "id": "stu_canon_course_fs_l1", "orgId": "strynkix", "studentId": "stu_canon", "courseId": "course_fs", "batchId": "b_pune_fs" },
+    { "id": "stu_progress1_course_fs_l1", "orgId": "strynkix", "studentId": "stu_progress1", "courseId": "course_fs" },
+    { "id": "stu_progress1_course_fs_l2", "orgId": "strynkix", "studentId": "stu_progress1", "courseId": "course_fs" },
+    { "id": "stu_progress0_course_ml_l1", "orgId": "strynkix", "studentId": "stu_progress0", "courseId": "course_ml" }
+  ]
+}

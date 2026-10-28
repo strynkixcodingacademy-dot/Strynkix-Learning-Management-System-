@@ -1,28 +1,59 @@
 'use client';
 
 /**
- * Strynkix LMS — Course Catalog Page
- * Displays published courses available within the authenticated student's organization.
+ * Strynkix Live Books — Course Catalog Page
+ * Displays published courses available within the authenticated user's organization.
  */
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/context/AuthContext';
+import { getStudentEnrollments } from '@/lib/batches/service';
+import { grantsContentAccess } from '@/lib/batches/scope';
 import { Course } from '@/types/domain';
-import { BookOpen, Clock, Tag, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
-import { RequireAuth } from '@/components/auth/RouteGuards';
+import { AppShell } from '@/components/dashboard/AppShell';
+import { Card } from '@/components/ui/Page';
+import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
+import { buttonClasses } from '@/components/ui/Button';
+import { EmptyState, ErrorState, Notice, Skeleton } from '@/components/ui/States';
+import { cx } from '@/components/ui/tones';
+import { ArrowRight, Clock, Tag, RefreshCw } from 'lucide-react';
 
-function CourseCatalog() {
-  const { tenant } = useAuth();
+function CatalogSkeleton() {
+  return (
+    <div className="space-y-6" role="status" aria-live="polite">
+      <span className="sr-only">Loading courses…</span>
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Skeleton className="h-56" />
+        <Skeleton className="h-56" />
+        <Skeleton className="h-56" />
+        <Skeleton className="h-56" />
+      </div>
+    </div>
+  );
+}
+
+export default function CoursesPage() {
+  const { user, tenant } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [unpublishedEnrollments, setUnpublishedEnrollments] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const isStudent = tenant?.role === 'student';
+
+  const reload = () => setReloadKey((k) => k + 1);
 
   useEffect(() => {
+    let isMounted = true;
     async function loadCourses() {
-      if (!tenant?.orgId) {
+      if (!tenant?.orgId || !user?.uid) {
         setIsLoading(false);
         return;
       }
@@ -30,150 +61,178 @@ function CourseCatalog() {
       setIsLoading(true);
       setError(null);
       try {
-        const q = query(
-          collection(db, 'courses'),
-          where('orgId', '==', tenant.orgId),
-          where('status', '==', 'published')
-        );
-        const snap = await getDocs(q);
-        const loaded = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Course));
-        setCourses(loaded);
+        if (tenant.role === 'student') {
+          // Students see only courses they hold an active or completed enrollment for.
+          const enrollments = [
+            ...new Map(
+              (await getStudentEnrollments(tenant.orgId, user.uid))
+                .filter((e) => grantsContentAccess(e.status))
+                .map((e) => [e.courseId, e])
+            ).values(),
+          ];
+          const results = await Promise.all(
+            enrollments.map(async (e) => {
+              try {
+                const snap = await getDoc(doc(db, 'courses', e.courseId));
+                return snap.exists() ? ({ id: snap.id, ...snap.data() } as Course) : null;
+              } catch {
+                return null;
+              }
+            })
+          );
+          if (!isMounted) return;
+          const published = results.filter((c): c is Course => c !== null && c.status === 'published');
+          setCourses(published.sort((a, b) => a.title.localeCompare(b.title)));
+          setUnpublishedEnrollments(enrollments.length - published.length);
+        } else {
+          const q = query(
+            collection(db, 'courses'),
+            where('orgId', '==', tenant.orgId),
+            where('status', '==', 'published')
+          );
+          const snap = await getDocs(q);
+          if (!isMounted) return;
+          setCourses(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Course)).sort((a, b) => a.title.localeCompare(b.title)));
+          setUnpublishedEnrollments(0);
+        }
       } catch (err) {
         console.error('Failed to load courses', err);
-        setError('Unable to load courses. Please check your network connection.');
+        if (isMounted) setError('Unable to load courses. Please check your network connection.');
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     }
 
     loadCourses();
-  }, [tenant?.orgId]);
+    return () => {
+      isMounted = false;
+    };
+  }, [tenant?.orgId, tenant?.role, user?.uid, reloadKey]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Navigation */}
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-indigo-500/20">
-              S
-            </div>
-            <span className="font-semibold text-slate-100 tracking-tight">Strynkix Academy LMS</span>
-          </Link>
-          <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
-            <div>
-              Tenant: <strong className="text-indigo-400">{tenant?.orgId}</strong>
-            </div>
-            <Link
-              href="/dashboard"
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold font-sans"
-            >
-              Dashboard &rarr;
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-10 space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Course Curriculum</h1>
-          <p className="text-slate-400 text-sm max-w-xl">
-            Explore interactive Live Books designed for practical, real-world software engineering mastery.
+    <AppShell pageTitle="Course Curriculum">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
+          <p className="text-sm text-ink-3 max-w-xl">
+            {isStudent
+              ? 'Your enrolled Live Books for interactive software engineering mastery.'
+              : 'All published Live Books in your academy, structured for digital textbook learning.'}
           </p>
+          <button
+            type="button"
+            onClick={reload}
+            className={buttonClasses('ghost', 'sm', 'self-start sm:self-center')}
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
         </div>
 
-        {/* Loading State */}
-        {isLoading && (
-          <div className="flex flex-col items-center justify-center py-20 space-y-3">
-            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-            <span className="text-xs text-slate-400 font-mono">Loading curriculum...</span>
-          </div>
+        {unpublishedEnrollments > 0 && (
+          <Notice kind="warning">
+            You are enrolled in {unpublishedEnrollments} course{unpublishedEnrollments === 1 ? '' : 's'} that{' '}
+            {unpublishedEnrollments === 1 ? 'is' : 'are'} currently in preparation and will be published soon.
+          </Notice>
         )}
 
-        {/* Error State */}
-        {error && (
-          <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-900/50 flex items-center gap-3 text-rose-300 text-xs">
-            <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
-            <span>{error}</span>
-          </div>
+        {isLoading && <CatalogSkeleton />}
+
+        {error && !isLoading && (
+          <ErrorState title="Curriculum didn’t load" onRetry={reload}>
+            {error}
+          </ErrorState>
         )}
 
-        {/* Empty State */}
         {!isLoading && !error && courses.length === 0 && (
-          <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
-            <BookOpen className="w-10 h-10 text-slate-600 mx-auto" />
-            <h3 className="text-base font-semibold text-slate-300">No Published Courses Found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Your academy administrator has not published courses yet. Please check back soon or run the local emulator seed script.
-            </p>
-          </div>
+          <EmptyState
+            illustration="book"
+            title={isStudent ? 'No courses enrolled yet' : 'No published courses found'}
+            action={
+              isStudent ? (
+                <Link href="/dashboard" className={buttonClasses('primary')}>
+                  Go to Home
+                </Link>
+              ) : (
+                <Link href="/dashboard/courses" className={buttonClasses('primary')}>
+                  Open Course Authoring
+                </Link>
+              )
+            }
+          >
+            {isStudent
+              ? 'You are not enrolled in any published courses yet. Once your academy manager assigns you to a batch, your courses will appear here.'
+              : 'There are no published courses in this organization yet. Create and publish courses from the authoring studio.'}
+          </EmptyState>
         )}
 
-        {/* Course Cards Grid */}
         {!isLoading && !error && courses.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {courses.map((course) => (
-              <div
-                key={course.id}
-                className="group p-6 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-indigo-500/50 transition shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between space-y-6"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/60 font-semibold">
-                      {course.level || 'Intermediate'}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-slate-400 font-mono">
-                      <Clock className="w-3.5 h-3.5" />
-                      {course.estimatedWeeks || 12} Weeks
-                    </span>
-                  </div>
+            {courses.map((course) => {
+              const { tone } = courseIdentity(course);
+              return (
+                <Card
+                  key={course.id}
+                  as="article"
+                  interactive
+                  className="group relative flex overflow-hidden"
+                >
+                  <span aria-hidden="true" className={cx('w-2 shrink-0', SPINE[tone])} />
+                  <div className="flex flex-1 flex-col justify-between gap-5 p-6">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <CourseIcon course={course} size="md" />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-surface-muted text-ink-2">
+                            {course.level || 'Intermediate'}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-ink-3">
+                            <Clock className="w-3.5 h-3.5" />
+                            {course.estimatedWeeks || 12}w
+                          </span>
+                        </div>
+                      </div>
 
-                  <h2 className="text-xl font-bold text-white group-hover:text-indigo-300 transition">
-                    {course.title}
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed line-clamp-3">
-                    {course.tagline || course.description}
-                  </p>
+                      <h2 className="text-xl font-bold leading-snug text-ink group-hover:text-brand-ink transition">
+                        <Link href={`/courses/${course.id}`} className="after:absolute after:inset-0 focus-visible:outline-none">
+                          {course.title}
+                        </Link>
+                      </h2>
 
-                  {course.tags && course.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-2">
-                      {course.tags.map((t, idx) => (
-                        <span
-                          key={idx}
-                          className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300"
-                        >
-                          <Tag className="w-3 h-3 text-slate-500" />
-                          {t}
-                        </span>
-                      ))}
+                      <p className="text-xs sm:text-sm text-ink-3 leading-relaxed line-clamp-2">
+                        {course.tagline || course.description}
+                      </p>
+
+                      {course.tags && course.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {course.tags.slice(0, 4).map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-canvas border border-line text-ink-2"
+                            >
+                              <Tag className="w-3 h-3 text-ink-3" />
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-xs font-mono text-slate-400">Interactive Live Book</span>
-                  <Link
-                    href={`/courses/${course.id}`}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition shadow-lg shadow-indigo-600/20"
-                  >
-                    <span>View Curriculum</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-            ))}
+                    <div className="pt-4 border-t border-line flex items-center justify-between relative z-10">
+                      <span className="text-xs font-semibold text-ink-3">Interactive Live Book</span>
+                      <Link
+                        href={`/courses/${course.id}`}
+                        className={buttonClasses('secondary', 'sm', 'group-hover:border-brand-line group-hover:text-brand-ink')}
+                      >
+                        <span>View Curriculum</span>
+                        <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
-      </main>
-    </div>
-  );
-}
-
-export default function CoursesPage() {
-  return (
-    <RequireAuth>
-      <CourseCatalog />
-    </RequireAuth>
+      </div>
+    </AppShell>
   );
 }

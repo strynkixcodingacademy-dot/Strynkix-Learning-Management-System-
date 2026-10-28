@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
+import { useAuth } from '@/context/AuthContext';
 import { getOrganizations, createOrganization } from '@/lib/admin/service';
 import { Organization } from '@/types/domain';
 import {
@@ -20,6 +21,8 @@ import {
 } from 'lucide-react';
 
 export default function OrganizationsPage() {
+  const { tenant } = useAuth();
+  const isSuperAdmin = tenant?.role === 'super_admin';
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +42,9 @@ export default function OrganizationsPage() {
     let isMounted = true;
 
     async function fetchOrgs() {
+      // RequireRole hides the page, but this effect still runs; skip the query
+      // for other roles instead of letting the rules reject it.
+      if (!isSuperAdmin) return;
       try {
         const loaded = await getOrganizations();
         if (isMounted) {
@@ -58,7 +64,7 @@ export default function OrganizationsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isSuperAdmin]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,16 +113,16 @@ export default function OrganizationsPage() {
       <AppShell pageTitle="Organization Management">
         <div className="space-y-6">
           {/* Action Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
             <div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-ink-3">
                 Manage root multi-tenant organizations and institutional academy boundaries.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/30 transition self-start sm:self-auto"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-lavender hover:bg-lavender text-white text-xs font-semibold shadow-card transition self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Create Organization</span>
@@ -125,16 +131,16 @@ export default function OrganizationsPage() {
 
           {/* Success Banner */}
           {successMsg && (
-            <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 flex items-center gap-2.5 text-emerald-300 text-xs">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <div className="p-4 rounded-xl bg-success-soft border border-success-line flex items-center gap-2.5 text-success-ink text-xs">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-success-ink" />
               <span>{successMsg}</span>
             </div>
           )}
 
           {/* Error Banner */}
           {error && (
-            <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 flex items-center gap-2.5 text-rose-300 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="p-4 rounded-xl bg-danger-soft border border-danger-line flex items-center gap-2.5 text-danger-ink text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink" />
               <span>{error}</span>
             </div>
           )}
@@ -142,17 +148,17 @@ export default function OrganizationsPage() {
           {/* Loading Indicator */}
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
-              <Loader2 className="w-7 h-7 text-purple-500 animate-spin" />
-              <span className="text-xs text-slate-400 font-mono">Loading organizations...</span>
+              <Loader2 className="w-7 h-7 text-lavender-ink animate-spin" />
+              <span className="text-xs text-ink-3 font-mono">Loading organizations...</span>
             </div>
           )}
 
           {/* Empty State */}
           {!isLoading && !error && organizations.length === 0 && (
-            <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
-              <Building2 className="w-10 h-10 text-slate-600 mx-auto" />
-              <h3 className="text-sm font-semibold text-slate-300">No Organizations Found</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <div className="p-12 text-center rounded-2xl bg-surface border border-line space-y-3">
+              <Building2 className="w-10 h-10 text-ink-4 mx-auto" />
+              <h3 className="text-sm font-semibold text-ink-2">No Organizations Found</h3>
+              <p className="text-xs text-ink-3 max-w-sm mx-auto">
                 No organization profiles exist in Firestore. Click &quot;Create Organization&quot; to seed your first tenant.
               </p>
             </div>
@@ -164,41 +170,41 @@ export default function OrganizationsPage() {
               {organizations.map((org) => (
                 <div
                   key={org.id}
-                  className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-slate-700 transition space-y-4 shadow-xl"
+                  className="p-5 rounded-2xl bg-surface border border-line hover:border-line-strong transition space-y-4 shadow-card"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-purple-950/80 border border-purple-800/80 flex items-center justify-center text-purple-400 font-bold text-base">
+                    <div className="h-10 w-10 rounded-xl bg-lavender-soft border border-lavender-line flex items-center justify-center text-lavender-ink font-bold text-base">
                       {org.name.charAt(0).toUpperCase()}
                     </div>
                     <span
                       className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
-                        org.status === 'active'
-                          ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                          : 'bg-rose-950 text-rose-300 border-rose-800'
-                      }`}
+ org.status === 'active'
+ ? 'bg-success-soft text-success-ink border-success-line'
+ : 'bg-danger-soft text-danger-ink border-danger-line'
+ }`}
                     >
                       {org.status}
                     </span>
                   </div>
 
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-tight">{org.name}</h3>
-                    <div className="text-xs font-mono text-purple-400 mt-0.5">ID: {org.id}</div>
+                    <h3 className="text-base font-bold text-ink tracking-tight">{org.name}</h3>
+                    <div className="text-xs font-mono text-lavender-ink mt-0.5">ID: {org.id}</div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-800/80 space-y-1.5 text-xs text-slate-400">
+                  <div className="pt-2 border-t border-line space-y-1.5 text-xs text-ink-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Slug:</span>
-                      <span className="font-mono text-slate-300">{org.slug}</span>
+                      <span className="text-ink-3">Slug:</span>
+                      <span className="font-mono text-ink-2">{org.slug}</span>
                     </div>
                     {org.website && (
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Website:</span>
+                        <span className="text-ink-3">Website:</span>
                         <a
                           href={org.website}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-purple-400 hover:underline inline-flex items-center gap-1 font-mono text-[11px] truncate max-w-[180px]"
+                          className="text-lavender-ink hover:underline inline-flex items-center gap-1 font-mono text-[11px] truncate max-w-[180px]"
                         >
                           <Globe className="w-3 h-3" />
                           <span>{org.website.replace(/^https?:\/\//, '')}</span>
@@ -206,8 +212,8 @@ export default function OrganizationsPage() {
                       </div>
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Live Books:</span>
-                      <span className="text-emerald-400 font-mono text-[11px]">
+                      <span className="text-ink-3">Live Books:</span>
+                      <span className="text-success-ink font-mono text-[11px]">
                         {org.settings?.features?.liveBooksEnabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
@@ -219,32 +225,32 @@ export default function OrganizationsPage() {
 
           {/* Create Organization Modal */}
           {showCreateModal && (
-            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="max-w-md w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2 text-purple-400 font-bold text-sm">
+            <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+              <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-line">
+                  <div className="flex items-center gap-2 text-lavender-ink font-bold text-sm">
                     <Building2 className="w-5 h-5" />
                     <span>Create Organization Tenant</span>
                   </div>
                   <button
                     onClick={() => setShowCreateModal(false)}
-                    className="text-slate-400 hover:text-white text-xs font-mono"
+                    className="text-ink-3 hover:text-ink text-xs font-mono"
                   >
                     Cancel
                   </button>
                 </div>
 
                 {formError && (
-                  <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800 text-xs text-rose-300 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                  <div className="p-3 rounded-lg bg-danger-soft border border-danger-line text-xs text-danger-ink flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink mt-0.5" />
                     <span>{formError}</span>
                   </div>
                 )}
 
                 <form onSubmit={handleCreate} className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
-                      Organization ID (Tenant Key) <span className="text-rose-400">*</span>
+                    <label className="text-xs font-semibold text-ink-2">
+                      Organization ID (Tenant Key) <span className="text-danger-ink">*</span>
                     </label>
                     <input
                       type="text"
@@ -252,16 +258,16 @@ export default function OrganizationsPage() {
                       onChange={(e) => setOrgId(e.target.value)}
                       placeholder="e.g. strynkix, tech_academy"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
                     />
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-[10px] text-ink-3">
                       Lowercase alphanumeric and underscores. Used in all tenant queries.
                     </p>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
-                      Organization Name <span className="text-rose-400">*</span>
+                    <label className="text-xs font-semibold text-ink-2">
+                      Organization Name <span className="text-danger-ink">*</span>
                     </label>
                     <input
                       type="text"
@@ -269,13 +275,13 @@ export default function OrganizationsPage() {
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Strynkix Coding Academy"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
-                      URL Slug <span className="text-rose-400">*</span>
+                    <label className="text-xs font-semibold text-ink-2">
+                      URL Slug <span className="text-danger-ink">*</span>
                     </label>
                     <input
                       type="text"
@@ -283,23 +289,23 @@ export default function OrganizationsPage() {
                       onChange={(e) => setSlug(e.target.value)}
                       placeholder="e.g. strynkix-coding-academy"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Website URL (optional)</label>
+                    <label className="text-xs font-semibold text-ink-2">Website URL (optional)</label>
                     <input
                       type="url"
                       value={website}
                       onChange={(e) => setWebsite(e.target.value)}
                       placeholder="https://strynkix.com"
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
+                    <label className="text-xs font-semibold text-ink-2">
                       Allowed Email Domains (optional)
                     </label>
                     <input
@@ -307,7 +313,7 @@ export default function OrganizationsPage() {
                       value={allowedDomains}
                       onChange={(e) => setAllowedDomains(e.target.value)}
                       placeholder="strynkix.com, edu.org (comma separated)"
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono text-[11px]"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono text-[11px]"
                     />
                   </div>
 
@@ -315,14 +321,14 @@ export default function OrganizationsPage() {
                     <button
                       type="button"
                       onClick={() => setShowCreateModal(false)}
-                      className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                      className="px-4 py-2 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink-2 text-xs font-semibold"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-lavender hover:bg-lavender disabled:opacity-50 text-white text-xs font-semibold"
                     >
                       {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                       <span>{isSubmitting ? 'Creating...' : 'Create Organization'}</span>

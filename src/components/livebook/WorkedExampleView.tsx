@@ -1,86 +1,47 @@
 'use client';
 
 /**
- * Strynkix LMS — Live Books Worked Example Block
- * Displays pedagogical problem solving: problem statement, walk-through, solution, and takeaway.
+ * Strynkix Live Books — Worked example: problem, solution (collapsible) and
+ * the reasoning behind it.
  */
 
 import React, { useState } from 'react';
-import { Lightbulb, Code2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, Compass } from 'lucide-react';
 import { WorkedExampleBlock } from '@/types/domain';
+import { CodePanel } from './CodeBlockView';
 
-interface WorkedExampleViewProps {
-  block: WorkedExampleBlock;
-}
-
-export function WorkedExampleView({ block }: WorkedExampleViewProps) {
-  const [isSolutionOpen, setIsSolutionOpen] = useState(true);
-
+export function WorkedExampleView({ block }: { block: WorkedExampleBlock }) {
+  const [open, setOpen] = useState(true);
+  const panelId = `worked-${block.id}`;
   return (
-    <div className="my-8 rounded-xl border border-purple-900/40 bg-slate-900/90 overflow-hidden shadow-2xl">
-      {/* Header */}
-      <div className="px-5 py-3 bg-purple-950/30 border-b border-purple-900/40 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-purple-300 font-semibold text-xs sm:text-sm">
-          <Lightbulb className="w-4 h-4 text-purple-400" />
-          <span>Worked Example: {block.title}</span>
+    <section className="my-8 overflow-hidden rounded-xl border border-teal-line bg-surface" aria-labelledby={`${panelId}-title`}>
+      <header className="flex items-center gap-3 border-b border-teal-line bg-teal-soft px-5 py-3">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-teal-ink" aria-hidden="true"><Compass className="w-4 h-4" /></span>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-teal-ink">Worked example</p>
+          <h3 id={`${panelId}-title`} className="text-base font-bold text-ink">{block.title}</h3>
         </div>
-      </div>
-
-      <div className="p-5 space-y-4">
-        {/* Problem Description */}
-        <div className="space-y-1.5">
-          <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400">
-            Problem Scenario
-          </h4>
-          <p className="text-xs sm:text-sm text-slate-200 leading-relaxed bg-slate-950/60 p-3.5 rounded-lg border border-slate-800">
-            {block.problem}
-          </p>
+      </header>
+      <div className="space-y-5 p-5">
+        <div>
+          <h4 className="text-sm font-bold text-ink">The problem</h4>
+          <p className="mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{block.problem}</p>
         </div>
-
-        {/* Collapsible Solution Code */}
         {block.solutionCode && (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs uppercase font-bold tracking-wider text-purple-400 flex items-center gap-1.5">
-                <Code2 className="w-3.5 h-3.5" />
-                Solution Walkthrough ({block.language || 'code'})
-              </h4>
-              <button
-                type="button"
-                onClick={() => setIsSolutionOpen(!isSolutionOpen)}
-                className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition"
-              >
-                {isSolutionOpen ? (
-                  <>
-                    <span>Collapse Code</span>
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  </>
-                ) : (
-                  <>
-                    <span>View Code</span>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
-            </div>
-            {isSolutionOpen && (
-              <div className="p-4 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-purple-200 overflow-x-auto">
-                <pre>{block.solutionCode}</pre>
-              </div>
-            )}
+          <div>
+            <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={panelId}
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-ink hover:underline">
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+              {open ? 'Hide solution' : 'Show solution'}
+            </button>
+            {open && <div id={panelId}><CodePanel code={block.solutionCode} language={block.language || 'code'} /></div>}
           </div>
         )}
-
-        {/* Conceptual Explanation */}
-        <div className="space-y-1.5 pt-2 border-t border-slate-800">
-          <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400">
-            Key Architectural Takeaway
-          </h4>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            {block.explanation}
-          </p>
+        <div className="rounded-xl bg-canvas p-4">
+          <h4 className="text-sm font-bold text-ink">Why it works</h4>
+          <p className="mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{block.explanation}</p>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

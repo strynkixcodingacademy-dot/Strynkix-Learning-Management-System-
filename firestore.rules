@@ -38,6 +38,12 @@ service cloud.firestore {
       return getUserData().get('branchId', '');
     }
 
+    // A branch admin profile without a branchId must have no branch authority;
+    // otherwise '' would match every unscoped user in the org.
+    function isScopedBranchAdminRole() {
+      return getUserRole() == 'branch_admin' && getUserBranchId() is string && getUserBranchId() != '';
+    }
+
     function isAccountActive() {
       return userExists() && getUserData().get('status', 'active') == 'active';
     }
@@ -51,7 +57,7 @@ service cloud.firestore {
     }
 
     function isBranchAdmin(orgId, branchId) {
-      return isAuthenticated() && isAccountActive() && getUserRole() == 'branch_admin' && getUserOrgId() == orgId && getUserBranchId() == branchId;
+      return isAuthenticated() && isAccountActive() && isScopedBranchAdminRole() && getUserOrgId() == orgId && getUserBranchId() == branchId;
     }
 
     function isInstructor(orgId) {
@@ -74,6 +80,282 @@ service cloud.firestore {
       return lessonExists(lessonId) &&
         getLessonDoc(lessonId).data.orgId == orgId &&
         getLessonDoc(lessonId).data.get('status', '') == 'published';
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper Functions: Stage 6 Scope, Batches & Enrollments
+    // -------------------------------------------------------------------------
+
+    // Administrative authority over a branch: super admin, the org's university
+    // admin, or that branch's own branch admin.
+    function canManageBranch(orgId, branchId) {
+      return isSuperAdmin() || isUniversityAdmin(orgId) || isBranchAdmin(orgId, branchId);
+    }
+
+    // Curriculum authoring authority within an organization.
+    function canAuthorInOrg(orgId) {
+      return isSuperAdmin() || (
+        isAuthenticated() && isAccountActive() &&
+        getUserRole() in ['university_admin', 'branch_admin', 'instructor'] &&
+        getUserOrgId() == orgId
+      );
+    }
+
+    function courseBelongsToOrg(courseId, orgId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId));
+      return course != null && course.data.orgId == orgId;
+    }
+
+    function branchBelongsToOrg(branchId, orgId) {
+      let branch = get(/databases/$(database)/documents/branches/$(branchId));
+      return branch != null &&
+        branch.data.orgId == orgId &&
+        branch.data.get('status', 'active') == 'active';
+    }
+
+    function isAssignedInstructor(batchId) {
+      let batch = get(/databases/$(database)/documents/batches/$(batchId));
+      return batch != null && request.auth.uid in batch.data.get('instructorUserIds', []);
+    }
+
+    function isBatchInBranch(batchId, branchId) {
+      let batch = get(/databases/$(database)/documents/batches/$(batchId));
+      return batch != null && batch.data.branchId == branchId;
+    }
+
+    // Enrollment IDs are deterministic: {courseId}_{studentId}. This lets rules
+    // look up "is the caller enrolled in this course" by path, and makes a
+    // second enrollment record for the same student and course impossible.
+    function callerEnrollment(courseId) {
+      return get(/databases/$(database)/documents/enrollments/$(courseId + '_' + request.auth.uid));
+    }
+
+    // The stored studentId/courseId are re-checked because the concatenated ID is
+    // ambiguous when IDs contain '_' (e.g. "crs" + "x_stu" == "crs_x" + "stu").
+    function hasCourseAccess(courseId) {
+      let enrollment = callerEnrollment(courseId);
+      return enrollment != null &&
+        enrollment.data.studentId == request.auth.uid &&
+        enrollment.data.courseId == courseId &&
+        enrollment.data.status in ['active', 'completed'];
+    }
+
+    function isEnrolledInBatch(courseId, batchId) {
+      return hasCourseAccess(courseId) && callerEnrollment(courseId).data.batchId == batchId;
+    }
+
+    function isCoursePublished(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId));
+      return course != null && course.data.get('status', '') == 'published';
+    }
+
+    function isIsoTimestamp(value) {
+      return value is string &&
+        value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{1,3})?Z$');
+    }
+
+    function isOptionalIsoTimestamp(data, field) {
+      return !(field in data) || isIsoTimestamp(data[field]);
+    }
+
+    // A user's branch, when set, must be an active branch of the user's org.
+    function isValidBranchAssignment(data) {
+      return data.get('branchId', null) == null || branchBelongsToOrg(data.branchId, data.orgId);
+    }
+
+    function isValidProgressShape(data) {
+      return data.keys().hasOnly([
+          'id', 'orgId', 'courseId', 'moduleId', 'lessonId', 'studentId', 'batchId', 'status',
+          'timeSpentSeconds', 'lastAccessedAt', 'completedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.status in ['not_started', 'in_progress', 'completed'] &&
+        data.timeSpentSeconds is int &&
+        data.timeSpentSeconds >= 0 &&
+        data.timeSpentSeconds <= 1000000 &&
+        isOptionalIsoTimestamp(data, 'lastAccessedAt') &&
+        isOptionalIsoTimestamp(data, 'completedAt') &&
+        isOptionalIsoTimestamp(data, 'createdAt') &&
+        isOptionalIsoTimestamp(data, 'updatedAt');
+    }
+
+    function canSubmitToAssignment(data) {
+      let assignment = get(/databases/$(database)/documents/assignments/$(data.assignmentId));
+      return assignment != null &&
+        assignment.data.orgId == data.orgId &&
+        assignment.data.get('status', '') == 'published' &&
+        assignment.data.get('batchId', data.batchId) == data.batchId &&
+        data.get('courseId', assignment.data.courseId) == assignment.data.courseId &&
+        isEnrolledInBatch(assignment.data.courseId, data.batchId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper Functions: Stage 7 Daily Plans, Assignments & Submissions
+    // -------------------------------------------------------------------------
+
+    // Teaching authority over one batch: super admin, the org's university admin,
+    // the batch branch's branch admin, or an instructor listed on the batch.
+    function canTeachBatch(batchId) {
+      let batch = get(/databases/$(database)/documents/batches/$(batchId));
+      return batch != null && isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        isUniversityAdmin(batch.data.orgId) ||
+        isBranchAdmin(batch.data.orgId, batch.data.branchId) ||
+        (isInstructor(batch.data.orgId) && request.auth.uid in batch.data.get('instructorUserIds', []))
+      );
+    }
+
+    function planMatchesOpenBatch(data) {
+      let batch = get(/databases/$(database)/documents/batches/$(data.batchId));
+      return batch.data.orgId == data.orgId &&
+        batch.data.branchId == data.branchId &&
+        batch.data.courseId == data.courseId &&
+        batch.data.status in ['upcoming', 'in_progress'];
+    }
+
+    function isValidDailyPlan(data) {
+      return data.keys().hasAll([
+          'orgId', 'branchId', 'courseId', 'batchId', 'date', 'title', 'objectives',
+          'lessonIds', 'learningDueAt', 'status', 'createdById'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'orgId', 'branchId', 'courseId', 'batchId', 'date', 'title', 'objectives', 'lessonIds',
+          'learningDueAt', 'assignmentId', 'status', 'publishedAt', 'createdById', 'createdAt', 'updatedAt'
+        ]) &&
+        data.date is string && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
+        data.objectives is list && data.objectives.size() <= 10 &&
+        data.lessonIds is list && data.lessonIds.size() <= 10 &&
+        data.lessonIds.toSet().size() == data.lessonIds.size() &&
+        isIsoTimestamp(data.learningDueAt) &&
+        data.status in ['draft', 'published', 'archived'] &&
+        isOptionalIsoTimestamp(data, 'publishedAt') &&
+        isOptionalIsoTimestamp(data, 'createdAt') &&
+        isOptionalIsoTimestamp(data, 'updatedAt') &&
+        (!('assignmentId' in data) || data.assignmentId == data.batchId + '_' + data.date);
+    }
+
+    function isValidDailyAssignment(data) {
+      return data.keys().hasAll([
+          'orgId', 'courseId', 'batchId', 'planId', 'title', 'description', 'submissionType',
+          'totalPoints', 'deadline', 'status', 'createdById'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'orgId', 'courseId', 'batchId', 'planId', 'moduleId', 'lessonId', 'title', 'description',
+          'submissionType', 'totalPoints', 'rubric', 'deadline', 'status', 'createdById', 'createdAt', 'updatedAt'
+        ]) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
+        data.description is string && data.description.size() >= 5 && data.description.size() <= 20000 &&
+        data.submissionType in ['text', 'code', 'text_and_code'] &&
+        data.totalPoints is int && data.totalPoints >= 1 && data.totalPoints <= 1000 &&
+        (!('rubric' in data) || (data.rubric is list && data.rubric.size() <= 20)) &&
+        isIsoTimestamp(data.deadline) &&
+        data.status in ['draft', 'published', 'archived'] &&
+        isOptionalIsoTimestamp(data, 'createdAt') &&
+        isOptionalIsoTimestamp(data, 'updatedAt');
+    }
+
+    // A daily assignment's ID is its plan's ID, and the plan must share its batch.
+    function assignmentMatchesPlan(data, assignmentId) {
+      let plan = get(/databases/$(database)/documents/dailyPlans/$(data.planId));
+      return assignmentId == data.planId &&
+        plan != null &&
+        plan.data.batchId == data.batchId &&
+        plan.data.courseId == data.courseId &&
+        plan.data.orgId == data.orgId;
+    }
+
+    function isValidSubmissionShape(data) {
+      return data.keys().hasOnly([
+          'id', 'orgId', 'assignmentId', 'batchId', 'courseId', 'studentId', 'textAnswer', 'codeContent',
+          'submissionUrl', 'notes', 'status', 'attemptCount', 'submittedAt', 'score', 'feedback',
+          'gradedByUserId', 'gradedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        (!('textAnswer' in data) || (data.textAnswer is string && data.textAnswer.size() <= 20000)) &&
+        (!('codeContent' in data) || (data.codeContent is string && data.codeContent.size() <= 100000)) &&
+        (!('submissionUrl' in data) || (data.submissionUrl is string && data.submissionUrl.size() <= 500 && data.submissionUrl.matches('^https://.*'))) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+        data.attemptCount is int;
+    }
+
+    function canReviewSubmission(data) {
+      return isSuperAdmin() ||
+        isUniversityAdmin(data.orgId) ||
+        (
+          isScopedBranchAdminRole() &&
+          getUserOrgId() == data.orgId &&
+          isBatchInBranch(data.batchId, getUserBranchId())
+        ) ||
+        (isInstructor(data.orgId) && isAssignedInstructor(data.batchId));
+    }
+
+    // An instructor may be assigned only if they are an active instructor of the
+    // same org, and either unscoped to a branch or scoped to the batch's branch.
+    function isAssignableInstructor(uid, orgId, branchId) {
+      let instructor = get(/databases/$(database)/documents/users/$(uid));
+      return instructor != null &&
+        instructor.data.role == 'instructor' &&
+        instructor.data.orgId == orgId &&
+        instructor.data.get('status', 'active') == 'active' &&
+        instructor.data.get('branchId', null) in [branchId, null];
+    }
+
+    // Rules have no loops, so the list is capped at 5 and checked by index.
+    function validInstructorList(ids, orgId, branchId) {
+      return (ids.size() < 1 || isAssignableInstructor(ids[0], orgId, branchId)) &&
+        (ids.size() < 2 || isAssignableInstructor(ids[1], orgId, branchId)) &&
+        (ids.size() < 3 || isAssignableInstructor(ids[2], orgId, branchId)) &&
+        (ids.size() < 4 || isAssignableInstructor(ids[3], orgId, branchId)) &&
+        (ids.size() < 5 || isAssignableInstructor(ids[4], orgId, branchId));
+    }
+
+    function isValidBatchShape(data) {
+      return data.keys().hasAll(['orgId', 'branchId', 'courseId', 'name', 'code', 'instructorUserIds', 'startDate', 'status']) &&
+        data.keys().hasOnly([
+          'id', 'orgId', 'branchId', 'courseId', 'name', 'code', 'instructorUserIds',
+          'startDate', 'endDate', 'maxStudents', 'status', 'createdById', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 160 &&
+        data.code is string && data.code.size() >= 2 && data.code.size() <= 30 &&
+        isIsoTimestamp(data.startDate) &&
+        (!('endDate' in data) || (isIsoTimestamp(data.endDate) && data.endDate >= data.startDate)) &&
+        (!('maxStudents' in data) || (data.maxStudents is int && data.maxStudents >= 1 && data.maxStudents <= 200)) &&
+        data.status in ['upcoming', 'in_progress', 'completed', 'cancelled', 'archived'] &&
+        data.instructorUserIds is list &&
+        data.instructorUserIds.size() <= 5 &&
+        data.instructorUserIds.toSet().size() == data.instructorUserIds.size();
+    }
+
+    function isValidEnrollmentShape(data) {
+      return data.keys().hasAll(['orgId', 'branchId', 'courseId', 'batchId', 'studentId', 'status', 'enrolledAt']) &&
+        data.keys().hasOnly([
+          'id', 'orgId', 'branchId', 'courseId', 'batchId', 'studentId', 'status',
+          'enrolledAt', 'completedAt', 'createdAt', 'updatedAt',
+          'studentDisplayName', 'studentEmail', 'enrolledById'
+        ]) &&
+        data.status in ['active', 'completed', 'dropped', 'suspended'] &&
+        isIsoTimestamp(data.enrolledAt) &&
+        isOptionalIsoTimestamp(data, 'completedAt') &&
+        (!('studentDisplayName' in data) || (data.studentDisplayName is string && data.studentDisplayName.size() <= 100)) &&
+        (!('studentEmail' in data) || (data.studentEmail is string && data.studentEmail.size() <= 255));
+    }
+
+    // Verifies every relationship an active enrollment depends on: the batch is
+    // open and matches org/branch/course, and the student is an active student
+    // of that org and branch. Denormalized roster fields must match the profile.
+    function isValidEnrollmentTarget(data) {
+      let batch = get(/databases/$(database)/documents/batches/$(data.batchId));
+      let student = get(/databases/$(database)/documents/users/$(data.studentId));
+      return batch != null && student != null &&
+        batch.data.orgId == data.orgId &&
+        batch.data.branchId == data.branchId &&
+        batch.data.courseId == data.courseId &&
+        batch.data.status in ['upcoming', 'in_progress'] &&
+        student.data.role == 'student' &&
+        student.data.orgId == data.orgId &&
+        student.data.get('branchId', null) == data.branchId &&
+        student.data.get('status', 'active') == 'active' &&
+        (!('studentDisplayName' in data) || data.studentDisplayName == student.data.get('displayName', '')) &&
+        (!('studentEmail' in data) || data.studentEmail == student.data.get('email', ''));
     }
 
     // Default deny by default
@@ -129,7 +411,7 @@ service cloud.firestore {
         request.auth.uid == userId ||
         isSuperAdmin() ||
         (isAccountActive() && getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
-        (isAccountActive() && getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.get('branchId', ''))
+        (isAccountActive() && isScopedBranchAdminRole() && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.get('branchId', ''))
       );
 
       // Self signup OR administrative provisioning
@@ -137,10 +419,12 @@ service cloud.firestore {
         isSuperAdmin() ||
         (
           // SELF REGISTRATION: User can only create their own record (userId == auth.uid)
-          // SECURITY INVARIANT: Role CANNOT be super_admin, university_admin, branch_admin, or instructor.
-          // Role MUST strictly be 'student' or 'pending_verification'.
+          // SECURITY INVARIANT: Role MUST be 'student' and status MUST be
+          // 'pending_verification'. A self-registered profile grants no access
+          // until an administrator of that org/branch activates it.
           request.auth.uid == userId &&
-          (request.resource.data.role == 'student' || request.resource.data.role == 'pending_verification') &&
+          request.resource.data.role == 'student' &&
+          request.resource.data.get('status', '') == 'pending_verification' &&
           request.resource.data.email is string &&
           request.resource.data.displayName is string &&
           request.resource.data.displayName.size() <= 100 &&
@@ -151,11 +435,12 @@ service cloud.firestore {
           // University admin creating branch admin / instructor / student in their org
           isAccountActive() && getUserRole() == 'university_admin' &&
           getUserOrgId() == request.resource.data.orgId &&
-          request.resource.data.role in ['branch_admin', 'instructor', 'student']
+          request.resource.data.role in ['branch_admin', 'instructor', 'student'] &&
+          isValidBranchAssignment(request.resource.data)
         ) ||
         (
           // Branch admin creating instructor / student in their branch
-          isAccountActive() && getUserRole() == 'branch_admin' &&
+          isAccountActive() && isScopedBranchAdminRole() &&
           getUserOrgId() == request.resource.data.orgId &&
           getUserBranchId() == request.resource.data.branchId &&
           request.resource.data.role in ['instructor', 'student']
@@ -166,28 +451,32 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isSuperAdmin() ||
         (
-          // Self update: Can update displayName/photo, but CANNOT alter status, role, orgId, or branchId
+          // Self update: presentation fields only. role, status, orgId, branchId and
+          // email (copied into enrollment roster snapshots) are administrator-managed.
           isAccountActive() &&
           request.auth.uid == userId &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.orgId == resource.data.orgId &&
-          request.resource.data.get('branchId', null) == resource.data.get('branchId', null) &&
-          request.resource.data.get('status', 'active') == resource.data.get('status', 'active') &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['displayName', 'photoURL', 'phoneNumber', 'updatedAt']) &&
           request.resource.data.displayName is string &&
           request.resource.data.displayName.size() <= 100
         ) ||
         (
-          // University admin modifying a user in their org
+          // University admin managing branch admins, instructors and students in their
+          // org. Peer university admins and role promotion beyond these are super-admin only.
           isAccountActive() && getUserRole() == 'university_admin' &&
           request.auth.uid != userId &&
           getUserOrgId() == resource.data.orgId &&
           request.resource.data.orgId == resource.data.orgId &&
-          resource.data.role != 'super_admin' &&
-          request.resource.data.role != 'super_admin'
+          resource.data.role in ['branch_admin', 'instructor', 'student'] &&
+          request.resource.data.role in ['branch_admin', 'instructor', 'student'] &&
+          (
+            request.resource.data.get('branchId', null) == resource.data.get('branchId', null) ||
+            isValidBranchAssignment(request.resource.data)
+          )
         ) ||
         (
           // Branch admin modifying a student/instructor in their branch (cannot modify own record via this branch rule)
-          isAccountActive() && getUserRole() == 'branch_admin' &&
+          isAccountActive() && isScopedBranchAdminRole() &&
           request.auth.uid != userId &&
           getUserOrgId() == resource.data.orgId &&
           getUserBranchId() == resource.data.get('branchId', '') &&
@@ -203,27 +492,32 @@ service cloud.firestore {
 
     // -------------------------------------------------------------------------
     // 4. /courses/{courseId}
+    // Students read a published course only through an active/completed enrollment.
     // -------------------------------------------------------------------------
     match /courses/{courseId} {
       allow read: if isAuthenticated() && isAccountActive() && (
         isSuperAdmin() ||
         (getUserOrgId() == resource.data.orgId && (
           getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
-          (getUserRole() == 'student' && resource.data.get('status', '') == 'published')
+          (getUserRole() == 'student' && resource.data.get('status', '') == 'published' && hasCourseAccess(courseId))
         ))
       );
 
+      // createdById, when present, must be the caller; it and createdAt are immutable.
       allow create: if isSuperAdmin() || (
         isAuthenticated() && isAccountActive() &&
         (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
-        getUserOrgId() == request.resource.data.orgId
+        getUserOrgId() == request.resource.data.orgId &&
+        request.resource.data.get('createdById', request.auth.uid) == request.auth.uid
       );
 
       allow update: if isSuperAdmin() || (
         isAuthenticated() && isAccountActive() &&
         (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
         getUserOrgId() == resource.data.orgId &&
-        request.resource.data.orgId == resource.data.orgId
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.get('createdById', null) == resource.data.get('createdById', null) &&
+        request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
       );
 
       allow delete: if isSuperAdmin() || (
@@ -235,31 +529,37 @@ service cloud.firestore {
 
     // -------------------------------------------------------------------------
     // 5. /batches/{batchId}
+    // orgId, branchId, courseId, createdById and createdAt are immutable.
+    // Archiving is a status change ('archived'); hard delete is super admin only.
     // -------------------------------------------------------------------------
     match /batches/{batchId} {
       allow read: if isAuthenticated() && isAccountActive() && (
         isSuperAdmin() ||
-        (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
-        (getUserOrgId() == resource.data.orgId && (
-          (getUserRole() == 'branch_admin' && getUserBranchId() == resource.data.branchId) ||
-          (getUserRole() == 'instructor' && (request.auth.uid in resource.data.instructorUserIds || getUserBranchId() == resource.data.branchId)) ||
-          getUserRole() == 'student'
-        ))
+        isUniversityAdmin(resource.data.orgId) ||
+        isBranchAdmin(resource.data.orgId, resource.data.branchId) ||
+        (isInstructor(resource.data.orgId) && request.auth.uid in resource.data.instructorUserIds) ||
+        (isStudent(resource.data.orgId) && isEnrolledInBatch(resource.data.courseId, batchId))
       );
 
-      allow create: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() && (
-          (getUserRole() == 'university_admin' && getUserOrgId() == request.resource.data.orgId) ||
-          (getUserRole() == 'branch_admin' && getUserOrgId() == request.resource.data.orgId && getUserBranchId() == request.resource.data.branchId)
-        )
-      );
+      allow create: if canManageBranch(request.resource.data.orgId, request.resource.data.branchId) &&
+        isValidBatchShape(request.resource.data) &&
+        request.resource.data.status != 'archived' &&
+        request.resource.data.get('createdById', request.auth.uid) == request.auth.uid &&
+        branchBelongsToOrg(request.resource.data.branchId, request.resource.data.orgId) &&
+        courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId) &&
+        validInstructorList(request.resource.data.instructorUserIds, request.resource.data.orgId, request.resource.data.branchId);
 
-      allow update: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() && (
-          (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId) ||
-          (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId && getUserBranchId() == resource.data.branchId && request.resource.data.branchId == resource.data.branchId)
-        )
-      );
+      allow update: if canManageBranch(resource.data.orgId, resource.data.branchId) &&
+        isValidBatchShape(request.resource.data) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.branchId == resource.data.branchId &&
+        request.resource.data.courseId == resource.data.courseId &&
+        request.resource.data.get('createdById', null) == resource.data.get('createdById', null) &&
+        request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null) &&
+        (
+          request.resource.data.instructorUserIds == resource.data.instructorUserIds ||
+          validInstructorList(request.resource.data.instructorUserIds, resource.data.orgId, resource.data.branchId)
+        );
 
       allow delete: if isSuperAdmin();
     }
@@ -272,15 +572,25 @@ service cloud.firestore {
         isSuperAdmin() ||
         (getUserOrgId() == resource.data.orgId && (
           getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
-          (getUserRole() == 'student' && resource.data.get('status', '') == 'published')
+          (
+            getUserRole() == 'student' &&
+            resource.data.get('status', '') == 'published' &&
+            isCoursePublished(resource.data.courseId) &&
+            hasCourseAccess(resource.data.courseId)
+          )
         ))
       );
 
-      allow write: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
-        getUserOrgId() == request.resource.data.orgId
-      );
+      // Tenant ownership is checked against the EXISTING document on update so a
+      // foreign-org author cannot take over a record by relabelling its orgId.
+      allow create: if canAuthorInOrg(request.resource.data.orgId) &&
+        courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId);
+
+      allow update: if canAuthorInOrg(resource.data.orgId) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.courseId == resource.data.courseId;
+
+      allow delete: if isSuperAdmin();
     }
 
     // -------------------------------------------------------------------------
@@ -291,56 +601,93 @@ service cloud.firestore {
         isSuperAdmin() ||
         (getUserOrgId() == resource.data.orgId && (
           getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
-          (getUserRole() == 'student' && resource.data.get('status', '') == 'published')
+          (
+            getUserRole() == 'student' &&
+            resource.data.get('status', '') == 'published' &&
+            isCoursePublished(resource.data.courseId) &&
+            hasCourseAccess(resource.data.courseId)
+          )
         ))
       );
 
-      allow write: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
-        getUserOrgId() == request.resource.data.orgId
-      );
+      allow create: if canAuthorInOrg(request.resource.data.orgId) &&
+        courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId);
+
+      allow update: if canAuthorInOrg(resource.data.orgId) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.courseId == resource.data.courseId;
+
+      allow delete: if isSuperAdmin();
     }
 
     // -------------------------------------------------------------------------
     // 8. /enrollments/{enrollmentId}
+    // Document ID MUST be {courseId}_{studentId}. orgId, studentId, courseId,
+    // createdAt and enrolledById are immutable. Moving to another batch of the
+    // same course is a re-enrollment and must pass full target validation.
     // -------------------------------------------------------------------------
     match /enrollments/{enrollmentId} {
       allow read: if isAuthenticated() && isAccountActive() && (
         isSuperAdmin() ||
-        (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
-        (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.branchId) ||
-        (getUserRole() == 'instructor' && getUserOrgId() == resource.data.orgId) ||
-        (getUserRole() == 'student' && resource.data.studentId == request.auth.uid)
+        isUniversityAdmin(resource.data.orgId) ||
+        isBranchAdmin(resource.data.orgId, resource.data.branchId) ||
+        (isInstructor(resource.data.orgId) && isAssignedInstructor(resource.data.batchId)) ||
+        (isStudent(resource.data.orgId) && resource.data.studentId == request.auth.uid)
       );
 
-      allow create: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() && (
-          (getUserRole() == 'university_admin' && getUserOrgId() == request.resource.data.orgId) ||
-          (getUserRole() == 'branch_admin' && getUserOrgId() == request.resource.data.orgId && getUserBranchId() == request.resource.data.branchId)
-        )
-      );
+      allow create: if canManageBranch(request.resource.data.orgId, request.resource.data.branchId) &&
+        enrollmentId == request.resource.data.courseId + '_' + request.resource.data.studentId &&
+        isValidEnrollmentShape(request.resource.data) &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.get('enrolledById', request.auth.uid) == request.auth.uid &&
+        isValidEnrollmentTarget(request.resource.data);
 
-      allow update: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() && (
-          (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId) ||
-          (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && request.resource.data.orgId == resource.data.orgId && getUserBranchId() == resource.data.branchId && request.resource.data.branchId == resource.data.branchId)
-        )
-      );
+      allow update: if canManageBranch(resource.data.orgId, resource.data.branchId) &&
+        canManageBranch(request.resource.data.orgId, request.resource.data.branchId) &&
+        isValidEnrollmentShape(request.resource.data) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.courseId == resource.data.courseId &&
+        request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null) &&
+        request.resource.data.get('enrolledById', null) == resource.data.get('enrolledById', null) &&
+        (
+          (
+            // Status change within the same batch; reactivation re-validates.
+            request.resource.data.batchId == resource.data.batchId &&
+            request.resource.data.branchId == resource.data.branchId &&
+            (
+              request.resource.data.status != 'active' ||
+              resource.data.status == 'active' ||
+              isValidEnrollmentTarget(request.resource.data)
+            )
+          ) ||
+          (
+            // Re-enrollment into another batch of the same course.
+            request.resource.data.status == 'active' &&
+            isValidEnrollmentTarget(request.resource.data)
+          )
+        );
 
       allow delete: if isSuperAdmin();
     }
 
     // -------------------------------------------------------------------------
     // 9. /progress/{progressId}
+    // Progress carries the student's enrollment batchId so instructors and branch
+    // admins can be scoped to their batches. Students may only write progress
+    // for courses they are enrolled in, tagged with their enrollment batch.
     // -------------------------------------------------------------------------
     match /progress/{progressId} {
       allow read: if isAuthenticated() && isAccountActive() && (
         isSuperAdmin() ||
-        (getUserOrgId() == resource.data.orgId && (
-          getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
-          (getUserRole() == 'student' && resource.data.studentId == request.auth.uid)
-        ))
+        (getUserOrgId() == resource.data.orgId && resource.data.studentId == request.auth.uid) ||
+        isUniversityAdmin(resource.data.orgId) ||
+        (
+          isScopedBranchAdminRole() &&
+          getUserOrgId() == resource.data.orgId &&
+          isBatchInBranch(resource.data.batchId, getUserBranchId())
+        ) ||
+        (isInstructor(resource.data.orgId) && isAssignedInstructor(resource.data.batchId))
       );
 
       allow create: if isAuthenticated() && isAccountActive() && (
@@ -348,11 +695,11 @@ service cloud.firestore {
         (
           getUserOrgId() == request.resource.data.orgId &&
           request.resource.data.studentId == request.auth.uid &&
-          request.resource.data.timeSpentSeconds is int &&
-          request.resource.data.timeSpentSeconds >= 0 &&
+          isValidProgressShape(request.resource.data) &&
           isLessonPublishedAndInOrg(request.resource.data.lessonId, getUserOrgId()) &&
           getLessonDoc(request.resource.data.lessonId).data.courseId == request.resource.data.courseId &&
-          getLessonDoc(request.resource.data.lessonId).data.moduleId == request.resource.data.moduleId
+          getLessonDoc(request.resource.data.lessonId).data.moduleId == request.resource.data.moduleId &&
+          isEnrolledInBatch(request.resource.data.courseId, request.resource.data.batchId)
         )
       );
 
@@ -366,8 +713,17 @@ service cloud.firestore {
           request.resource.data.courseId == resource.data.courseId &&
           request.resource.data.moduleId == resource.data.moduleId &&
           request.resource.data.lessonId == resource.data.lessonId &&
-          request.resource.data.timeSpentSeconds is int &&
-          request.resource.data.timeSpentSeconds >= 0
+          isValidProgressShape(request.resource.data) &&
+          // Time only accumulates (bounded per write) and completion is not reversible.
+          request.resource.data.timeSpentSeconds >= resource.data.get('timeSpentSeconds', 0) &&
+          request.resource.data.timeSpentSeconds <= resource.data.get('timeSpentSeconds', 0) + 86400 &&
+          (resource.data.get('status', '') != 'completed' || request.resource.data.status == 'completed') &&
+          hasCourseAccess(resource.data.courseId) &&
+          (
+            // batchId may only stay as-is or be (re)tagged to the current enrollment batch.
+            request.resource.data.get('batchId', null) == resource.data.get('batchId', null) ||
+            isEnrolledInBatch(resource.data.courseId, request.resource.data.batchId)
+          )
         )
       );
 
@@ -376,74 +732,162 @@ service cloud.firestore {
 
     // -------------------------------------------------------------------------
     // 10. /assignments/{assignmentId}
+    // Stage 7: assignments are daily assignments scoped to one batch and one
+    // daily plan (ID == planId). Legacy course-level assignments without a
+    // batchId stay readable but are no longer writable by non-super-admins.
     // -------------------------------------------------------------------------
     match /assignments/{assignmentId} {
       allow read: if isAuthenticated() && isAccountActive() && (
         isSuperAdmin() ||
-        (getUserOrgId() == resource.data.orgId && (
-          getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
-          (getUserRole() == 'student' && resource.data.status == 'published')
-        ))
-      );
-
-      allow write: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'instructor']) &&
-        getUserOrgId() == request.resource.data.orgId
-      );
-    }
-
-    // -------------------------------------------------------------------------
-    // 11. /submissions/{submissionId}
-    // -------------------------------------------------------------------------
-    match /submissions/{submissionId} {
-      allow read: if isAuthenticated() && isAccountActive() && (
-        isSuperAdmin() ||
-        (getUserRole() == 'university_admin' && getUserOrgId() == resource.data.orgId) ||
-        (getUserRole() == 'branch_admin' && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.branchId) ||
-        (getUserRole() == 'instructor' && getUserOrgId() == resource.data.orgId) ||
-        (getUserRole() == 'student' && resource.data.studentId == request.auth.uid)
-      );
-
-      allow create: if isAuthenticated() && isAccountActive() && (
-        isSuperAdmin() ||
+        canTeachBatch(resource.data.batchId) ||
+        (
+          resource.data.get('batchId', null) == null &&
+          getUserOrgId() == resource.data.orgId &&
+          getUserRole() in ['university_admin', 'branch_admin', 'instructor']
+        ) ||
         (
           getUserRole() == 'student' &&
-          getUserOrgId() == request.resource.data.orgId &&
-          request.resource.data.studentId == request.auth.uid &&
-          request.resource.data.status in ['draft', 'submitted'] &&
-          (!('score' in request.resource.data) || request.resource.data.score == null)
+          getUserOrgId() == resource.data.orgId &&
+          resource.data.status == 'published' &&
+          isCoursePublished(resource.data.courseId) &&
+          hasCourseAccess(resource.data.courseId) &&
+          (
+            resource.data.get('batchId', null) == null ||
+            isEnrolledInBatch(resource.data.courseId, resource.data.batchId)
+          )
         )
       );
 
+      allow create: if canTeachBatch(request.resource.data.batchId) &&
+        isValidDailyAssignment(request.resource.data) &&
+        assignmentMatchesPlan(request.resource.data, assignmentId) &&
+        request.resource.data.createdById == request.auth.uid;
+
+      // Deadlines and instructions stay editable; marks are frozen once published
+      // so earlier grades remain comparable.
+      allow update: if canTeachBatch(resource.data.batchId) &&
+        isValidDailyAssignment(request.resource.data) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.courseId == resource.data.courseId &&
+        request.resource.data.batchId == resource.data.batchId &&
+        request.resource.data.planId == resource.data.planId &&
+        request.resource.data.createdById == resource.data.createdById &&
+        request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null) &&
+        (resource.data.status != 'published' || request.resource.data.totalPoints == resource.data.totalPoints);
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 11. /submissions/{assignmentId}_{studentId}
+    // One record per student per assignment. Timestamps are server time. See
+    // docs/DAILY_LEARNING.md §3 for the state machine enforced below.
+    // -------------------------------------------------------------------------
+    match /submissions/{submissionId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        canReviewSubmission(resource.data) ||
+        (isStudent(resource.data.orgId) && resource.data.studentId == request.auth.uid)
+      );
+
+      allow create: if isAuthenticated() && isAccountActive() &&
+        getUserRole() == 'student' &&
+        getUserOrgId() == request.resource.data.orgId &&
+        request.resource.data.studentId == request.auth.uid &&
+        submissionId == request.resource.data.assignmentId + '_' + request.auth.uid &&
+        isValidSubmissionShape(request.resource.data) &&
+        request.resource.data.status == 'submitted' &&
+        request.resource.data.attemptCount == 1 &&
+        request.resource.data.submittedAt == request.time &&
+        !('score' in request.resource.data) &&
+        !('feedback' in request.resource.data) &&
+        !('gradedByUserId' in request.resource.data) &&
+        !('gradedAt' in request.resource.data) &&
+        canSubmitToAssignment(request.resource.data);
+
       allow update: if isAuthenticated() && isAccountActive() && (
-        isSuperAdmin() ||
         (
-          // Student updating their submission (cannot modify score or feedback)
+          // Student (re)submission: only from 'submitted' (edit before review) or
+          // 'resubmit_requested' (correction), always back to 'submitted'.
           getUserRole() == 'student' &&
           resource.data.studentId == request.auth.uid &&
           request.resource.data.studentId == request.auth.uid &&
           request.resource.data.orgId == resource.data.orgId &&
           request.resource.data.assignmentId == resource.data.assignmentId &&
-          (!('score' in request.resource.data) || request.resource.data.score == resource.data.score) &&
-          (!('feedback' in request.resource.data) || request.resource.data.feedback == resource.data.feedback)
+          request.resource.data.batchId == resource.data.batchId &&
+          request.resource.data.get('courseId', null) == resource.data.get('courseId', null) &&
+          isValidSubmissionShape(request.resource.data) &&
+          resource.data.status in ['submitted', 'resubmit_requested'] &&
+          request.resource.data.status == 'submitted' &&
+          request.resource.data.attemptCount == resource.data.get('attemptCount', 1) + 1 &&
+          request.resource.data.submittedAt == request.time &&
+          request.resource.data.get('score', null) == resource.data.get('score', null) &&
+          request.resource.data.get('feedback', null) == resource.data.get('feedback', null) &&
+          request.resource.data.get('gradedByUserId', null) == resource.data.get('gradedByUserId', null) &&
+          request.resource.data.get('gradedAt', null) == resource.data.get('gradedAt', null) &&
+          canSubmitToAssignment(request.resource.data)
         ) ||
         (
-          // Instructor / Branch Admin / University Admin grading
-          getUserOrgId() == resource.data.orgId &&
-          request.resource.data.studentId == resource.data.studentId &&
-          request.resource.data.orgId == resource.data.orgId &&
-          request.resource.data.assignmentId == resource.data.assignmentId &&
+          // Review: grade (0..totalPoints) or request a correction (feedback required).
+          canReviewSubmission(resource.data) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['score', 'feedback', 'status', 'gradedByUserId', 'gradedAt', 'updatedAt']) &&
+          request.resource.data.gradedByUserId == request.auth.uid &&
+          request.resource.data.gradedAt == request.time &&
+          (!('feedback' in request.resource.data) ||
+            (request.resource.data.feedback is string && request.resource.data.feedback.size() <= 5000)) &&
           (
-            getUserRole() in ['instructor', 'university_admin'] ||
             (
-              getUserRole() == 'branch_admin' &&
-              getUserBranchId() == resource.data.branchId &&
-              request.resource.data.branchId == resource.data.branchId
+              request.resource.data.status == 'graded' &&
+              resource.data.status in ['submitted', 'graded', 'resubmit_requested'] &&
+              request.resource.data.score is number &&
+              request.resource.data.score >= 0 &&
+              request.resource.data.score <= get(/databases/$(database)/documents/assignments/$(resource.data.assignmentId)).data.totalPoints
+            ) ||
+            (
+              request.resource.data.status == 'resubmit_requested' &&
+              resource.data.status in ['submitted', 'graded'] &&
+              request.resource.data.feedback is string &&
+              request.resource.data.feedback.size() > 0
             )
           )
         )
       );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 12. /dailyPlans/{batchId}_{date}
+    // Instructor-planned learning for one batch and day. Students see published
+    // plans of the batch they are enrolled in.
+    // -------------------------------------------------------------------------
+    match /dailyPlans/{planId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        canTeachBatch(resource.data.batchId) ||
+        (
+          isStudent(resource.data.orgId) &&
+          resource.data.status == 'published' &&
+          isCoursePublished(resource.data.courseId) &&
+          isEnrolledInBatch(resource.data.courseId, resource.data.batchId)
+        )
+      );
+
+      allow create: if canTeachBatch(request.resource.data.batchId) &&
+        planId == request.resource.data.batchId + '_' + request.resource.data.date &&
+        isValidDailyPlan(request.resource.data) &&
+        planMatchesOpenBatch(request.resource.data) &&
+        request.resource.data.createdById == request.auth.uid;
+
+      allow update: if canTeachBatch(resource.data.batchId) &&
+        isValidDailyPlan(request.resource.data) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.branchId == resource.data.branchId &&
+        request.resource.data.courseId == resource.data.courseId &&
+        request.resource.data.batchId == resource.data.batchId &&
+        request.resource.data.date == resource.data.date &&
+        request.resource.data.createdById == resource.data.createdById &&
+        request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null) &&
+        planMatchesOpenBatch(request.resource.data);
 
       allow delete: if isSuperAdmin();
     }

@@ -15,6 +15,12 @@ import { PracticeTaskView } from './PracticeTaskView';
 import { WorkedExampleView } from './WorkedExampleView';
 import { CalloutView } from './CalloutView';
 
+/** Stable anchor id for a heading block (used by the lesson outline). */
+export function headingAnchor(blockId: string, text: string): string {
+  const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+  return `h-${slug || 'section'}-${blockId}`;
+}
+
 interface LessonBlockRendererProps {
   block: LessonBlock;
 }
@@ -24,8 +30,8 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
   const parseResult = lessonBlockSchema.safeParse(block);
   if (!parseResult.success) {
     return (
-      <div className="p-3 my-4 rounded-lg bg-amber-950/20 border border-amber-900/40 text-xs text-amber-300 flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+      <div className="p-3 my-4 rounded-lg bg-warning-soft border border-warning-line text-xs text-warning-ink flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 shrink-0 text-warning-ink" />
         <span>Content block could not be rendered due to a schema mismatch.</span>
       </div>
     );
@@ -35,39 +41,25 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
 
   switch (validBlock.type) {
     case 'heading': {
-      const headingText = validBlock.text;
-      switch (validBlock.level) {
-        case 1:
-          return (
-            <h1 className="mt-8 mb-4 text-2xl sm:text-3xl font-extrabold text-white tracking-tight border-b border-slate-800 pb-2">
-              {headingText}
-            </h1>
-          );
-        case 2:
-          return (
-            <h2 className="mt-7 mb-3 text-xl sm:text-2xl font-bold text-slate-100 tracking-tight">
-              {headingText}
-            </h2>
-          );
-        case 3:
-          return (
-            <h3 className="mt-6 mb-2 text-lg sm:text-xl font-semibold text-slate-200">
-              {headingText}
-            </h3>
-          );
-        case 4:
-        default:
-          return (
-            <h4 className="mt-5 mb-2 text-base font-semibold text-slate-300">
-              {headingText}
-            </h4>
-          );
-      }
+      // The lesson title is the page's h1, so block headings sit one level below it.
+      const id = headingAnchor(validBlock.id, validBlock.text);
+      const styles = {
+        1: 'mt-12 mb-4 text-2xl sm:text-[28px] font-extrabold tracking-tight text-ink',
+        2: 'mt-10 mb-3 text-xl sm:text-2xl font-bold tracking-tight text-ink',
+        3: 'mt-8 mb-2 text-lg font-bold text-ink',
+        4: 'mt-6 mb-2 text-base font-bold text-ink-2',
+      } as const;
+      const Tag = (['h2', 'h3', 'h4', 'h5'] as const)[validBlock.level - 1] ?? 'h5';
+      return (
+        <Tag id={id} className={`scroll-mt-24 ${styles[validBlock.level] ?? styles[4]}`}>
+          {validBlock.text}
+        </Tag>
+      );
     }
 
     case 'text':
       return (
-        <div className="my-4 text-sm sm:text-base text-slate-300 leading-relaxed space-y-3 whitespace-pre-line">
+        <div className="prose-reading my-5 whitespace-pre-line">
           {validBlock.content}
         </div>
       );
@@ -79,15 +71,15 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
       const isSafeUrl = /^https?:\/\//i.test(validBlock.url) || validBlock.url.startsWith('/');
       if (!isSafeUrl) {
         return (
-          <div className="p-3 my-4 rounded-lg bg-rose-950/20 border border-rose-900/40 text-xs text-rose-300">
+          <div className="p-3 my-4 rounded-lg bg-danger-soft border border-danger-line text-xs text-danger-ink">
             Unsafe image URL blocked for security.
           </div>
         );
       }
 
       return (
-        <figure className="my-6 space-y-2">
-          <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-xl">
+        <figure className="my-8 space-y-2">
+          <div className="overflow-hidden rounded-xl border border-line bg-surface">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={validBlock.url}
@@ -97,7 +89,7 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
             />
           </div>
           {validBlock.caption && (
-            <figcaption className="text-center text-xs text-slate-400 italic">
+            <figcaption className="text-center text-sm text-ink-3">
               {validBlock.caption}
             </figcaption>
           )}
@@ -119,7 +111,7 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
 
     default:
       return (
-        <div className="p-3 my-4 rounded bg-slate-900 border border-slate-800 text-xs text-slate-400">
+        <div className="p-3 my-4 rounded bg-surface border border-line text-xs text-ink-3">
           (Unsupported block type)
         </div>
       );

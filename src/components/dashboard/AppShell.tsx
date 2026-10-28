@@ -1,103 +1,152 @@
 'use client';
 
 /**
- * Strynkix LMS — Authenticated Application Shell
- * Shared role-aware layout providing top bar navigation, tenant & branch badges,
- * role indicators, user profile summary, responsive navigation sidebar, and sign-out.
+ * Strynkix Live Books — application shell.
+ * One navigation frame for every signed-in page: a calm sidebar on desktop, a top
+ * bar with an accessible drawer on mobile, and a "bare" variant for focused
+ * reading. Navigation is role-aware; Firestore rules remain the security boundary.
  */
 
-import React, { useState, ReactNode } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { RequireAuth } from '@/components/auth/RouteGuards';
+import { BrandMark } from '@/components/ui/Illustrations';
+import { cx } from '@/components/ui/tones';
 import { UserRole } from '@/types/domain';
 import {
-  LayoutDashboard,
+  BookOpen,
   Building2,
   GitBranch,
-  BookOpen,
+  Home,
   LogOut,
   Menu,
+  PenTool,
+  Users,
   X,
-  Briefcase,
-  GraduationCap,
+  type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
   name: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   roles: UserRole[];
+  group: 'Home' | 'Learn' | 'Teach' | 'Manage';
 }
 
+const ALL: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'student'];
+const STAFF: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor'];
+
 const NAV_ITEMS: NavItem[] = [
-  {
-    name: 'Overview',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-    roles: ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'student'],
-  },
-  {
-    name: 'Organizations',
-    href: '/dashboard/organizations',
-    icon: Building2,
-    roles: ['super_admin'],
-  },
-  {
-    name: 'Branches',
-    href: '/dashboard/branches',
-    icon: GitBranch,
-    roles: ['super_admin', 'university_admin'],
-  },
-  {
-    name: 'Course Authoring',
-    href: '/dashboard/courses',
-    icon: GraduationCap,
-    roles: ['super_admin', 'university_admin', 'branch_admin', 'instructor'],
-  },
-  {
-    name: 'Live Books & Courses',
-    href: '/courses',
-    icon: BookOpen,
-    roles: ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'student'],
-  },
+  { name: 'Home', href: '/dashboard', icon: Home, roles: ALL, group: 'Home' },
+  { name: 'My Courses', href: '/courses', icon: BookOpen, roles: ['student'], group: 'Learn' },
+  { name: 'My Batches', href: '/dashboard/batches', icon: Users, roles: ['instructor'], group: 'Teach' },
+  { name: 'Batches & Enrollment', href: '/dashboard/batches', icon: Users, roles: ['super_admin', 'university_admin', 'branch_admin'], group: 'Teach' },
+  { name: 'Course Authoring', href: '/dashboard/courses', icon: PenTool, roles: STAFF, group: 'Teach' },
+  { name: 'Live Books Preview', href: '/courses', icon: BookOpen, roles: STAFF, group: 'Teach' },
+  { name: 'Branches', href: '/dashboard/branches', icon: GitBranch, roles: ['super_admin', 'university_admin'], group: 'Manage' },
+  { name: 'Organizations', href: '/dashboard/organizations', icon: Building2, roles: ['super_admin'], group: 'Manage' },
 ];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  university_admin: 'University Admin',
+  branch_admin: 'Branch Manager',
+  instructor: 'Instructor',
+  student: 'Student',
+};
+
+function isActive(pathname: string, href: string) {
+  if (href === '/dashboard') return pathname === '/dashboard';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavList({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
+  const groups = (['Home', 'Learn', 'Teach', 'Manage'] as const).filter((g) => items.some((i) => i.group === g));
+  // Group headings only help when there is more than one group to tell apart.
+  const labelled = groups.filter((g) => g !== 'Home').length > 1;
+  return (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <div key={group} className="space-y-1">
+          {group !== 'Home' && labelled && (
+            <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-4">{group}</div>
+          )}
+          {items.filter((i) => i.group === group).map((item) => {
+            const active = isActive(pathname, item.href);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={`${item.href}-${item.name}`}
+                href={item.href}
+                onClick={onNavigate}
+                aria-current={active ? 'page' : undefined}
+                className={cx(
+                  'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-150',
+                  active ? 'bg-brand-soft text-brand-ink' : 'text-ink-2 hover:bg-surface-muted hover:text-ink'
+                )}
+              >
+                <Icon className={cx('w-[18px] h-[18px] shrink-0', active ? 'text-brand' : 'text-ink-3 group-hover:text-ink-2')} />
+                {item.name}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function UserCard({ onSignOut }: { onSignOut: () => void }) {
+  const { profile, tenant } = useAuth();
+  const initial = (profile?.displayName || profile?.email || '?').charAt(0).toUpperCase();
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-line bg-canvas p-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning-soft text-sm font-bold text-warning-ink" aria-hidden="true">
+        {initial}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold text-ink">{profile?.displayName || 'Signed in'}</div>
+        <div className="truncate text-xs text-ink-3">{tenant ? ROLE_LABELS[tenant.role] : ''}</div>
+      </div>
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-danger-soft hover:text-danger-ink"
+        aria-label="Sign out"
+        title="Sign out"
+      >
+        <LogOut className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
 
 interface AppShellProps {
   children: ReactNode;
+  /** Optional plain page title for pages that do not render their own PageHeader. */
   pageTitle?: string;
+  /** Focused layout without the sidebar (lesson reading). */
+  bare?: boolean;
+  /** Content for the bare layout's top bar (e.g. breadcrumbs). */
+  topBar?: ReactNode;
 }
 
-export function AppShell({ children, pageTitle }: AppShellProps) {
-  const { profile, tenant, signOut } = useAuth();
+export function AppShell({ children, pageTitle, bare = false, topBar }: AppShellProps) {
+  const { tenant, signOut } = useAuth();
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const items = NAV_ITEMS.filter((i) => tenant && i.roles.includes(tenant.role));
 
-  const userRole = tenant?.role;
-
-  // Filter navigation items accessible to this user's role
-  const visibleNavItems = NAV_ITEMS.filter(
-    (item) => userRole && item.roles.includes(userRole)
-  );
-
-  const getRoleBadge = (role?: UserRole) => {
-    switch (role) {
-      case 'super_admin':
-        return { label: 'Super Admin', style: 'bg-purple-950 text-purple-300 border-purple-800' };
-      case 'university_admin':
-        return { label: 'University Admin', style: 'bg-indigo-950 text-indigo-300 border-indigo-800' };
-      case 'branch_admin':
-        return { label: 'Branch Manager', style: 'bg-cyan-950 text-cyan-300 border-cyan-800' };
-      case 'instructor':
-        return { label: 'Instructor', style: 'bg-emerald-950 text-emerald-300 border-emerald-800' };
-      case 'student':
-      default:
-        return { label: 'Student', style: 'bg-blue-950 text-blue-300 border-blue-800' };
-    }
-  };
-
-  const roleBadge = getRoleBadge(userRole);
+  // Close the drawer on Escape.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDrawerOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
 
   const handleSignOut = async () => {
     try {
@@ -107,167 +156,80 @@ export function AppShell({ children, pageTitle }: AppShellProps) {
     }
   };
 
+  const brand = (
+    <Link href="/dashboard" className="flex items-center gap-2.5 rounded-lg" aria-label="Strynkix Live Books home">
+      <BrandMark size={32} />
+      <span className="leading-tight">
+        <span className="block text-[15px] font-extrabold tracking-tight text-ink">Live Books</span>
+        <span className="hidden text-[11px] font-medium text-ink-3 sm:block">Strynkix Coding Academy</span>
+      </span>
+    </Link>
+  );
+
   return (
     <RequireAuth>
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-        {/* Top Header Bar */}
-        <header className="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-            {/* Left: Brand & Mobile Menu Toggle */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none"
-                aria-label="Toggle navigation menu"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-
-              <Link href="/dashboard" className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-indigo-500/20">
-                  S
-                </div>
-                <div className="hidden sm:block">
-                  <span className="font-bold text-slate-100 tracking-tight text-sm">
-                    Strynkix LMS
-                  </span>
-                </div>
-              </Link>
-            </div>
-
-            {/* Center: Tenant & Branch Indicators */}
-            <div className="hidden md:flex items-center gap-2.5 text-xs font-mono">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">
-                <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                <span>Org: <strong className="text-white">{tenant?.orgId}</strong></span>
-              </div>
-              {tenant?.branchId && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">
-                  <GitBranch className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Branch: <strong className="text-white">{tenant.branchId}</strong></span>
-                </div>
-              )}
-            </div>
-
-            {/* Right: User Profile & Actions */}
-            <div className="flex items-center gap-3">
-              {/* Role Badge */}
-              <span
-                className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full border ${roleBadge.style}`}
-              >
-                {roleBadge.label}
-              </span>
-
-              {/* User Name */}
-              <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-semibold text-slate-200">
-                  {profile?.displayName || 'User'}
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px]">
-                  {profile?.email}
-                </span>
-              </div>
-
-              {/* Sign Out Button */}
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
-                title="Sign out"
-                aria-label="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Body Container with Sidebar + Main Workspace */}
-        <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex gap-6">
-          {/* Desktop Sidebar Navigation */}
-          <aside className="hidden md:block w-64 shrink-0">
-            <nav className="sticky top-24 space-y-1 rounded-2xl bg-slate-900/40 border border-slate-800/80 p-3 shadow-lg">
-              <div className="px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-slate-500 font-semibold">
-                Platform Navigation
-              </div>
-              {visibleNavItems.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                const IconComponent = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                      isActive
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <IconComponent className="w-4 h-4 shrink-0" />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-
-              <div className="pt-4 mt-4 border-t border-slate-800/60 px-3 py-2 text-[11px] text-slate-500 space-y-1">
-                <div className="font-semibold text-slate-400">Security Boundary</div>
-                <div className="text-[10px] leading-tight">
-                  Enforced at Firestore Security Rules for tenant <span className="font-mono text-indigo-400">{tenant?.orgId}</span>.
-                </div>
-              </div>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:shadow-lift">
+        Skip to content
+      </a>
+      <div className="flex min-h-screen bg-canvas text-ink">
+        {/* Desktop sidebar */}
+        {!bare && (
+          <aside className="hidden lg:flex w-64 shrink-0 flex-col gap-6 border-r border-line bg-surface px-4 py-5 sticky top-0 h-screen">
+            {brand}
+            <nav aria-label="Main" className="flex-1 overflow-y-auto">
+              <NavList items={items} pathname={pathname} />
             </nav>
+            <UserCard onSignOut={handleSignOut} />
           </aside>
+        )}
 
-          {/* Mobile Navigation Drawer */}
-          {mobileMenuOpen && (
-            <div className="md:hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex">
-              <div className="w-64 bg-slate-900 border-r border-slate-800 p-5 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <span className="font-bold text-sm text-white">Menu</span>
-                  <button
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-1 rounded text-slate-400 hover:text-white"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <nav className="space-y-1.5">
-                  {visibleNavItems.map((item) => {
-                    const isActive = pathname === item.href;
-                    const IconComponent = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                          isActive
-                            ? 'bg-indigo-600 text-white'
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                        }`}
-                      >
-                        <IconComponent className="w-4 h-4 shrink-0" />
-                        <span>{item.name}</span>
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </div>
-              <div className="flex-1" onClick={() => setMobileMenuOpen(false)} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Top bar: mobile always; desktop only in bare mode */}
+          <header className={cx('sticky top-0 z-40 border-b border-line bg-surface/95', bare ? '' : 'lg:hidden')}>
+            <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
+              {!bare && (
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(true)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-muted"
+                  aria-label="Open navigation"
+                  aria-expanded={drawerOpen}
+                  aria-controls="mobile-nav"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+              )}
+              {brand}
+              <div className="ml-auto flex min-w-0 items-center gap-2">{topBar}</div>
             </div>
-          )}
+          </header>
 
-          {/* Main Content Workspace */}
-          <main className="flex-1 min-w-0 space-y-6">
+          <main id="main" className={cx('flex-1', bare ? '' : 'mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10')}>
             {pageTitle && (
-              <div className="pb-2 border-b border-slate-800/80">
-                <h1 className="text-2xl font-extrabold tracking-tight text-white">{pageTitle}</h1>
-              </div>
+              <h1 className="mb-6 font-display text-2xl sm:text-[28px] font-extrabold tracking-tight text-ink">{pageTitle}</h1>
             )}
             {children}
           </main>
         </div>
+
+        {/* Mobile drawer */}
+        {!bare && drawerOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+            <button type="button" className="absolute inset-0 bg-ink/30 animate-fade" aria-label="Close navigation" onClick={() => setDrawerOpen(false)} />
+            <div id="mobile-nav" className="relative flex h-full w-72 max-w-[85vw] flex-col gap-6 bg-surface px-4 py-5 shadow-lift animate-rise">
+              <div className="flex items-center justify-between">
+                {brand}
+                <button type="button" onClick={() => setDrawerOpen(false)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 hover:bg-surface-muted" aria-label="Close navigation">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <nav aria-label="Main" className="flex-1 overflow-y-auto">
+                <NavList items={items} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+              </nav>
+              <UserCard onSignOut={handleSignOut} />
+            </div>
+          </div>
+        )}
       </div>
     </RequireAuth>
   );

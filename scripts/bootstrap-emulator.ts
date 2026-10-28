@@ -15,6 +15,7 @@
 
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { enrollmentIdFor } from '../src/lib/batches/scope';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -515,8 +516,10 @@ const loadUserProfile = async (user: User | null) => {
 
       // 4. Authenticate, verify, and provision Seed Accounts
       console.log('\nProvisioning seed accounts...');
+      const seededUids = new Map<string, string>();
       for (const seed of SEED_USERS) {
         const uid = await ensureAuthUser(seed);
+        seededUids.set(seed.email, uid);
 
         const userDocRef = doc(db, 'users', uid);
         await setDoc(
@@ -537,6 +540,92 @@ const loadUserProfile = async (user: User | null) => {
 
         console.log(`✓ [${seed.role.toUpperCase()}] ${seed.email} -> UID: ${uid}`);
       }
+
+      // 5. Stage 6: Pune batch taught by the seeded instructor, with both seeded
+      // students enrolled, so the enrollment-gated student journey works locally.
+      const seedCourseId = 'course_fullstack_2026';
+      const seedBatchId = 'batch_pune_fullstack_2026';
+      const instructorUid = seededUids.get('instructor@strynkix.com')!;
+      await setDoc(doc(db, 'batches', seedBatchId), {
+        id: seedBatchId,
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        courseId: seedCourseId,
+        name: 'Pune Full Stack 2026',
+        code: 'PUN-FS-26',
+        instructorUserIds: [instructorUid],
+        startDate: '2026-11-01T00:00:00.000Z',
+        endDate: '2027-04-30T00:00:00.000Z',
+        maxStudents: 30,
+        status: 'in_progress',
+        createdById: seededUids.get('manager.pune@strynkix.com')!,
+        createdAt: now,
+        updatedAt: now,
+      });
+      for (const seed of SEED_USERS.filter((u) => u.role === 'student')) {
+        const studentUid = seededUids.get(seed.email)!;
+        const enrollmentId = enrollmentIdFor(seedCourseId, studentUid);
+        await setDoc(doc(db, 'enrollments', enrollmentId), {
+          id: enrollmentId,
+          orgId: 'strynkix',
+          branchId: 'branch_pune',
+          courseId: seedCourseId,
+          batchId: seedBatchId,
+          studentId: studentUid,
+          status: 'active',
+          enrolledAt: now,
+          studentDisplayName: seed.displayName,
+          studentEmail: seed.email,
+          enrolledById: seededUids.get('manager.pune@strynkix.com')!,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+      console.log(`✓ Provisioned Batch: batches/${seedBatchId} with student enrollments`);
+
+      // 6. Stage 7: today's published daily plan with a daily assignment, so the
+      // Live Books dashboard and instructor review have local data.
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const today = new Date();
+      const todayKey = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59).toISOString();
+      const seedPlanId = `${seedBatchId}_${todayKey}`;
+      await setDoc(doc(db, 'dailyPlans', seedPlanId), {
+        id: seedPlanId,
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        courseId: seedCourseId,
+        batchId: seedBatchId,
+        date: todayKey,
+        title: 'Type safety & state observers',
+        objectives: ['Explain runtime type guards', 'Build a state observer'],
+        lessonIds: ['lesson_ts_architecture', 'lesson_state_observers'],
+        learningDueAt: endOfToday,
+        assignmentId: seedPlanId,
+        status: 'published',
+        publishedAt: now,
+        createdById: instructorUid,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await setDoc(doc(db, 'assignments', seedPlanId), {
+        id: seedPlanId,
+        orgId: 'strynkix',
+        courseId: seedCourseId,
+        batchId: seedBatchId,
+        planId: seedPlanId,
+        title: 'Write a runtime type guard',
+        description: 'Explain in two sentences why TypeScript types vanish at runtime, then write an `isUser(value)` guard.',
+        submissionType: 'text_and_code',
+        totalPoints: 10,
+        rubric: [],
+        deadline: endOfToday,
+        status: 'published',
+        createdById: instructorUid,
+        createdAt: now,
+        updatedAt: now,
+      });
+      console.log(`✓ Provisioned Daily Plan: dailyPlans/${seedPlanId} with a daily assignment`);
 
       console.log('\n================================================================');
       console.log('  Bootstrap Completed Successfully!');

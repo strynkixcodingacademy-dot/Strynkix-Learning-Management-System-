@@ -1,99 +1,106 @@
 'use client';
 
 /**
- * Strynkix LMS — Live Books Code Block Viewer
- * Zero-dependency, accessible, responsive code display with syntax highlights,
- * line numbers, copy-to-clipboard, and line emphasis.
+ * Strynkix Live Books — code panels.
+ * A dark "ink page" inside the light book: line numbers hidden from assistive
+ * tech, optional highlighted lines, copy to clipboard, and light syntax colour.
  */
 
 import React, { useState } from 'react';
 import { Copy, Check, FileCode } from 'lucide-react';
 import { CodeExampleBlock } from '@/types/domain';
+import { tokenizeLine, TokenKind } from './highlight';
 
-interface CodeBlockViewProps {
-  block: CodeExampleBlock;
-}
+const TOKEN_CLASS: Record<TokenKind, string> = {
+  keyword: 'text-syn-keyword',
+  string: 'text-syn-string',
+  number: 'text-syn-number',
+  comment: 'text-syn-comment italic',
+  fn: 'text-syn-fn',
+  plain: '',
+};
 
-export function CodeBlockView({ block }: CodeBlockViewProps) {
+export function CopyButton({ text, label = 'Copy code' }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
-
-  const lines = block.code.split('\n');
-  const highlightSet = new Set(block.highlightLines || []);
-
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(block.code);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy code to clipboard', err);
+      console.error('Failed to copy to clipboard', err);
     }
   };
-
   return (
-    <div className="my-6 rounded-xl border border-slate-800 bg-slate-950/90 overflow-hidden shadow-2xl">
-      {/* Code Header Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900/80 border-b border-slate-800 text-xs">
-        <div className="flex items-center gap-2 text-slate-300 font-mono">
-          <FileCode className="w-4 h-4 text-indigo-400" />
-          <span>{block.filename || `${block.language.toLowerCase()} snippet`}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60">
-            {block.language}
-          </span>
-          <button
-            onClick={handleCopy}
-            type="button"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs font-mono"
-            aria-label="Copy code snippet"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-slate-400" />
-                <span>Copy</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+    <button
+      onClick={handleCopy}
+      type="button"
+      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-code-muted transition-colors hover:bg-code-line hover:text-code-ink"
+      aria-label={label}
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-syn-string" aria-hidden="true" /> : <Copy className="w-3.5 h-3.5" aria-hidden="true" />}
+      <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
+    </button>
+  );
+}
 
-      {/* Code Body */}
-      <div className="p-4 overflow-x-auto text-xs sm:text-sm font-mono leading-relaxed">
-        <pre className="table w-full">
-          <tbody>
+/** Shared dark code panel used by code examples, worked solutions and practice starters. */
+export function CodePanel({
+  code,
+  language,
+  filename,
+  highlightLines = [],
+  caption,
+}: {
+  code: string;
+  language: string;
+  filename?: string;
+  highlightLines?: number[];
+  caption?: string;
+}) {
+  const lines = code.replace(/\n$/, '').split('\n');
+  const highlight = new Set(highlightLines);
+  return (
+    <figure className="my-6 overflow-hidden rounded-xl bg-code shadow-card">
+      <div className="flex items-center justify-between gap-3 border-b border-code-line px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2 text-xs text-code-muted">
+          <FileCode className="w-4 h-4 shrink-0" aria-hidden="true" />
+          <span className="truncate font-mono">{filename || language.toLowerCase()}</span>
+        </div>
+        <CopyButton text={code} />
+      </div>
+      <div className="overflow-x-auto py-3 text-[13px] leading-6 font-mono">
+        <pre className="m-0">
+          <code className={`block w-max min-w-full text-code-ink language-${language.toLowerCase()}`}>
             {lines.map((line, idx) => {
               const lineNum = idx + 1;
-              const isHighlighted = highlightSet.has(lineNum);
+              const isHighlighted = highlight.has(lineNum);
               return (
-                <tr
+                <span
                   key={lineNum}
-                  className={`${
-                    isHighlighted ? 'bg-indigo-950/40 border-l-2 border-indigo-500' : ''
-                  } hover:bg-slate-900/40 transition-colors`}
+                  data-line={lineNum}
+                  data-highlighted={isHighlighted || undefined}
+                  className={`grid grid-cols-[3rem_auto] border-l-2 pr-6 ${isHighlighted ? 'border-syn-number bg-syn-highlight' : 'border-transparent'}`}
                 >
-                  <td className="table-cell pr-4 select-none text-right text-slate-600 w-10 text-[11px]">
-                    {lineNum}
-                  </td>
-                  <td className="table-cell text-slate-200 whitespace-pre">{line || ' '}</td>
-                </tr>
+                  <span aria-hidden="true" className="select-none pr-4 text-right text-code-muted/70">{lineNum}</span>
+                  <span className="whitespace-pre">
+                    {line ? tokenizeLine(line, language).map((t, i) => (
+                      <span key={i} className={TOKEN_CLASS[t.kind]}>{t.text}</span>
+                    )) : ' '}
+                  </span>
+                </span>
               );
             })}
-          </tbody>
+          </code>
         </pre>
       </div>
+      {caption && <figcaption className="border-t border-code-line px-4 py-2 text-xs text-code-muted">{caption}</figcaption>}
+    </figure>
+  );
+}
 
-      {/* Optional Caption */}
-      {block.caption && (
-        <div className="px-4 py-2 bg-slate-900/40 border-t border-slate-800/80 text-[11px] text-slate-400 italic">
-          💡 {block.caption}
-        </div>
-      )}
-    </div>
+export function CodeBlockView({ block }: { block: CodeExampleBlock }) {
+  return (
+    <CodePanel code={block.code} language={block.language} filename={block.filename} highlightLines={block.highlightLines} caption={block.caption} />
   );
 }

@@ -1,26 +1,197 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Strynkix Live Books — design tokens
+ * "Paper, ink and colour with meaning" (docs/UI_UX_AUDIT.md §3).
+ * Each accent has: base (fills, bars), -soft (tinted backgrounds),
+ * -line (borders on tints) and -ink (text on tints, >= 4.5:1).
+ */
+@theme {
+  /* Surfaces */
+  --color-canvas: #fafaf7;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f3ef;
+  --color-surface-sunken: #ecebe6;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Ink (text) */
+  --color-ink: #202637;
+  --color-ink-2: #3e4659;
+  --color-ink-3: #687386;
+  --color-ink-4: #9aa0ac; /* decorative / disabled only */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Lines */
+  --color-line: #e8e9ed;
+  --color-line-strong: #d5d7de;
+
+  /* Brand: cobalt (primary action, links, navigation) */
+  --color-brand: #4169e1;
+  --color-brand-strong: #3155c9;
+  --color-brand-soft: #eef2fd;
+  --color-brand-line: #c9d5f7;
+  --color-brand-ink: #2c4fc2;
+
+  /* Meaning accents */
+  --color-success: #2ead70; /* completed, progress */
+  --color-success-soft: #e8f6ee;
+  --color-success-line: #bfe6cf;
+  --color-success-ink: #1b7a4c;
+
+  --color-warning: #f4c95d; /* today, highlight, due soon */
+  --color-warning-soft: #fdf5dd;
+  --color-warning-line: #f0dc9c;
+  --color-warning-ink: #855e00;
+
+  --color-danger: #e5484d; /* overdue, errors, destructive */
+  --color-danger-soft: #fdeded;
+  --color-danger-line: #f6c4c4;
+  --color-danger-ink: #b42318;
+
+  --color-coral: #ff8066; /* late, attention */
+  --color-coral-soft: #fff0ec;
+  --color-coral-line: #ffd0c4;
+  --color-coral-ink: #b4412a;
+
+  --color-teal: #20b8a6; /* submissions, review */
+  --color-teal-soft: #e6f7f4;
+  --color-teal-line: #b6e6df;
+  --color-teal-ink: #0f766b;
+
+  --color-lavender: #a997f5; /* administration */
+  --color-lavender-soft: #f2effe;
+  --color-lavender-line: #d9d1fb;
+  --color-lavender-ink: #5b45c4;
+
+  /* Code panel (dark ink page inside the light book) + syntax colours (>= 4.5:1 on --color-code) */
+  --color-code: #1c2131;
+  --color-code-line: #2a3144;
+  --color-code-ink: #e7eaf3;
+  --color-code-muted: #8b93a7;
+  --color-syn-keyword: #c3b5ff;
+  --color-syn-string: #86e3bf;
+  --color-syn-number: #ffb895;
+  --color-syn-comment: #8b93a7;
+  --color-syn-fn: #9cbcff;
+  --color-syn-highlight: #2a3352;
+
+  /* Type */
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* Shape & depth */
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px rgb(32 38 55 / 0.04), 0 1px 1px rgb(32 38 55 / 0.03);
+  --shadow-lift: 0 6px 20px -8px rgb(32 38 55 / 0.18), 0 2px 4px rgb(32 38 55 / 0.05);
+
+  /* Motion */
+  --animate-rise: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 260ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-fade: fade 180ms ease-out both;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  ::selection {
+    background: var(--color-warning-soft);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline-offset: 0;
+  }
+}
+
+/* Reading measure for Live Book lessons. */
+@utility prose-reading {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--color-ink-2);
+  max-width: 68ch;
+}
+
+/* Skeleton placeholder. */
+@utility skeleton {
+  background: linear-gradient(90deg, var(--color-surface-muted) 25%, var(--color-surface-sunken) 50%, var(--color-surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+  border-radius: 8px;
+}
+
+/* Small celebratory burst for finishing today's targets (CSS only). */
+.celebrate {
+  position: relative;
+}
+.celebrate::before,
+.celebrate::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  pointer-events: none;
+  box-shadow:
+    -18px -14px 0 var(--color-warning), 16px -18px 0 var(--color-brand), 20px 10px 0 var(--color-coral),
+    -16px 14px 0 var(--color-teal), 0 -22px 0 var(--color-lavender), 0 22px 0 var(--color-success);
+  animation: burst 700ms ease-out both;
+}
+.celebrate::after {
+  transform: rotate(30deg);
+  animation-delay: 60ms;
+}
+@keyframes burst {
+  0% { opacity: 0; scale: 0.2; }
+  30% { opacity: 1; }
+  100% { opacity: 0; scale: 1.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .celebrate::before,
+  .celebrate::after {
+    display: none;
+  }
 }

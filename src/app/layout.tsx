@@ -1,21 +1,23 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const jakarta = Plus_Jakarta_Sans({
+  variable: '--font-jakarta',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'Strynkix Coding Academy LMS',
-  description: 'Production-conscious, multi-tenant learning management system with Live Books runtime.',
+  title: 'Strynkix Live Books',
+  description: 'The learning space of Strynkix Coding Academy: daily plans, Live Book lessons, assignments and progress.',
 };
 
 export default function RootLayout({
@@ -24,11 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
+    <html lang="en" className={`${jakarta.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-canvas text-ink">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

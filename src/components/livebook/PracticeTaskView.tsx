@@ -1,142 +1,71 @@
 'use client';
 
 /**
- * Strynkix LMS — Live Books Hands-On Practice Task Block
- * Displays structured coding tasks, instructions, starter code, hints,
- * and expected outcomes without running insecure server sandboxes.
+ * Strynkix Live Books — Practice task. Instructions, starter code to copy into
+ * your own editor, hints and the expected outcome. Student code is never run here.
  */
 
 import React, { useState } from 'react';
-import { Terminal, CheckSquare, Square, Lightbulb, Target, Copy, Check } from 'lucide-react';
+import { CheckSquare, Lightbulb, Square, Target, Wrench } from 'lucide-react';
 import { PracticeTaskBlock } from '@/types/domain';
+import { CodePanel } from './CodeBlockView';
+import { cx } from '@/components/ui/tones';
 
-interface PracticeTaskViewProps {
-  block: PracticeTaskBlock;
-}
-
-export function PracticeTaskView({ block }: PracticeTaskViewProps) {
-  const [isCompletedLocally, setIsCompletedLocally] = useState(false);
+export function PracticeTaskView({ block }: { block: PracticeTaskBlock }) {
+  const [practiced, setPracticed] = useState(false);
   const [showHints, setShowHints] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    if (!block.starterCode) return;
-    try {
-      await navigator.clipboard.writeText(block.starterCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy starter code', err);
-    }
-  };
+  // Authors enter hints one per line; blank lines are not hints.
+  const hints = (block.hints ?? []).filter((h) => h.trim());
 
   return (
-    <div className="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/90 p-6 shadow-2xl space-y-5">
-      {/* Title Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <Terminal className="w-4 h-4" />
-          </div>
+    <section className="my-8 overflow-hidden rounded-xl border border-coral-line bg-surface" aria-labelledby={`practice-${block.id}`}>
+      <header className="flex flex-col gap-3 border-b border-coral-line bg-coral-soft px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-coral-ink" aria-hidden="true"><Wrench className="w-4 h-4" /></span>
           <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-bold">
-              Hands-On Practice Task
-            </span>
-            <h3 className="text-base font-bold text-white">{block.title}</h3>
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-coral-ink">Practice</p>
+            <h3 id={`practice-${block.id}`} className="text-base font-bold text-ink">{block.title}</h3>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsCompletedLocally(!isCompletedLocally)}
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-            isCompletedLocally
-              ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-              : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
-          }`}
-        >
-          {isCompletedLocally ? (
-            <>
-              <CheckSquare className="w-4 h-4 text-emerald-400" />
-              <span>Completed in Local Workspace</span>
-            </>
-          ) : (
-            <>
-              <Square className="w-4 h-4 text-slate-400" />
-              <span>Mark as Practiced</span>
-            </>
-          )}
+        <button type="button" onClick={() => setPracticed((p) => !p)} aria-pressed={practiced}
+          className={cx('inline-flex items-center gap-2 self-start rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors',
+            practiced ? 'border-success-line bg-success-soft text-success-ink' : 'border-coral-line bg-surface text-ink-2 hover:bg-canvas')}>
+          {practiced ? <CheckSquare className="w-4 h-4 animate-pop" aria-hidden="true" /> : <Square className="w-4 h-4" aria-hidden="true" />}
+          {practiced ? 'Practiced' : 'Mark as practiced'}
         </button>
-      </div>
+      </header>
 
-      {/* Instructions */}
-      <div className="space-y-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
-        <h4 className="font-semibold text-slate-100 flex items-center gap-1.5 text-xs uppercase tracking-wider">
-          Instructions:
-        </h4>
-        <p className="whitespace-pre-line">{block.instructions}</p>
-      </div>
-
-      {/* Starter Code Section (If provided) */}
-      {block.starterCode && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <span className="font-mono text-[11px] uppercase">
-              Starter Template ({block.language || 'code'}):
-            </span>
-            <button
-              onClick={handleCopy}
-              type="button"
-              className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-mono transition"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Template</span>
-                </>
-              )}
+      <div className="space-y-5 p-5">
+        <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{block.instructions}</p>
+        {block.starterCode && (
+          <div>
+            <h4 className="text-sm font-bold text-ink">Starter code</h4>
+            <CodePanel code={block.starterCode} language={block.language || 'code'} />
+          </div>
+        )}
+        <div className="flex gap-3 rounded-xl bg-canvas p-4">
+          <Target className="mt-0.5 w-5 h-5 shrink-0 text-coral" aria-hidden="true" />
+          <div>
+            <h4 className="text-sm font-bold text-ink">You’re done when</h4>
+            <p className="mt-1 text-[15px] leading-relaxed text-ink-2">{block.expectedOutcome}</p>
+          </div>
+        </div>
+        {hints.length > 0 && (
+          <div>
+            <button type="button" onClick={() => setShowHints((s) => !s)} aria-expanded={showHints}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-warning-ink hover:underline">
+              <Lightbulb className="w-4 h-4" aria-hidden="true" />
+              {showHints ? 'Hide hints' : `Stuck? Show ${hints.length} hint${hints.length === 1 ? '' : 's'}`}
             </button>
+            {showHints && (
+              <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[15px] text-ink-2 animate-fade">
+                {hints.map((hint, i) => <li key={i}>{hint}</li>)}
+              </ol>
+            )}
           </div>
-          <div className="rounded-lg bg-slate-950 border border-slate-800 p-3 font-mono text-xs text-slate-200 overflow-x-auto">
-            <pre>{block.starterCode}</pre>
-          </div>
-        </div>
-      )}
-
-      {/* Expected Outcome */}
-      <div className="p-3.5 rounded-lg bg-indigo-950/20 border border-indigo-900/40 text-xs space-y-1">
-        <div className="flex items-center gap-1.5 font-bold text-indigo-300">
-          <Target className="w-4 h-4 text-indigo-400" />
-          <span>Expected Outcome / Verification:</span>
-        </div>
-        <p className="text-slate-300">{block.expectedOutcome}</p>
+        )}
+        <p className="text-xs text-ink-3">Work in your own editor. Code isn’t run in Live Books.</p>
       </div>
-
-      {/* Hints Toggle */}
-      {block.hints && block.hints.length > 0 && (
-        <div className="pt-2 border-t border-slate-800/80">
-          <button
-            type="button"
-            onClick={() => setShowHints(!showHints)}
-            className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition"
-          >
-            <Lightbulb className="w-3.5 h-3.5" />
-            <span>{showHints ? 'Hide Hints' : `Need guidance? Show Hints (${block.hints.length})`}</span>
-          </button>
-          {showHints && (
-            <ul className="mt-2 space-y-1.5 pl-4 list-disc text-xs text-amber-200/90">
-              {block.hints.map((hint, i) => (
-                <li key={i}>{hint}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
+    </section>
   );
 }

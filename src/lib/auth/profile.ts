@@ -74,8 +74,10 @@ export function validateUserProfile(
     };
   }
 
-  // Check account status
-  const isSuspended = status === 'suspended' || status === 'inactive';
+  // Check account status. Mirrors isAccountActive() in firestore.rules: any
+  // status other than 'active' (suspended, invited, pending_verification) blocks access.
+  const isSuspended = status !== 'active';
+  const isAwaitingActivation = status === 'pending_verification' || status === 'invited';
 
   const profile: UserProfile = {
     id: uid,
@@ -86,16 +88,23 @@ export function validateUserProfile(
     displayName: displayName || 'Academy Member',
     photoURL: typeof data.photoURL === 'string' ? data.photoURL : undefined,
     phoneNumber: typeof data.phoneNumber === 'string' ? data.phoneNumber : undefined,
-    status: isSuspended ? 'suspended' : 'active',
+    status: isAwaitingActivation ? (status as UserProfile['status']) : isSuspended ? 'suspended' : 'active',
     createdAt: typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString(),
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
   };
+
+  let error: string | undefined;
+  if (isAwaitingActivation) {
+    error = 'Your account is awaiting activation by an academy administrator.';
+  } else if (isSuspended) {
+    error = 'This account has been suspended by the academy administrator.';
+  }
 
   return {
     isValid: true,
     profile,
     isSuspended,
-    error: isSuspended ? 'This account has been suspended by the academy administrator.' : undefined,
+    error,
   };
 }
 

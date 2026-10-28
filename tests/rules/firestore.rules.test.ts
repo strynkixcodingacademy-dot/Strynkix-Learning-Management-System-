@@ -11,7 +11,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -100,9 +100,11 @@ describe('2. Anti-Tamper & Role Escalation Defense', () => {
     const db = studentAuth.firestore();
 
     const profileDoc = doc(db, 'users/student_valid');
+    // Stage 6: self-registered profiles must start as pending_verification.
     await assertSucceeds(
       setDoc(profileDoc, {
         role: 'student',
+        status: 'pending_verification',
         orgId: 'strynkix',
         email: 'student@strynkix.com',
         displayName: 'Valid Student',
@@ -273,12 +275,24 @@ describe('3. Multi-Tenant Organization & Branch Isolation', () => {
   });
 
   it('branch_admin can create a batch for their assigned branch', async () => {
+    // Stage 6: batches must reference a real branch and course in the same org.
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'branches/branch_pune'), { orgId: 'strynkix', name: 'Pune', status: 'active' });
+      await setDoc(doc(adminDb, 'courses/course_pune'), { orgId: 'strynkix', title: 'Course', status: 'published' });
+    });
+
     const branchAdmin = testEnv.authenticatedContext('branch_admin_pune').firestore();
     await assertSucceeds(
       setDoc(doc(branchAdmin, 'batches/batch_pune_1'), {
         orgId: 'strynkix',
         branchId: 'branch_pune',
+        courseId: 'course_pune',
         name: 'Pune Batch Alpha',
+        code: 'PUN-A',
+        instructorUserIds: [],
+        startDate: '2026-11-01T00:00:00.000Z',
+        status: 'upcoming',
       })
     );
   });
@@ -316,8 +330,39 @@ describe('4. Student Sandboxing & Submission Integrity', () => {
         courseId: 'course_1',
         moduleId: 'module_1',
         lessonId: 'lesson_1',
+        batchId: 'batch_pune_1',
         timeSpentSeconds: 120,
         status: 'in_progress',
+      });
+
+      // Stage 6: content, progress, and submissions require an enrollment,
+      // and grading is scoped to the batch's assigned instructors.
+      await setDoc(doc(adminDb, 'batches/batch_pune_1'), {
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        courseId: 'course_1',
+        name: 'Pune Batch 1',
+        code: 'PUN-1',
+        instructorUserIds: ['instructor_dave'],
+        startDate: '2026-11-01T00:00:00.000Z',
+        status: 'in_progress',
+      });
+      await setDoc(doc(adminDb, 'enrollments/course_1_student_alice'), {
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        courseId: 'course_1',
+        batchId: 'batch_pune_1',
+        studentId: 'student_alice',
+        status: 'active',
+        enrolledAt: '2026-10-01T00:00:00.000Z',
+      });
+      await setDoc(doc(adminDb, 'assignments/assign_1'), {
+        orgId: 'strynkix',
+        courseId: 'course_1',
+        moduleId: 'module_1',
+        title: 'Lab 1',
+        status: 'published',
+        totalPoints: 100,
       });
 
       // Seed a draft lesson
@@ -369,12 +414,15 @@ describe('4. Student Sandboxing & Submission Integrity', () => {
   it('student can create an assignment submission without self-assigned score', async () => {
     const alice = testEnv.authenticatedContext('student_alice').firestore();
     await assertSucceeds(
-      setDoc(doc(alice, 'submissions/sub_alice_assign1'), {
+      // Stage 7 contract: deterministic ID, first attempt, server timestamp.
+      setDoc(doc(alice, 'submissions/assign_1_student_alice'), {
         orgId: 'strynkix',
         assignmentId: 'assign_1',
         batchId: 'batch_pune_1',
         studentId: 'student_alice',
         status: 'submitted',
+        attemptCount: 1,
+        submittedAt: serverTimestamp(),
         submissionUrl: 'https://github.com/alice/assignment1',
       })
     );
@@ -383,12 +431,14 @@ describe('4. Student Sandboxing & Submission Integrity', () => {
   it('student CANNOT self-assign a grade score on their submission', async () => {
     const alice = testEnv.authenticatedContext('student_alice').firestore();
     await assertFails(
-      setDoc(doc(alice, 'submissions/sub_alice_cheating'), {
+      setDoc(doc(alice, 'submissions/assign_1_student_alice'), {
         orgId: 'strynkix',
         assignmentId: 'assign_1',
         batchId: 'batch_pune_1',
         studentId: 'student_alice',
         status: 'submitted',
+        attemptCount: 1,
+        submittedAt: serverTimestamp(),
         score: 100, // Privilege violation
       })
     );
@@ -413,6 +463,9 @@ describe('4. Student Sandboxing & Submission Integrity', () => {
         score: 95,
         feedback: 'Excellent clean code structure and thorough test coverage!',
         status: 'graded',
+        // Stage 7: grades are attributed to the grader at server time.
+        gradedByUserId: 'instructor_dave',
+        gradedAt: serverTimestamp(),
       })
     );
   });
@@ -437,6 +490,26 @@ describe('5. Profile State Security: Suspended & Unprovisioned Accounts', () => 
         status: 'active',
         email: 'active@strynkix.com',
         displayName: 'Active Student',
+      });
+
+      // Stage 6: students read courses through an enrollment
+      await setDoc(doc(adminDb, 'enrollments/active_course_active_student'), {
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        courseId: 'active_course',
+        batchId: 'batch_active',
+        studentId: 'active_student',
+        status: 'active',
+        enrolledAt: '2026-10-01T00:00:00.000Z',
+      });
+      await setDoc(doc(adminDb, 'enrollments/active_course_suspended_student'), {
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        courseId: 'active_course',
+        batchId: 'batch_active',
+        studentId: 'suspended_student',
+        status: 'active',
+        enrolledAt: '2026-10-01T00:00:00.000Z',
       });
 
       // Seed a suspended student
@@ -523,17 +596,33 @@ describe('6. Granular Tenant & Branch Boundary Regressions', () => {
         displayName: 'Pune Manager',
       });
 
-      // Batch in Pune
+      // Batches in Pune and Mumbai
       await setDoc(doc(adminDb, 'batches/batch_pune_existing'), {
         orgId: 'strynkix',
         branchId: 'branch_pune',
         name: 'Pune Batch Alpha',
       });
 
-      // Submissions: One in Pune, one in Mumbai
+      await setDoc(doc(adminDb, 'batches/batch_mumbai_existing'), {
+        orgId: 'strynkix',
+        branchId: 'branch_mumbai',
+        name: 'Mumbai Batch Alpha',
+      });
+
+      // Stage 7: grading checks the score against the assignment's totalPoints.
+      await setDoc(doc(adminDb, 'assignments/assign_1'), {
+        orgId: 'strynkix',
+        courseId: 'course_1',
+        title: 'Lab 1',
+        status: 'published',
+        totalPoints: 100,
+      });
+
+      // Submissions: One in Pune, one in Mumbai (scoped through batchId; the
+      // Submission domain type has no branchId field)
       await setDoc(doc(adminDb, 'submissions/sub_pune_student'), {
         orgId: 'strynkix',
-        branchId: 'branch_pune',
+        batchId: 'batch_pune_existing',
         assignmentId: 'assign_1',
         studentId: 'student_pune_1',
         status: 'submitted',
@@ -542,7 +631,7 @@ describe('6. Granular Tenant & Branch Boundary Regressions', () => {
 
       await setDoc(doc(adminDb, 'submissions/sub_mumbai_student'), {
         orgId: 'strynkix',
-        branchId: 'branch_mumbai',
+        batchId: 'batch_mumbai_existing',
         assignmentId: 'assign_1',
         studentId: 'student_mumbai_1',
         status: 'submitted',
@@ -567,6 +656,8 @@ describe('6. Granular Tenant & Branch Boundary Regressions', () => {
       updateDoc(doc(puneAdmin, 'submissions/sub_mumbai_student'), {
         score: 88,
         status: 'graded',
+        gradedByUserId: 'branch_admin_pune',
+        gradedAt: serverTimestamp(),
       })
     );
   });
@@ -578,6 +669,8 @@ describe('6. Granular Tenant & Branch Boundary Regressions', () => {
         score: 92,
         feedback: 'Great work on this Pune batch lab!',
         status: 'graded',
+        gradedByUserId: 'branch_admin_pune',
+        gradedAt: serverTimestamp(),
       })
     );
   });
@@ -675,9 +768,23 @@ describe('7. Stage 3.1 Live Book Lesson Progress & Security Invariants', () => {
         courseId: 'course_fullstack_2026',
         moduleId: 'mod_ts_foundations',
         lessonId: 'lesson_published_valid',
+        batchId: 'batch_fullstack_pune',
         status: 'in_progress',
         timeSpentSeconds: 120,
       });
+
+      // Stage 6: progress writes require an active enrollment in the course
+      for (const studentId of ['student_aarav', 'student_diya']) {
+        await setDoc(doc(adminDb, `enrollments/course_fullstack_2026_${studentId}`), {
+          orgId: 'strynkix',
+          branchId: 'branch_pune',
+          courseId: 'course_fullstack_2026',
+          batchId: 'batch_fullstack_pune',
+          studentId,
+          status: 'active',
+          enrolledAt: '2026-10-01T00:00:00.000Z',
+        });
+      }
     });
   });
 
@@ -694,6 +801,7 @@ describe('7. Stage 3.1 Live Book Lesson Progress & Security Invariants', () => {
         moduleId: 'mod_ts_foundations',
         lessonId: 'lesson_published_valid',
         status: 'in_progress',
+        batchId: 'batch_fullstack_pune',
         timeSpentSeconds: 60,
       })
     );
@@ -712,6 +820,7 @@ describe('7. Stage 3.1 Live Book Lesson Progress & Security Invariants', () => {
         moduleId: 'mod_ts_foundations',
         lessonId: 'lesson_draft_hidden',
         status: 'in_progress',
+        batchId: 'batch_fullstack_pune',
         timeSpentSeconds: 60,
       })
     );
@@ -730,6 +839,7 @@ describe('7. Stage 3.1 Live Book Lesson Progress & Security Invariants', () => {
         moduleId: 'mod_other',
         lessonId: 'lesson_external_tenant',
         status: 'in_progress',
+        batchId: 'batch_fullstack_pune',
         timeSpentSeconds: 60,
       })
     );
@@ -748,6 +858,7 @@ describe('7. Stage 3.1 Live Book Lesson Progress & Security Invariants', () => {
         moduleId: 'mod_ts_foundations',
         lessonId: 'lesson_published_valid',
         status: 'in_progress',
+        batchId: 'batch_fullstack_pune',
         timeSpentSeconds: 60,
       })
     );
@@ -1171,6 +1282,16 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
       const adminDb = context.firestore();
       await updateDoc(doc(adminDb, 'courses/draft_course_1'), { status: 'published' });
       await updateDoc(doc(adminDb, 'lessons/draft_lesson_1'), { status: 'published' });
+      // Stage 6: published content is visible to enrolled students
+      await setDoc(doc(adminDb, 'enrollments/draft_course_1_stud_arjun'), {
+        orgId: 'strynkix',
+        branchId: 'branch_pune',
+        courseId: 'draft_course_1',
+        batchId: 'batch_draft_course',
+        studentId: 'stud_arjun',
+        status: 'active',
+        enrolledAt: '2026-10-01T00:00:00.000Z',
+      });
     });
 
     const studentDb = testEnv.authenticatedContext('stud_arjun').firestore();

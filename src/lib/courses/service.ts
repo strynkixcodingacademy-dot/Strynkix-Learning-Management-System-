@@ -130,7 +130,7 @@ export async function createCourse(input: CreateCourseInput): Promise<Course> {
  */
 export async function updateCourse(
   courseId: string,
-  updates: Partial<Omit<Course, 'id' | 'orgId' | 'createdAt'>>
+  updates: Partial<Omit<Course, 'id' | 'orgId' | 'createdAt' | 'createdById'>>
 ): Promise<void> {
   const ref = doc(db, 'courses', courseId);
   const now = new Date().toISOString();

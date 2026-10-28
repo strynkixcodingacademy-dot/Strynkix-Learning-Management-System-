@@ -101,7 +101,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setProfile(validation.profile);
         setTenant(null);
         setStatus('suspended');
-        setError('Your account has been suspended. Please contact your academy administrator.');
+        setError(validation.error || 'Your account has been suspended. Please contact your academy administrator.');
         return;
       }
 

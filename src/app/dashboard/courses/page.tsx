@@ -17,6 +17,7 @@ import {
   setCourseStatus,
 } from '@/lib/courses/service';
 import { Course, CourseLevel, EntityStatus } from '@/types/domain';
+import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
 import {
   BookOpen,
   Plus,
@@ -67,7 +68,8 @@ export default function CourseAuthoringPage() {
     let isMounted = true;
 
     async function fetchCourses() {
-      if (!tenant?.orgId) {
+      // Students see RequireRole's fallback; don't query authoring data for them.
+      if (!tenant?.orgId || tenant.role === 'student') {
         if (isMounted) setIsLoading(false);
         return;
       }
@@ -171,9 +173,9 @@ export default function CourseAuthoringPage() {
       <AppShell pageTitle="Course Authoring & Management">
         <div className="space-y-6">
           {/* Action Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-line">
             <div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-ink-3">
                 Design interactive Live Books curricula, author modules, and control publication lifecycle.
               </p>
             </div>
@@ -183,7 +185,7 @@ export default function CourseAuthoringPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="px-2.5 py-1.5 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
               >
                 <option value="all">All Statuses ({courses.length})</option>
                 <option value="published">Published Only</option>
@@ -194,7 +196,7 @@ export default function CourseAuthoringPage() {
               <button
                 type="button"
                 onClick={() => setShowModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-card transition"
               >
                 <Plus className="w-4 h-4" />
                 <span>Create Course</span>
@@ -204,15 +206,15 @@ export default function CourseAuthoringPage() {
 
           {/* Alerts */}
           {successMsg && (
-            <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 flex items-center gap-2.5 text-emerald-300 text-xs">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <div className="p-4 rounded-xl bg-success-soft border border-success-line flex items-center gap-2.5 text-success-ink text-xs">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-success-ink" />
               <span>{successMsg}</span>
             </div>
           )}
 
           {error && (
-            <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 flex items-center gap-2.5 text-rose-300 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="p-4 rounded-xl bg-danger-soft border border-danger-line flex items-center gap-2.5 text-danger-ink text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink" />
               <span>{error}</span>
             </div>
           )}
@@ -220,17 +222,17 @@ export default function CourseAuthoringPage() {
           {/* Loading */}
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
-              <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
-              <span className="text-xs text-slate-400 font-mono">Loading course catalog...</span>
+              <Loader2 className="w-7 h-7 text-brand-ink animate-spin" />
+              <span className="text-xs text-ink-3 font-mono">Loading course catalog...</span>
             </div>
           )}
 
           {/* Empty State */}
           {!isLoading && filteredCourses.length === 0 && (
-            <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
-              <BookOpen className="w-10 h-10 text-slate-600 mx-auto" />
-              <h3 className="text-sm font-semibold text-slate-300">No Courses Found</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <div className="p-12 text-center rounded-2xl bg-surface border border-line space-y-3">
+              <BookOpen className="w-10 h-10 text-ink-4 mx-auto" />
+              <h3 className="text-sm font-semibold text-ink-2">No Courses Found</h3>
+              <p className="text-xs text-ink-3 max-w-sm mx-auto">
                 No courses match your active filter. Click &quot;Create Course&quot; to author a new interactive Live Book.
               </p>
             </div>
@@ -241,39 +243,43 @@ export default function CourseAuthoringPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredCourses.map((c) => {
                 const isPub = c.status === 'published';
+                const { tone } = courseIdentity(c);
                 return (
                   <div
                     key={c.id}
-                    className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between space-y-4 shadow-xl"
+                    className="relative flex flex-col justify-between overflow-hidden rounded-2xl bg-surface border border-line hover:border-line-strong transition shadow-card"
                   >
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+                    <span aria-hidden="true" className={`h-1.5 w-full shrink-0 ${SPINE[tone]}`} />
+                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <CourseIcon course={c} size="sm" />
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-surface-muted border border-line text-ink-2">
                           {c.level}
                         </span>
                         <span
                           className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
-                            isPub
-                              ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                              : c.status === 'draft'
-                              ? 'bg-amber-950 text-amber-300 border-amber-800'
-                              : 'bg-slate-800 text-slate-400 border-slate-700'
-                          }`}
+ isPub
+ ? 'bg-success-soft text-success-ink border-success-line'
+ : c.status === 'draft'
+ ? 'bg-warning-soft text-warning-ink border-warning-line'
+ : 'bg-surface-muted text-ink-3 border-line'
+ }`}
                         >
                           {c.status}
                         </span>
                       </div>
 
                       <div>
-                        <h3 className="text-base font-bold text-white tracking-tight leading-snug">
+                        <h3 className="text-base font-bold text-ink tracking-tight leading-snug">
                           {c.title}
                         </h3>
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                        <p className="text-xs text-ink-3 mt-1 line-clamp-2">
                           {c.tagline || c.description}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
+                      <div className="flex items-center gap-4 text-xs font-mono text-ink-3">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
                           {c.estimatedWeeks} Weeks
@@ -288,17 +294,17 @@ export default function CourseAuthoringPage() {
                     </div>
 
                     {/* Actions Toolbar */}
-                    <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
                         {/* Publish / Unpublish Button */}
                         <button
                           type="button"
                           onClick={() => handleTogglePublish(c)}
                           className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                            isPub
-                              ? 'bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/60'
-                              : 'bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/60'
-                          }`}
+ isPub
+ ? 'bg-warning-soft hover:bg-surface-muted text-warning-ink border border-warning-line'
+ : 'bg-success-soft hover:bg-surface-muted text-success-ink border border-success-line'
+ }`}
                           title={isPub ? 'Revert to Draft' : 'Publish to Students'}
                         >
                           {isPub ? <XCircle className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
@@ -308,7 +314,7 @@ export default function CourseAuthoringPage() {
                         {/* Preview Student Syllabus */}
                         <Link
                           href={`/courses/${c.id}`}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                          className="p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition"
                           title="Preview student view"
                         >
                           <Eye className="w-4 h-4" />
@@ -318,46 +324,47 @@ export default function CourseAuthoringPage() {
                       {/* Manage Curriculum */}
                       <Link
                         href={`/dashboard/courses/${c.id}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-card transition"
                       >
                         <span>Curriculum</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
             </div>
           )}
 
           {/* Create Course Modal */}
           {showModal && (
-            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="max-w-lg w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
+            <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+              <div className="max-w-lg w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-line">
+                  <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
                     <BookOpen className="w-5 h-5" />
                     <span>Create New Course Track</span>
                   </div>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="text-slate-400 hover:text-white text-xs font-mono"
+                    className="text-ink-3 hover:text-ink text-xs font-mono"
                   >
                     Cancel
                   </button>
                 </div>
 
                 {formError && (
-                  <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800 text-xs text-rose-300 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                  <div className="p-3 rounded-lg bg-danger-soft border border-danger-line text-xs text-danger-ink flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink mt-0.5" />
                     <span>{formError}</span>
                   </div>
                 )}
 
                 <form onSubmit={handleCreateCourse} className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
-                      Course Title <span className="text-rose-400">*</span>
+                    <label className="text-xs font-semibold text-ink-2">
+                      Course Title <span className="text-danger-ink">*</span>
                     </label>
                     <input
                       type="text"
@@ -365,13 +372,13 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => handleTitleChange(e.target.value)}
                       placeholder="e.g. Distributed Systems & Cloud Infrastructure"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
-                      URL Slug <span className="text-rose-400">*</span>
+                    <label className="text-xs font-semibold text-ink-2">
+                      URL Slug <span className="text-danger-ink">*</span>
                     </label>
                     <input
                       type="text"
@@ -379,13 +386,13 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setSlug(e.target.value)}
                       placeholder="e.g. distributed-systems-cloud"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
-                      Short Tagline <span className="text-rose-400">*</span>
+                    <label className="text-xs font-semibold text-ink-2">
+                      Short Tagline <span className="text-danger-ink">*</span>
                     </label>
                     <input
                       type="text"
@@ -393,13 +400,13 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setTagline(e.target.value)}
                       placeholder="e.g. Master resilient microservices and real-time event streaming"
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">
-                      Detailed Syllabus Overview <span className="text-rose-400">*</span>
+                    <label className="text-xs font-semibold text-ink-2">
+                      Detailed Syllabus Overview <span className="text-danger-ink">*</span>
                     </label>
                     <textarea
                       rows={3}
@@ -407,17 +414,17 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Provide comprehensive pedagogy goals, target competencies, and technical prerequisites..."
                       required
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-300">Difficulty Level</label>
+                      <label className="text-xs font-semibold text-ink-2">Difficulty Level</label>
                       <select
                         value={level}
                         onChange={(e) => setLevel(e.target.value as CourseLevel)}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
                       >
                         <option value="beginner">Beginner</option>
                         <option value="intermediate">Intermediate</option>
@@ -426,7 +433,7 @@ export default function CourseAuthoringPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-300">Estimated Duration</label>
+                      <label className="text-xs font-semibold text-ink-2">Estimated Duration</label>
                       <div className="relative">
                         <input
                           type="number"
@@ -435,9 +442,9 @@ export default function CourseAuthoringPage() {
                           value={estimatedWeeks}
                           onChange={(e) => setEstimatedWeeks(Number(e.target.value))}
                           required
-                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand font-mono"
                         />
-                        <span className="absolute right-3 top-2 text-xs text-slate-500 pointer-events-none">
+                        <span className="absolute right-3 top-2 text-xs text-ink-3 pointer-events-none">
                           Weeks
                         </span>
                       </div>
@@ -445,13 +452,13 @@ export default function CourseAuthoringPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-300">Tags (comma-separated)</label>
+                    <label className="text-xs font-semibold text-ink-2">Tags (comma-separated)</label>
                     <input
                       type="text"
                       value={tagsInput}
                       onChange={(e) => setTagsInput(e.target.value)}
                       placeholder="typescript, architecture, cloud, databases"
-                      className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-[11px]"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand font-mono text-[11px]"
                     />
                   </div>
 
@@ -459,14 +466,14 @@ export default function CourseAuthoringPage() {
                     <button
                       type="button"
                       onClick={() => setShowModal(false)}
-                      className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                      className="px-4 py-2 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink-2 text-xs font-semibold"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold shadow-card"
                     >
                       {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                       <span>{isSubmitting ? 'Drafting...' : 'Create Course Draft'}</span>

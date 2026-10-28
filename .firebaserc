@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "learning-management-syst-b9bf3"
+    "default": "learning-management-syst-b9bf3",
+    "staging": "strynkix-live-books-staging"
   }
 }

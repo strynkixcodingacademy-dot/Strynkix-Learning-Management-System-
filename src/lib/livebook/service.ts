@@ -11,6 +11,7 @@ import {
   query,
   where,
   setDoc,
+  Firestore,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Course, Module, Lesson, Progress, ProgressStatus } from '@/types/domain';
@@ -148,23 +149,41 @@ export async function getStudentCourseProgress(
 /**
  * Updates or creates a student progress record in Firestore.
  * Employs collision-resistant compound key: ${studentId}_${courseId}_${lessonId}.
+ * batchId must be the student's current enrollment batch for the course; rules
+ * reject progress for courses the student is not enrolled in.
+ * `firestore` defaults to the app client; tests inject an emulator instance.
  */
-export async function recordLessonProgress(params: {
-  studentId: string;
-  orgId: string;
-  courseId: string;
-  moduleId: string;
-  lessonId: string;
-  status: ProgressStatus;
-  timeSpentSeconds?: number;
-}): Promise<void> {
+export async function recordLessonProgress(
+  params: {
+    studentId: string;
+    orgId: string;
+    courseId: string;
+    moduleId: string;
+    lessonId: string;
+    batchId: string;
+    status: ProgressStatus;
+    timeSpentSeconds?: number;
+  },
+  firestore: Firestore = db
+): Promise<void> {
   const progressId = `${params.studentId}_${params.courseId}_${params.lessonId}`;
-  const progressDocRef = doc(db, 'progress', progressId);
+  const progressDocRef = doc(firestore, 'progress', progressId);
 
   const now = new Date().toISOString();
-  const existingSnap = await getDoc(progressDocRef);
+  // A getDoc on a not-yet-created record is denied by rules (there is no
+  // resource to prove ownership against); an owner-scoped query returns empty.
+  const existingQuery = await getDocs(
+    query(
+      collection(firestore, 'progress'),
+      where('orgId', '==', params.orgId),
+      where('studentId', '==', params.studentId),
+      where('courseId', '==', params.courseId),
+      where('lessonId', '==', params.lessonId)
+    )
+  );
+  const existingSnap = existingQuery.docs.find((d) => d.id === progressId);
 
-  if (!existingSnap.exists()) {
+  if (!existingSnap) {
     const newRecord: Progress = {
       id: progressId,
       orgId: params.orgId,
@@ -172,17 +191,23 @@ export async function recordLessonProgress(params: {
       moduleId: params.moduleId,
       lessonId: params.lessonId,
       studentId: params.studentId,
+      batchId: params.batchId,
       status: params.status,
       timeSpentSeconds: params.timeSpentSeconds || 60,
       lastAccessedAt: now,
-      completedAt: params.status === 'completed' ? now : undefined,
       createdAt: now,
       updatedAt: now,
     };
+    // Firestore rejects undefined field values, so completedAt is only set when known.
+    if (params.status === 'completed') {
+      newRecord.completedAt = now;
+    }
     await setDoc(progressDocRef, newRecord);
   } else {
     const existing = existingSnap.data() as Progress;
     const updatedRecord: Partial<Progress> = {
+      // Re-tags legacy records and follows the student if they change batches.
+      batchId: params.batchId,
       status: params.status === 'completed' ? 'completed' : existing.status,
       timeSpentSeconds: (existing.timeSpentSeconds || 0) + (params.timeSpentSeconds || 30),
       lastAccessedAt: now,

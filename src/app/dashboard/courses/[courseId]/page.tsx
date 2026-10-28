@@ -236,21 +236,21 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-3">
-        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-        <span className="text-xs text-slate-400 font-mono">Loading curriculum builder...</span>
+        <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
+        <span className="text-xs text-ink-3 font-mono">Loading curriculum builder...</span>
       </div>
     );
   }
 
   if (error || !course) {
     return (
-      <div className="p-8 max-w-md mx-auto my-12 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-4">
-        <AlertCircle className="w-10 h-10 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-white">Course Unavailable</h3>
-        <p className="text-xs text-slate-400">{error || 'Could not load course.'}</p>
+      <div className="p-8 max-w-md mx-auto my-12 bg-surface border border-line rounded-2xl text-center space-y-4">
+        <AlertCircle className="w-10 h-10 text-danger-ink mx-auto" />
+        <h3 className="text-lg font-bold text-ink">Course Unavailable</h3>
+        <p className="text-xs text-ink-3">{error || 'Could not load course.'}</p>
         <Link
           href="/dashboard/courses"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-white text-xs font-semibold"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Authoring Hub</span>
@@ -264,31 +264,31 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
   return (
     <div className="space-y-6">
       {/* Top Navigation & Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard/courses"
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
+            className="p-2 rounded-lg bg-surface border border-line text-ink-3 hover:text-ink transition"
             title="Back to Courses"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono uppercase text-indigo-400 font-semibold">
+              <span className="text-xs font-mono uppercase text-brand-ink font-semibold">
                 Curriculum Builder
               </span>
               <span
                 className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
-                  isPub
-                    ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                    : 'bg-amber-950 text-amber-300 border-amber-800'
-                }`}
+ isPub
+ ? 'bg-success-soft text-success-ink border-success-line'
+ : 'bg-warning-soft text-warning-ink border-warning-line'
+ }`}
               >
                 {course.status}
               </span>
             </div>
-            <h2 className="text-xl font-extrabold text-white">{course.title}</h2>
+            <h2 className="text-xl font-extrabold text-ink">{course.title}</h2>
           </div>
         </div>
 
@@ -298,10 +298,10 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
             type="button"
             onClick={handleToggleCoursePublish}
             className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-              isPub
-                ? 'bg-amber-950 text-amber-300 border border-amber-800 hover:bg-amber-900'
-                : 'bg-emerald-950 text-emerald-300 border border-emerald-800 hover:bg-emerald-900'
-            }`}
+ isPub
+ ? 'bg-warning-soft text-warning-ink border border-warning-line hover:bg-surface-muted'
+ : 'bg-success-soft text-success-ink border border-success-line hover:bg-surface-muted'
+ }`}
           >
             {isPub ? <XCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
             <span>{isPub ? 'Unpublish Course' : 'Publish Course'}</span>
@@ -310,7 +310,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
           {/* Preview Syllabus */}
           <Link
             href={`/courses/${course.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-muted hover:bg-surface-sunken text-ink text-xs font-semibold transition"
           >
             <Eye className="w-4 h-4" />
             <span>Student View</span>
@@ -323,7 +323,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
               setModOrder(modules.length + 1);
               setShowModuleModal(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-card transition"
           >
             <Plus className="w-4 h-4" />
             <span>Add Module</span>
@@ -333,18 +333,18 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
       {/* Alerts */}
       {successMsg && (
-        <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 flex items-center gap-2.5 text-emerald-300 text-xs">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+        <div className="p-4 rounded-xl bg-success-soft border border-success-line flex items-center gap-2.5 text-success-ink text-xs">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-success-ink" />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* Modules & Lessons Hierarchy */}
       {modules.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
-          <Layers className="w-10 h-10 text-slate-600 mx-auto" />
-          <h3 className="text-sm font-semibold text-slate-300">No Modules Configured</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+        <div className="p-12 text-center rounded-2xl bg-surface border border-line space-y-3">
+          <Layers className="w-10 h-10 text-ink-4 mx-auto" />
+          <h3 className="text-sm font-semibold text-ink-2">No Modules Configured</h3>
+          <p className="text-xs text-ink-3 max-w-sm mx-auto">
             This course track has no chapters yet. Click &quot;Add Module&quot; to structure your syllabus.
           </p>
         </div>
@@ -356,16 +356,16 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
             return (
               <div
                 key={m.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden shadow-xl"
+                className="rounded-2xl border border-line bg-surface overflow-hidden shadow-card"
               >
                 {/* Module Bar */}
-                <div className="p-4 sm:p-5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-4">
+                <div className="p-4 sm:p-5 bg-surface border-b border-line flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono uppercase text-indigo-400 font-bold tracking-wider">
+                    <span className="text-[10px] font-mono uppercase text-brand-ink font-bold tracking-wider">
                       Module {mIdx + 1}
                     </span>
-                    <h3 className="text-base font-bold text-white">{m.title}</h3>
-                    {m.summary && <p className="text-xs text-slate-400">{m.summary}</p>}
+                    <h3 className="text-base font-bold text-ink">{m.title}</h3>
+                    {m.summary && <p className="text-xs text-ink-3">{m.summary}</p>}
                   </div>
 
                   <button
@@ -375,7 +375,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                       setLesOrder(moduleLessons.length + 1);
                       setShowLessonModal(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/80 text-xs font-semibold transition shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-soft hover:bg-brand-soft text-brand-ink border border-brand-line text-xs font-semibold transition shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Lesson</span>
@@ -384,38 +384,38 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
                 {/* Lessons in Module */}
                 {moduleLessons.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-slate-500 font-mono">
+                  <div className="p-6 text-center text-xs text-ink-3 font-mono">
                     No lessons in this module yet. Click &quot;Add Lesson&quot; to author content.
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-800/60">
+                  <div className="divide-y divide-line">
                     {moduleLessons.map((l, lIdx) => {
                       const isLesPub = l.status === 'published';
                       return (
                         <div
                           key={l.id}
-                          className="p-4 hover:bg-slate-800/30 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                          className="p-4 hover:bg-surface-muted transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 font-mono font-bold text-xs shrink-0">
+                            <div className="h-8 w-8 rounded-lg bg-surface-muted flex items-center justify-center text-ink-3 font-mono font-bold text-xs shrink-0">
                               {mIdx + 1}.{lIdx + 1}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-slate-200 text-sm">
+                                <span className="font-semibold text-ink text-sm">
                                   {l.title}
                                 </span>
                                 <span
                                   className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded-full border ${
-                                    isLesPub
-                                      ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                                      : 'bg-amber-950 text-amber-300 border-amber-800'
-                                  }`}
+ isLesPub
+ ? 'bg-success-soft text-success-ink border-success-line'
+ : 'bg-warning-soft text-warning-ink border-warning-line'
+ }`}
                                 >
                                   {l.status}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-3 text-[11px] text-slate-500 font-mono mt-0.5">
+                              <div className="flex items-center gap-3 text-[11px] text-ink-3 font-mono mt-0.5">
                                 <span className="uppercase">{l.type}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
@@ -437,10 +437,10 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                               type="button"
                               onClick={() => handleToggleLessonPublish(l)}
                               className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                                isLesPub
-                                  ? 'bg-amber-950/60 text-amber-300 border border-amber-800 hover:bg-amber-900/60'
-                                  : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800 hover:bg-emerald-900/60'
-                              }`}
+ isLesPub
+ ? 'bg-warning-soft text-warning-ink border border-warning-line hover:bg-surface-muted'
+ : 'bg-success-soft text-success-ink border border-success-line hover:bg-surface-muted'
+ }`}
                               title={isLesPub ? 'Revert to Draft' : 'Publish to Students'}
                             >
                               {isLesPub ? 'Unpublish' : 'Publish'}
@@ -449,7 +449,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                             {/* Preview Lesson */}
                             <Link
                               href={`/courses/${course.id}/lessons/${l.id}`}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                              className="p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition"
                               title="Preview Live Book lesson"
                             >
                               <Eye className="w-4 h-4" />
@@ -458,7 +458,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                             {/* Edit Lesson Blocks */}
                             <Link
                               href={`/dashboard/courses/${course.id}/lessons/${l.id}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-card transition"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                               <span>Edit Blocks</span>
@@ -477,32 +477,32 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
       {/* Modal: Create Module */}
       {showModuleModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
+        <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+          <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
                 <Layers className="w-5 h-5" />
                 <span>Add Curriculum Module</span>
               </div>
               <button
                 onClick={() => setShowModuleModal(false)}
-                className="text-slate-400 hover:text-white text-xs font-mono"
+                className="text-ink-3 hover:text-ink text-xs font-mono"
               >
                 Cancel
               </button>
             </div>
 
             {moduleError && (
-              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800 text-xs text-rose-300 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+              <div className="p-3 rounded-lg bg-danger-soft border border-danger-line text-xs text-danger-ink flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink mt-0.5" />
                 <span>{moduleError}</span>
               </div>
             )}
 
             <form onSubmit={handleCreateModule} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">
-                  Module Title <span className="text-rose-400">*</span>
+                <label className="text-xs font-semibold text-ink-2">
+                  Module Title <span className="text-danger-ink">*</span>
                 </label>
                 <input
                   type="text"
@@ -515,13 +515,13 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   }}
                   placeholder="e.g. Asynchronous TypeScript & Firestore Security"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">
-                  Module Slug <span className="text-rose-400">*</span>
+                <label className="text-xs font-semibold text-ink-2">
+                  Module Slug <span className="text-danger-ink">*</span>
                 </label>
                 <input
                   type="text"
@@ -529,30 +529,30 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   onChange={(e) => setModSlug(e.target.value)}
                   placeholder="async-ts-firestore"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Summary</label>
+                <label className="text-xs font-semibold text-ink-2">Summary</label>
                 <textarea
                   rows={2}
                   value={modSummary}
                   onChange={(e) => setModSummary(e.target.value)}
                   placeholder="Brief chapter overview explaining what students will construct..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Order Index</label>
+                <label className="text-xs font-semibold text-ink-2">Order Index</label>
                 <input
                   type="number"
                   min={1}
                   value={modOrder}
                   onChange={(e) => setModOrder(Number(e.target.value))}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
@@ -560,14 +560,14 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                 <button
                   type="button"
                   onClick={() => setShowModuleModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink-2 text-xs font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingModule}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold shadow-card"
                 >
                   {isSubmittingModule && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{isSubmittingModule ? 'Adding...' : 'Add Module'}</span>
@@ -580,36 +580,36 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
       {/* Modal: Create Lesson */}
       {showLessonModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
+        <div className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-4">
+          <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
                 <BookOpen className="w-5 h-5" />
                 <span>Add Live Book Lesson</span>
               </div>
               <button
                 onClick={() => setShowLessonModal(false)}
-                className="text-slate-400 hover:text-white text-xs font-mono"
+                className="text-ink-3 hover:text-ink text-xs font-mono"
               >
                 Cancel
               </button>
             </div>
 
             {lessonError && (
-              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800 text-xs text-rose-300 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+              <div className="p-3 rounded-lg bg-danger-soft border border-danger-line text-xs text-danger-ink flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink mt-0.5" />
                 <span>{lessonError}</span>
               </div>
             )}
 
             <form onSubmit={handleCreateLesson} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Target Module</label>
+                <label className="text-xs font-semibold text-ink-2">Target Module</label>
                 <select
                   value={targetModuleId}
                   onChange={(e) => setTargetModuleId(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand font-mono"
                 >
                   {modules.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -620,8 +620,8 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">
-                  Lesson Title <span className="text-rose-400">*</span>
+                <label className="text-xs font-semibold text-ink-2">
+                  Lesson Title <span className="text-danger-ink">*</span>
                 </label>
                 <input
                   type="text"
@@ -634,13 +634,13 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   }}
                   placeholder="e.g. Zero-Trust Security Invariants"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">
-                  Lesson Slug <span className="text-rose-400">*</span>
+                <label className="text-xs font-semibold text-ink-2">
+                  Lesson Slug <span className="text-danger-ink">*</span>
                 </label>
                 <input
                   type="text"
@@ -648,17 +648,17 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                   onChange={(e) => setLesSlug(e.target.value)}
                   placeholder="zero-trust-invariants"
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Lesson Type</label>
+                  <label className="text-xs font-semibold text-ink-2">Lesson Type</label>
                   <select
                     value={lesType}
                     onChange={(e) => setLesType(e.target.value as LessonType)}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
                   >
                     <option value="concept">Concept Narrative</option>
                     <option value="interactive_code">Interactive Code</option>
@@ -668,7 +668,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Est. Minutes</label>
+                  <label className="text-xs font-semibold text-ink-2">Est. Minutes</label>
                   <input
                     type="number"
                     min={1}
@@ -676,20 +676,20 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                     value={lesMinutes}
                     onChange={(e) => setLesMinutes(Number(e.target.value))}
                     required
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Order Index</label>
+                <label className="text-xs font-semibold text-ink-2">Order Index</label>
                 <input
                   type="number"
                   min={1}
                   value={lesOrder}
                   onChange={(e) => setLesOrder(Number(e.target.value))}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
@@ -697,14 +697,14 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                 <button
                   type="button"
                   onClick={() => setShowLessonModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink-2 text-xs font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingLesson}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold shadow-card"
                 >
                   {isSubmittingLesson && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{isSubmittingLesson ? 'Creating...' : 'Create Lesson Draft'}</span>
@@ -734,8 +734,8 @@ export default function CurriculumBuilderPage({ params }: CurriculumPageProps) {
     <Suspense
       fallback={
         <div className="flex flex-col items-center justify-center py-24 space-y-3">
-          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          <span className="text-xs text-slate-400 font-mono">Loading curriculum builder...</span>
+          <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
+          <span className="text-xs text-ink-3 font-mono">Loading curriculum builder...</span>
         </div>
       }
     >

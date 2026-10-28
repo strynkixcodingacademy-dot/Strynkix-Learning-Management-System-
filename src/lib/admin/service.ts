@@ -9,12 +9,23 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
+  arrayUnion,
   query,
   where,
 } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { db } from '@/lib/firebase/client';
+import { getFirebaseConfig } from '@/lib/firebase/config';
 import { Organization, Branch } from '@/types/domain';
 import { organizationSchema, branchSchema } from '@/types/validation';
+
+// Firestore rejects `undefined` field values, and Zod keeps optional keys as
+// `undefined`, so blank optional form fields must be dropped before writing.
+function withoutUndefined<T extends object>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
+}
 
 /**
  * Loads all organizations from Firestore.
@@ -81,12 +92,12 @@ export async function createOrganization(params: {
   }
 
   const orgDocRef = doc(db, 'organizations', params.id);
-  const orgRecord: Organization = {
+  const orgRecord: Organization = withoutUndefined({
     id: params.id,
     ...validation.data,
     createdAt: now,
     updatedAt: now,
-  };
+  });
 
   await setDoc(orgDocRef, orgRecord);
   return orgRecord;
@@ -145,13 +156,151 @@ export async function createBranch(params: {
   }
 
   const branchDocRef = doc(db, 'branches', params.id);
-  const branchRecord: Branch = {
+  const branchRecord: Branch = withoutUndefined({
     id: params.id,
     ...validation.data,
+    location: withoutUndefined(validation.data.location),
     createdAt: now,
     updatedAt: now,
-  };
+  });
 
   await setDoc(branchDocRef, branchRecord);
   return branchRecord;
 }
+
+/**
+ * Creates a new Branch Manager account in Firebase Auth and provisions their
+ * user profile in Firestore under the specified branch and organization.
+ * Uses a secondary Firebase App instance so the currently logged-in Super Admin is NOT logged out.
+ */
+export async function createBranchManager(params: {
+  email: string;
+  password: string;
+  displayName: string;
+  orgId: string;
+  branchId: string;
+}): Promise<{
+  uid: string;
+  email: string;
+  displayName: string;
+  role: string;
+  branchId: string;
+  orgId: string;
+}> {
+  const cleanEmail = params.email.trim();
+  const cleanName = params.displayName.trim();
+  const cleanPassword = params.password.trim();
+
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw new Error('Please enter a valid email address.');
+  }
+  if (!cleanPassword || cleanPassword.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+  if (!cleanName || cleanName.length < 2) {
+    throw new Error('Please enter a display name (at least 2 characters).');
+  }
+
+  const config = getFirebaseConfig();
+  const tempAppName = `TempAdminApp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const tempApp = initializeApp(
+    {
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      storageBucket: config.storageBucket,
+      messagingSenderId: config.messagingSenderId,
+      appId: config.appId,
+      measurementId: config.measurementId,
+    },
+    tempAppName
+  );
+
+  let newUid = '';
+  try {
+    const tempAuth = getAuth(tempApp);
+    const userCred = await createUserWithEmailAndPassword(tempAuth, cleanEmail, cleanPassword);
+    newUid = userCred.user.uid;
+    await signOut(tempAuth);
+  } catch (err: unknown) {
+    const e = err as { code?: string; message?: string };
+    if (e.code === 'auth/email-already-in-use') {
+      throw new Error('An account with this email address already exists.');
+    } else if (e.code === 'auth/weak-password') {
+      throw new Error('The password is too weak. Please use at least 6 characters.');
+    } else if (e.code === 'auth/invalid-email') {
+      throw new Error('Invalid email format.');
+    }
+    throw new Error(e.message || 'Failed to create user account in Firebase Auth.');
+  } finally {
+    try {
+      await deleteApp(tempApp);
+    } catch {
+      // Ignore cleanup error
+    }
+  }
+
+  const now = new Date().toISOString();
+  const userDocRef = doc(db, 'users', newUid);
+  const profileRecord = {
+    id: newUid,
+    email: cleanEmail,
+    displayName: cleanName,
+    role: 'branch_admin' as const,
+    orgId: params.orgId,
+    branchId: params.branchId,
+    status: 'active' as const,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Write profile to Firestore
+  await setDoc(userDocRef, profileRecord);
+
+  // Link manager UID to the branch document
+  const branchDocRef = doc(db, 'branches', params.branchId);
+  try {
+    await updateDoc(branchDocRef, {
+      branchAdminUserIds: arrayUnion(newUid),
+      updatedAt: now,
+    });
+  } catch (err) {
+    console.warn('Could not update branchAdminUserIds array on branch document:', err);
+  }
+
+  return {
+    uid: newUid,
+    email: cleanEmail,
+    displayName: cleanName,
+    role: 'branch_admin',
+    branchId: params.branchId,
+    orgId: params.orgId,
+  };
+}
+
+/**
+ * Loads profiles for a list of manager user IDs.
+ */
+export async function getBranchManagers(managerUids: string[]): Promise<{ id: string; displayName: string; email: string }[]> {
+  if (!managerUids || managerUids.length === 0) return [];
+  const profiles = await Promise.all(
+    managerUids.map(async (uid) => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          return {
+            id: uid,
+            displayName: (data.displayName as string) || 'Manager',
+            email: (data.email as string) || '',
+          };
+        }
+      } catch (err) {
+        console.warn('Failed to fetch manager profile:', uid, err);
+      }
+      return null;
+    })
+  );
+  return profiles.filter((p): p is { id: string; displayName: string; email: string } => p !== null);
+}
+

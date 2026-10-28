@@ -10,7 +10,7 @@
  * 6. Mark lesson completed with collision-resistant progress ID
  * 7. Refresh and verify progress persistence
  * 8. Resume pointer evaluation (unfinished lesson vs next sequential vs fully completed)
- * 9. Cross-student & cross-tenant security enforcement
+ * 9. Cross-student, cross-tenant & unenrolled-student security enforcement
  * 10. Malformed content fail-safe handling & image URL sanitization
  */
 
@@ -27,7 +27,8 @@ import {
 } from 'firebase/firestore';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Course, Module, Lesson, Progress, QuizBlock } from '../src/types/domain';
+import { Course, Enrollment, Module, Lesson, Progress, QuizBlock } from '../src/types/domain';
+import { enrollmentIdFor, grantsContentAccess } from '../src/lib/batches/scope';
 import { lessonBlockSchema } from '../src/types/validation';
 import {
   getSortedCurriculumLessons,
@@ -37,7 +38,9 @@ import {
 } from '../src/lib/livebook/curriculum';
 
 const FIRESTORE_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'learning-management-syst-b9bf3';
+// A dedicated emulator project keeps this run isolated from seeded dev data
+// (and keeps it from clobbering that data).
+const PROJECT_ID = process.env.VERIFY_PROJECT_ID || 'strynkix-verify-journey';
 
 async function main() {
   console.log('================================================================');
@@ -62,10 +65,12 @@ async function main() {
     // Step 0: Ensure Seed Data is loaded
     // -------------------------------------------------------------------------
     console.log('[Step 0] Seeding curriculum and test users in Firestore...');
+    await testEnv.clearFirestore(); // isolated verification project only
     const student1Uid = 'student_test_aarav_uid';
     const student2Uid = 'student_test_diya_uid';
     const courseId = 'course_fullstack_2026';
     const orgId = 'strynkix';
+    const batchId = 'batch_pune_fullstack_2026';
 
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const adminDb = context.firestore();
@@ -166,6 +171,29 @@ async function main() {
         status: 'published',
         blocks: [],
       });
+
+      // Stage 6: Student 1 is enrolled through a batch; Student 2 is not enrolled.
+      await setDoc(doc(adminDb, 'batches', batchId), {
+        id: batchId,
+        orgId,
+        branchId: 'branch_pune',
+        courseId,
+        name: 'Pune Full Stack 2026',
+        code: 'PUN-FS-26',
+        instructorUserIds: [],
+        startDate: '2026-11-01T00:00:00.000Z',
+        status: 'in_progress',
+      });
+      await setDoc(doc(adminDb, 'enrollments', enrollmentIdFor(courseId, student1Uid)), {
+        id: enrollmentIdFor(courseId, student1Uid),
+        orgId,
+        branchId: 'branch_pune',
+        courseId,
+        batchId,
+        studentId: student1Uid,
+        status: 'active',
+        enrolledAt: '2026-10-01T00:00:00.000Z',
+      });
     });
     console.log('  ✓ Seed data initialized successfully.\n');
 
@@ -185,14 +213,21 @@ async function main() {
     // -------------------------------------------------------------------------
     // Step 2: Open course catalog (query published courses for tenant)
     // -------------------------------------------------------------------------
-    console.log('[Step 2] Querying course catalog...');
-    const catalogQuery = query(
-      collection(db1, 'courses'),
-      where('orgId', '==', orgId),
-      where('status', '==', 'published')
+    console.log('[Step 2] Querying course catalog (via own enrollments)...');
+    const enrollmentSnap = await getDocs(
+      query(collection(db1, 'enrollments'), where('orgId', '==', orgId), where('studentId', '==', student1Uid))
     );
-    const catalogSnap = await getDocs(catalogQuery);
-    const publishedCourses = catalogSnap.docs.map((d) => d.data() as Course);
+    const enrolledCourseIds = enrollmentSnap.docs
+      .map((d) => d.data() as Enrollment)
+      .filter((e) => grantsContentAccess(e.status))
+      .map((e) => e.courseId);
+    const publishedCourses: Course[] = [];
+    for (const enrolledCourseId of enrolledCourseIds) {
+      const courseSnap = await getDoc(doc(db1, 'courses', enrolledCourseId));
+      if (courseSnap.exists() && courseSnap.data().status === 'published') {
+        publishedCourses.push(courseSnap.data() as Course);
+      }
+    }
     if (publishedCourses.length === 0 || publishedCourses[0].id !== courseId) {
       throw new Error('Course catalog query failed to return published course!');
     }
@@ -275,6 +310,7 @@ async function main() {
       moduleId: 'mod_ts_foundations',
       lessonId: 'lesson_1_1',
       studentId: student1Uid,
+      batchId,
       status: 'completed',
       timeSpentSeconds: 150,
       lastAccessedAt: now,
@@ -359,6 +395,18 @@ async function main() {
       throw new Error('SECURITY VIOLATION: Student 2 read Student 1 progress!');
     }
     console.log('  ✓ Cross-student progress read strictly blocked by security rules.');
+
+    // Student 2 (same org and branch, but not enrolled) attempts to open the course
+    let unenrolledReadFailed = false;
+    try {
+      await getDoc(doc(db2, 'lessons', 'lesson_1_1'));
+    } catch {
+      unenrolledReadFailed = true;
+    }
+    if (!unenrolledReadFailed) {
+      throw new Error('SECURITY VIOLATION: Unenrolled student read course content!');
+    }
+    console.log('  ✓ Unenrolled student strictly blocked from course content.');
 
     // Student 1 attempts to tamper with progress orgId
     let tamperFailed = false;

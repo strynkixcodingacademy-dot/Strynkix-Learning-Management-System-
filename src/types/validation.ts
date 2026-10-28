@@ -139,18 +139,56 @@ export const courseSchema = z.object({
 // -----------------------------------------------------------------------------
 // Batch Schema
 // -----------------------------------------------------------------------------
-export const batchSchema = z.object({
-  orgId: idSchema,
-  branchId: idSchema,
-  courseId: idSchema,
+export const batchStatusEnum = z.enum(['upcoming', 'in_progress', 'completed', 'cancelled', 'archived']);
+
+// Firestore rules validate instructors by index, so the list is capped at 5.
+export const MAX_BATCH_INSTRUCTORS = 5;
+
+const batchInstructorIdsSchema = z
+  .array(idSchema)
+  .max(MAX_BATCH_INSTRUCTORS, `A batch can have at most ${MAX_BATCH_INSTRUCTORS} instructors`)
+  .refine((ids) => new Set(ids).size === ids.length, { message: 'Instructor list contains duplicates' });
+
+// Editable fields carry no defaults so partial updates never overwrite stored values.
+const batchEditableFields = {
   name: titleSchema,
-  code: z.string().min(2).max(30).trim().toUpperCase(),
-  instructorUserIds: z.array(idSchema).max(10).default([]),
+  code: z.string().trim().min(2).max(30).toUpperCase(),
+  instructorUserIds: batchInstructorIdsSchema,
   startDate: z.string().datetime(),
-  endDate: z.string().datetime().optional(),
-  maxStudents: z.number().int().min(1).max(200).optional(),
-  status: z.enum(['upcoming', 'in_progress', 'completed', 'cancelled']).default('upcoming'),
-});
+  endDate: z.string().datetime(),
+  maxStudents: z.number().int().min(1).max(200),
+  status: batchStatusEnum,
+};
+
+const endDateNotBeforeStart = (data: { startDate?: string; endDate?: string }) =>
+  !data.startDate || !data.endDate || data.endDate >= data.startDate;
+
+export const batchSchema = z
+  .object({
+    orgId: idSchema,
+    branchId: idSchema,
+    courseId: idSchema,
+    ...batchEditableFields,
+    instructorUserIds: batchInstructorIdsSchema.default([]),
+    endDate: batchEditableFields.endDate.optional(),
+    maxStudents: batchEditableFields.maxStudents.optional(),
+    status: batchStatusEnum.default('upcoming'),
+  })
+  .refine(endDateNotBeforeStart, {
+    message: 'End date cannot be before the start date',
+    path: ['endDate'],
+  });
+
+/**
+ * Editable batch fields. orgId, branchId and courseId are immutable once created.
+ */
+export const batchUpdateSchema = z
+  .object(batchEditableFields)
+  .partial()
+  .refine(endDateNotBeforeStart, {
+    message: 'End date cannot be before the start date',
+    path: ['endDate'],
+  });
 
 // -----------------------------------------------------------------------------
 // Module & Lesson (Live Books) Schemas
@@ -277,15 +315,20 @@ export const lessonSchema = z.object({
 // -----------------------------------------------------------------------------
 // Enrollment & Progress Schemas
 // -----------------------------------------------------------------------------
+export const enrollmentStatusEnum = z.enum(['active', 'completed', 'dropped', 'suspended']);
+
 export const enrollmentSchema = z.object({
   orgId: idSchema,
   branchId: idSchema,
   courseId: idSchema,
   batchId: idSchema,
   studentId: idSchema,
-  status: z.enum(['active', 'completed', 'dropped', 'suspended']).default('active'),
+  status: enrollmentStatusEnum.default('active'),
   enrolledAt: z.string().datetime(),
   completedAt: z.string().datetime().optional(),
+  studentDisplayName: z.string().max(100).optional(),
+  studentEmail: z.string().max(255).optional(),
+  enrolledById: idSchema.optional(),
 });
 
 export const progressUpdateSchema = z.object({
@@ -293,6 +336,7 @@ export const progressUpdateSchema = z.object({
   courseId: idSchema,
   moduleId: idSchema,
   lessonId: idSchema,
+  batchId: idSchema,
   status: z.enum(['not_started', 'in_progress', 'completed']),
   timeSpentSeconds: z.number().int().min(0).max(86400),
 });
@@ -321,6 +365,51 @@ export const assignmentSchema = z.object({
     .max(20),
   deadline: z.string().datetime().optional(),
   status: entityStatusEnum.default('draft'),
+});
+
+// -----------------------------------------------------------------------------
+// Stage 7: Daily Plans, Daily Assignments, Submissions & Grading
+// -----------------------------------------------------------------------------
+export const planDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
+
+export const dailyPlanSchema = z.object({
+  orgId: idSchema,
+  branchId: idSchema,
+  courseId: idSchema,
+  batchId: idSchema,
+  date: planDateSchema,
+  title: titleSchema,
+  objectives: z.array(z.string().trim().min(1).max(200)).max(10, 'At most 10 objectives'),
+  lessonIds: z
+    .array(idSchema)
+    .max(10, 'At most 10 lessons per day')
+    .refine((ids) => new Set(ids).size === ids.length, { message: 'Lesson list contains duplicates' }),
+  learningDueAt: z.string().datetime(),
+  status: z.enum(['draft', 'published', 'archived']),
+});
+
+export const submissionTypeEnum = z.enum(['text', 'code', 'text_and_code']);
+
+export const dailyAssignmentSchema = z.object({
+  title: titleSchema,
+  description: z.string().trim().min(5, 'Instructions are required').max(20000),
+  submissionType: submissionTypeEnum,
+  totalPoints: z.number().int().min(1).max(1000),
+  deadline: z.string().datetime(),
+});
+
+export const submissionContentSchema = z.object({
+  textAnswer: z.string().max(20000).optional(),
+  codeContent: z.string().max(100000).optional(),
+});
+
+export const gradeSubmissionSchema = z.object({
+  score: z.number().min(0).max(1000),
+  feedback: z.string().trim().max(5000),
+});
+
+export const correctionRequestSchema = z.object({
+  feedback: z.string().trim().min(1, 'Explain what needs to be corrected').max(5000),
 });
 
 export const studentSubmissionSchema = z.object({

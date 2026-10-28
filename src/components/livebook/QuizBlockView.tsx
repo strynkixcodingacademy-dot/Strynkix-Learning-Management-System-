@@ -1,147 +1,89 @@
 'use client';
 
 /**
- * Strynkix LMS — Live Books Interactive Multiple-Choice Quiz Block
- * Supports self-assessment, immediate feedback, hints, and learning explanations.
+ * Strynkix Live Books — Knowledge check (self-assessed multiple choice).
+ * Feedback is local to the page; nothing is recorded or graded.
  */
 
 import React, { useState } from 'react';
-import { HelpCircle, CheckCircle, XCircle, Lightbulb, RefreshCw } from 'lucide-react';
+import { BadgeCheck, CircleX, Lightbulb, RotateCcw, Sparkles } from 'lucide-react';
 import { QuizBlock } from '@/types/domain';
+import { Button } from '@/components/ui/Button';
+import { cx } from '@/components/ui/tones';
 
-interface QuizBlockViewProps {
-  block: QuizBlock;
-}
-
-export function QuizBlockView({ block }: QuizBlockViewProps) {
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+export function QuizBlockView({ block }: { block: QuizBlock }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
   const [showHint, setShowHint] = useState(false);
-
-  const isCorrect = selectedOptionId === block.correctOptionId;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOptionId) return;
-    setIsSubmitted(true);
-  };
-
-  const handleReset = () => {
-    setSelectedOptionId(null);
-    setIsSubmitted(false);
-  };
+  const isCorrect = selected === block.correctOptionId;
 
   return (
-    <div className="my-8 rounded-xl border border-indigo-900/40 bg-slate-900/80 p-6 shadow-xl space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
-          <HelpCircle className="w-4 h-4" />
-          <span>Knowledge Check</span>
-        </div>
+    <section className="my-8 rounded-xl border border-lavender-line bg-surface" aria-labelledby={`quiz-${block.id}-q`}>
+      <header className="flex items-center justify-between gap-3 border-b border-lavender-line bg-lavender-soft px-5 py-3 rounded-t-xl">
+        <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-lavender-ink">
+          <Sparkles className="w-4 h-4" aria-hidden="true" /> Check your understanding
+        </span>
         {block.hint && (
-          <button
-            type="button"
-            onClick={() => setShowHint(!showHint)}
-            className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition"
-          >
-            <Lightbulb className="w-3.5 h-3.5" />
-            <span>{showHint ? 'Hide Hint' : 'Need a Hint?'}</span>
+          <button type="button" onClick={() => setShowHint((s) => !s)} aria-expanded={showHint}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-lavender-ink hover:underline">
+            <Lightbulb className="w-3.5 h-3.5" aria-hidden="true" /> {showHint ? 'Hide hint' : 'Hint'}
           </button>
         )}
-      </div>
+      </header>
 
-      {/* Hint Alert */}
-      {showHint && block.hint && (
-        <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-800/40 text-xs text-amber-200">
-          💡 <strong>Hint:</strong> {block.hint}
-        </div>
-      )}
-
-      {/* Question */}
-      <h3 className="text-base sm:text-lg font-bold text-white leading-snug">
-        {block.question}
-      </h3>
-
-      {/* Options Form */}
-      <form onSubmit={handleSubmit} className="space-y-2.5 pt-2">
-        {block.options.map((opt) => {
-          const isSelected = selectedOptionId === opt.id;
-          let optionBorder = 'border-slate-800 hover:border-slate-700 bg-slate-950/60';
-
-          if (isSubmitted) {
-            if (opt.id === block.correctOptionId) {
-              optionBorder = 'border-emerald-600 bg-emerald-950/30 text-emerald-100';
-            } else if (isSelected && !isCorrect) {
-              optionBorder = 'border-rose-600 bg-rose-950/30 text-rose-100';
-            }
-          } else if (isSelected) {
-            optionBorder = 'border-indigo-500 bg-indigo-950/40 text-indigo-200 ring-1 ring-indigo-500';
-          }
-
-          return (
-            <label
-              key={opt.id}
-              className={`flex items-start gap-3 p-3.5 rounded-lg border text-sm cursor-pointer transition ${optionBorder}`}
-            >
-              <input
-                type="radio"
-                name={`quiz_${block.id}`}
-                value={opt.id}
-                disabled={isSubmitted}
-                checked={isSelected}
-                onChange={() => setSelectedOptionId(opt.id)}
-                className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className="flex-1 select-none">{opt.text}</span>
-              {isSubmitted && opt.id === block.correctOptionId && (
-                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              )}
-              {isSubmitted && isSelected && !isCorrect && (
-                <XCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              )}
-            </label>
-          );
-        })}
-
-        {/* Action Controls */}
-        <div className="pt-3 flex items-center justify-between">
-          {!isSubmitted ? (
-            <button
-              type="submit"
-              disabled={!selectedOptionId}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition"
-            >
-              Check Answer
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Try Again
-            </button>
+      <form
+        className="space-y-4 p-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (selected) setChecked(true);
+        }}
+      >
+        <fieldset className="space-y-3">
+          <legend id={`quiz-${block.id}-q`} className="mb-3 text-[17px] font-bold leading-snug text-ink">{block.question}</legend>
+          {showHint && block.hint && (
+            <p className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-ink-2"><strong className="text-warning-ink">Hint:</strong> {block.hint}</p>
           )}
-        </div>
-      </form>
+          {block.options.map((opt, i) => {
+            const isSel = selected === opt.id;
+            const correct = checked && opt.id === block.correctOptionId;
+            const wrong = checked && isSel && !isCorrect;
+            return (
+              <label key={opt.id}
+                className={cx(
+                  'flex cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 text-[15px] transition-colors duration-150 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand',
+                  correct ? 'border-success bg-success-soft' : wrong ? 'border-danger bg-danger-soft'
+                    : isSel ? 'border-brand bg-brand-soft' : 'border-line hover:border-line-strong hover:bg-canvas',
+                  checked && 'cursor-default'
+                )}>
+                <input type="radio" name={`quiz_${block.id}`} value={opt.id} disabled={checked} checked={isSel}
+                  onChange={() => setSelected(opt.id)} className="sr-only" />
+                <span aria-hidden="true" className={cx('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold',
+                  correct ? 'bg-success text-white' : wrong ? 'bg-danger text-white' : isSel ? 'bg-brand text-white' : 'bg-surface-muted text-ink-2')}>
+                  {String.fromCharCode(65 + i)}
+                </span>
+                <span className="flex-1 text-ink">{opt.text}</span>
+                {correct && <BadgeCheck className="w-5 h-5 text-success-ink animate-pop" aria-label="Correct answer" />}
+                {wrong && <CircleX className="w-5 h-5 text-danger-ink" aria-label="Your answer (incorrect)" />}
+              </label>
+            );
+          })}
+        </fieldset>
 
-      {/* Explanation Banner */}
-      {isSubmitted && (
-        <div
-          className={`p-4 rounded-lg border text-xs leading-relaxed space-y-1 ${
-            isCorrect
-              ? 'bg-emerald-950/40 border-emerald-800 text-emerald-200'
-              : 'bg-rose-950/30 border-rose-800 text-rose-200'
-          }`}
-        >
-          <div className="font-bold flex items-center gap-1.5">
-            {isCorrect ? '✓ Correct Answer!' : '✕ Not quite right.'}
+        {checked ? (
+          <div role="status" className={cx('rounded-xl p-4 animate-rise', isCorrect ? 'bg-success-soft' : 'bg-danger-soft')}>
+            <p className={cx('text-sm font-bold', isCorrect ? 'text-success-ink' : 'text-danger-ink')}>
+              {isCorrect ? 'That’s right.' : 'Not quite — the correct answer is highlighted.'}
+            </p>
+            <p className="mt-1 text-[15px] leading-relaxed text-ink-2">{block.explanation}</p>
+            <Button variant="ghost" size="sm" className="mt-2 -ml-2" icon={<RotateCcw className="w-3.5 h-3.5" />}
+              onClick={() => { setSelected(null); setChecked(false); }}>
+              Try again
+            </Button>
           </div>
-          <p>{block.explanation}</p>
-        </div>
-      )}
-    </div>
+        ) : (
+          <Button type="submit" disabled={!selected}>Check answer</Button>
+        )}
+      </form>
+    </section>
   );
 }

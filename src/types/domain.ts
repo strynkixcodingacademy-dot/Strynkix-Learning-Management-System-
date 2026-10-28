@@ -108,6 +108,9 @@ export interface Course {
 // -----------------------------------------------------------------------------
 // 5. Batch (Cohort running at a Branch)
 // -----------------------------------------------------------------------------
+// 'archived' hides a batch from day-to-day operations without deleting history.
+export type BatchStatus = 'upcoming' | 'in_progress' | 'completed' | 'cancelled' | 'archived';
+
 export interface Batch {
   id: string;
   orgId: string;
@@ -119,7 +122,8 @@ export interface Batch {
   startDate: string;
   endDate?: string;
   maxStudents?: number;
-  status: 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
+  status: BatchStatus;
+  createdById?: string; // UID of the administrator who created the batch (immutable)
   createdAt: string;
   updatedAt: string;
 }
@@ -255,7 +259,7 @@ export interface Lesson {
 export type EnrollmentStatus = 'active' | 'completed' | 'dropped' | 'suspended';
 
 export interface Enrollment {
-  id: string; // typically `${batchId}_${studentId}`
+  id: string; // deterministic `${courseId}_${studentId}`: one enrollment per student per course
   orgId: string;
   branchId: string;
   courseId: string;
@@ -264,6 +268,11 @@ export interface Enrollment {
   status: EnrollmentStatus;
   enrolledAt: string;
   completedAt?: string;
+  // Roster snapshot copied from the student profile at enrollment time so
+  // instructors can see names without read access to /users.
+  studentDisplayName?: string;
+  studentEmail?: string;
+  enrolledById?: string; // UID of the administrator who created the enrollment
   createdAt: string;
   updatedAt: string;
 }
@@ -280,6 +289,7 @@ export interface Progress {
   moduleId: string;
   lessonId: string;
   studentId: string; // User Profile UID
+  batchId?: string; // Enrollment batch at time of activity; absent on pre-Stage 6 records
   status: ProgressStatus;
   timeSpentSeconds: number;
   lastAccessedAt: string;
@@ -298,14 +308,20 @@ export interface AssignmentRubricCriterion {
   description?: string;
 }
 
+export type AssignmentSubmissionType = 'text' | 'code' | 'text_and_code';
+
 export interface Assignment {
-  id: string;
+  id: string; // daily assignments use their plan ID
   orgId: string;
   courseId: string;
-  moduleId: string;
+  moduleId?: string;
   lessonId?: string;
+  // Stage 7 daily assignments are scoped to one batch and one daily plan.
+  batchId?: string;
+  planId?: string;
+  submissionType?: AssignmentSubmissionType;
   title: string;
-  description: string;
+  description: string; // instructions
   starterCodeUrl?: string;
   totalPoints: number;
   rubric: AssignmentRubricCriterion[];
@@ -327,20 +343,47 @@ export type SubmissionStatus =
   | 'resubmit_requested';
 
 export interface Submission {
-  id: string; // typically `${assignmentId}_${studentId}`
+  id: string; // deterministic `${assignmentId}_${studentId}`: one record per student per assignment
   orgId: string;
   assignmentId: string;
   batchId: string;
+  courseId?: string;
   studentId: string; // User Profile UID
   submissionUrl?: string; // GitHub repository or live URL
-  codeContent?: string;
+  textAnswer?: string;
+  codeContent?: string; // stored as text, never executed
   notes?: string;
   status: SubmissionStatus;
+  attemptCount?: number;
   score?: number;
   feedback?: string;
   gradedByUserId?: string;
-  gradedAt?: string;
-  submittedAt: string;
+  gradedAt?: string; // server timestamp, normalised to ISO on read
+  submittedAt: string; // server timestamp, normalised to ISO on read
+  createdAt: string;
+  updatedAt: string;
+}
+
+// -----------------------------------------------------------------------------
+// 12. Daily Plan (Stage 7: instructor-planned learning for one batch and day)
+// -----------------------------------------------------------------------------
+export type DailyPlanStatus = 'draft' | 'published' | 'archived';
+
+export interface DailyPlan {
+  id: string; // deterministic `${batchId}_${date}`
+  orgId: string;
+  branchId: string;
+  courseId: string;
+  batchId: string;
+  date: string; // YYYY-MM-DD
+  title: string;
+  objectives: string[];
+  lessonIds: string[]; // references existing published lessons
+  learningDueAt: string;
+  assignmentId?: string; // equals the plan ID when a daily assignment exists
+  status: DailyPlanStatus;
+  publishedAt?: string;
+  createdById: string;
   createdAt: string;
   updatedAt: string;
 }

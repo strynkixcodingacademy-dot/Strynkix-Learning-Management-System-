@@ -16,7 +16,35 @@ import React, { ReactNode } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types/domain';
-import { ShieldAlert, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { BrandMark, Illustration, IllustrationName } from '@/components/ui/Illustrations';
+import { Button, buttonClasses } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/States';
+
+function StateScreen({
+  illustration,
+  title,
+  children,
+  action,
+}: {
+  illustration: IllustrationName;
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-canvas px-4 py-12">
+      <div className="w-full max-w-md rounded-card border border-line bg-surface p-8 text-center shadow-card animate-rise">
+        <div className="mb-2 flex justify-center"><Illustration name={illustration} size={112} /></div>
+        <h1 className="text-xl font-extrabold tracking-tight text-ink">{title}</h1>
+        <div className="mt-2 text-sm leading-relaxed text-ink-3">{children}</div>
+        {action && <div className="mt-6 flex justify-center gap-2">{action}</div>}
+      </div>
+      <div className="mt-6 flex items-center gap-2 text-xs text-ink-3">
+        <BrandMark size={18} /> Strynkix Live Books
+      </div>
+    </div>
+  );
+}
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -27,14 +55,22 @@ interface RequireAuthProps {
  * Restricts rendering to authenticated users with a verified, active LMS profile.
  */
 export function RequireAuth({ children, fallback }: RequireAuthProps) {
-  const { status, error } = useAuth();
+  const { status, error, signOut } = useAuth();
 
   if (status === 'loading') {
     return (
       fallback || (
-        <div className="flex flex-col items-center justify-center p-12 space-y-3 text-slate-400">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-          <p className="text-sm font-medium">Verifying LMS credentials...</p>
+        <div className="min-h-screen bg-canvas px-4 py-10 sm:px-10" role="status" aria-live="polite">
+          <span className="sr-only">Checking your account…</span>
+          <div className="mx-auto max-w-5xl space-y-4">
+            <Skeleton className="h-9 w-56" />
+            <Skeleton className="h-28" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+            </div>
+          </div>
         </div>
       )
     );
@@ -42,59 +78,36 @@ export function RequireAuth({ children, fallback }: RequireAuthProps) {
 
   if (status === 'unauthenticated') {
     return (
-      <div className="p-8 max-w-md mx-auto my-12 bg-slate-900 border border-slate-800 rounded-xl text-center space-y-5 shadow-2xl">
-        <ShieldAlert className="w-10 h-10 text-amber-400 mx-auto" />
-        <div className="space-y-1">
-          <h3 className="text-lg font-bold text-white">Authentication Required</h3>
-          <p className="text-xs text-slate-400">
-            Please sign in to your Strynkix Coding Academy account to access this learning portal.
-          </p>
-        </div>
-        <div>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition"
-          >
-            <span>Sign In to Continue</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
+      <StateScreen illustration="lock" title="Please sign in" action={<Link href="/login" className={buttonClasses('primary')}>Sign in</Link>}>
+        Sign in with your Strynkix Coding Academy account to open your Live Books.
+      </StateScreen>
     );
   }
 
   if (status === 'no_profile') {
     return (
-      <div className="p-8 max-w-md mx-auto my-12 bg-slate-900 border border-amber-800/40 rounded-xl text-center space-y-4">
-        <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto" />
-        <h3 className="text-lg font-bold text-white">Profile Pending Provisioning</h3>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Your Firebase account is authenticated, but no Strynkix LMS profile has been assigned to your
-          identity yet. Please contact your academy administrator or instructor.
-        </p>
-      </div>
+      <StateScreen illustration="compass" title="Your account isn't set up yet"
+        action={<Button variant="secondary" onClick={() => signOut()}>Sign out</Button>}>
+        You&apos;re signed in, but your academy hasn&apos;t added you to Live Books yet. Ask your branch manager or instructor to set up your profile.
+      </StateScreen>
     );
   }
 
   if (status === 'suspended') {
     return (
-      <div className="p-8 max-w-md mx-auto my-12 bg-rose-950/30 border border-rose-900/60 rounded-xl text-center space-y-4">
-        <ShieldAlert className="w-10 h-10 text-rose-500 mx-auto" />
-        <h3 className="text-lg font-bold text-rose-200">Account Suspended</h3>
-        <p className="text-xs text-rose-300 leading-relaxed">
-          {error || 'Your academy account is currently inactive or suspended. Please contact administration.'}
-        </p>
-      </div>
+      <StateScreen illustration="lock" title="Your account isn't active"
+        action={<Button variant="secondary" onClick={() => signOut()}>Sign out</Button>}>
+        {error || 'Your academy account is not active right now. Please contact your academy administrator.'}
+      </StateScreen>
     );
   }
 
   if (status === 'error') {
     return (
-      <div className="p-8 max-w-md mx-auto my-12 bg-rose-950/20 border border-rose-900/40 rounded-xl text-center space-y-3">
-        <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto" />
-        <h4 className="text-sm font-semibold text-rose-200">Authentication Error</h4>
-        <p className="text-xs text-rose-300">{error || 'Unable to authenticate session.'}</p>
-      </div>
+      <StateScreen illustration="compass" title="We couldn't load your account"
+        action={<Button variant="secondary" onClick={() => window.location.reload()}>Try again</Button>}>
+        {error || 'Something went wrong while loading your profile. Check your connection and try again.'}
+      </StateScreen>
     );
   }
 
@@ -115,12 +128,7 @@ export function RequireRole({ allowedRoles, children, fallback }: RequireRolePro
   const { tenant, status } = useAuth();
 
   if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center p-6 text-slate-400">
-        <Loader2 className="w-5 h-5 animate-spin text-indigo-500 mr-2" />
-        <span className="text-xs">Checking authorization...</span>
-      </div>
-    );
+    return null;
   }
 
   const userRole = tenant?.role;
@@ -129,14 +137,10 @@ export function RequireRole({ allowedRoles, children, fallback }: RequireRolePro
   if (!isAuthorized) {
     return (
       fallback || (
-        <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-lg text-center space-y-2">
-          <ShieldAlert className="w-6 h-6 text-amber-400 mx-auto" />
-          <h4 className="text-sm font-semibold text-white">Restricted Section</h4>
-          <p className="text-xs text-slate-400">
-            This module requires one of the following roles:{' '}
-            <span className="font-mono text-indigo-400">{allowedRoles.join(', ')}</span>.
-          </p>
-        </div>
+        <StateScreen illustration="lock" title="This area isn't available to you"
+          action={<Link href="/dashboard" className={buttonClasses('primary')}>Go to Home</Link>}>
+          This page is for academy staff with a different role. If you think you should have access, contact your administrator.
+        </StateScreen>
       )
     );
   }
