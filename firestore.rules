@@ -628,6 +628,7 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /enrollments/{enrollmentId} {
       allow read: if isAuthenticated() && isAccountActive() && (
+        resource == null ||
         isSuperAdmin() ||
         isUniversityAdmin(resource.data.orgId) ||
         isBranchAdmin(resource.data.orgId, resource.data.branchId) ||
@@ -679,6 +680,7 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /progress/{progressId} {
       allow read: if isAuthenticated() && isAccountActive() && (
+        resource == null ||
         isSuperAdmin() ||
         (getUserOrgId() == resource.data.orgId && resource.data.studentId == request.auth.uid) ||
         isUniversityAdmin(resource.data.orgId) ||

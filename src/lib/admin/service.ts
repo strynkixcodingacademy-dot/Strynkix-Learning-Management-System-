@@ -360,6 +360,27 @@ export async function createStudent(params: {
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };
     if (e.code === 'auth/email-already-in-use') {
+      // If student already exists in Firestore for this org, retrieve and return them
+      const q = query(
+        collection(db, 'users'),
+        where('email', '==', cleanEmail),
+        where('orgId', '==', params.orgId)
+      );
+      const existingSnap = await getDocs(q);
+      if (!existingSnap.empty) {
+        const existingDoc = existingSnap.docs[0];
+        const existingData = existingDoc.data();
+        if (existingData.role === 'student') {
+          return {
+            uid: existingDoc.id,
+            email: cleanEmail,
+            displayName: (existingData.displayName as string) || cleanName,
+            role: 'student',
+            branchId: (existingData.branchId as string) || params.branchId,
+            orgId: params.orgId,
+          };
+        }
+      }
       throw new Error('An account with this email address already exists.');
     } else if (e.code === 'auth/weak-password') {
       throw new Error('The password is too weak. Please use at least 6 characters.');
@@ -392,6 +413,119 @@ export async function createStudent(params: {
     email: cleanEmail,
     displayName: cleanName,
     role: 'student',
+    branchId: params.branchId,
+    orgId: params.orgId,
+  };
+}
+
+/**
+ * Creates an instructor account in Firebase Auth and provisions their profile in Firestore.
+ * Automatically links to the instructor's branch and organization.
+ */
+export async function createInstructor(params: {
+  email: string;
+  password: string;
+  displayName: string;
+  orgId: string;
+  branchId: string;
+}): Promise<{
+  uid: string;
+  email: string;
+  displayName: string;
+  role: string;
+  branchId: string;
+  orgId: string;
+}> {
+  const cleanEmail = params.email.trim();
+  const cleanName = params.displayName.trim();
+  const cleanPassword = params.password.trim();
+
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    throw new Error('Please enter a valid email address.');
+  }
+  if (!cleanPassword || cleanPassword.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+  if (!cleanName || cleanName.length < 2) {
+    throw new Error('Please enter instructor full name.');
+  }
+
+  const config = getFirebaseConfig();
+  const tempAppName = `TempInstructorApp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const tempApp = initializeApp(
+    {
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      storageBucket: config.storageBucket,
+      messagingSenderId: config.messagingSenderId,
+      appId: config.appId,
+      measurementId: config.measurementId,
+    },
+    tempAppName
+  );
+
+  let newUid = '';
+  try {
+    const tempAuth = getAuth(tempApp);
+    const userCred = await createUserWithEmailAndPassword(tempAuth, cleanEmail, cleanPassword);
+    newUid = userCred.user.uid;
+    await signOut(tempAuth);
+  } catch (err: unknown) {
+    const e = err as { code?: string; message?: string };
+    if (e.code === 'auth/email-already-in-use') {
+      const q = query(
+        collection(db, 'users'),
+        where('email', '==', cleanEmail),
+        where('orgId', '==', params.orgId)
+      );
+      const existingSnap = await getDocs(q);
+      if (!existingSnap.empty) {
+        const existingDoc = existingSnap.docs[0];
+        const existingData = existingDoc.data();
+        if (existingData.role === 'instructor') {
+          return {
+            uid: existingDoc.id,
+            email: cleanEmail,
+            displayName: (existingData.displayName as string) || cleanName,
+            role: 'instructor',
+            branchId: (existingData.branchId as string) || params.branchId,
+            orgId: params.orgId,
+          };
+        }
+      }
+      throw new Error('An account with this email address already exists.');
+    } else if (e.code === 'auth/weak-password') {
+      throw new Error('The password is too weak. Please use at least 6 characters.');
+    }
+    throw new Error(e.message || 'Failed to create instructor account.');
+  } finally {
+    try {
+      await deleteApp(tempApp);
+    } catch {}
+  }
+
+  const now = new Date().toISOString();
+  const userDocRef = doc(db, 'users', newUid);
+  const profileRecord = {
+    id: newUid,
+    email: cleanEmail,
+    displayName: cleanName,
+    role: 'instructor' as const,
+    orgId: params.orgId,
+    branchId: params.branchId,
+    status: 'active' as const,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await setDoc(userDocRef, profileRecord);
+
+  return {
+    uid: newUid,
+    email: cleanEmail,
+    displayName: cleanName,
+    role: 'instructor',
     branchId: params.branchId,
     orgId: params.orgId,
   };
