@@ -6,13 +6,31 @@ on:
       - main
       - staging
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
-    name: Trigger Vercel Deployment
+    name: Sync and Trigger Vercel
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Auto-sync staging to main
+        if: github.ref == 'refs/heads/staging'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main
+          git merge staging -m "chore: auto-sync staging to main [skip ci]" || git merge staging --strategy-option=theirs -m "chore: auto-sync staging to main [skip ci]"
+          git push origin main
+
       - name: Call Vercel Deploy Hook
         run: |
           echo "Triggering Vercel Deploy Hook..."
           curl -s -X POST "https://api.vercel.com/v1/integrations/deploy/prj_tSdp4Zjh6GiWbibDnabn4kQyoFH8/xSgWOJaORw"
           echo "Deployment triggered successfully!"
+
