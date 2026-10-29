@@ -500,7 +500,7 @@ Please log in to start learning!`;
       <section className="p-5 sm:p-6 rounded-2xl bg-surface border border-line space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-display text-[28px] sm:text-[34px] font-semibold leading-tight tracking-tight text-ink"><span className="marker">{batch.name}</span></h1>
+            <h1 className="font-display text-[28px] sm:text-[34px] font-extrabold leading-tight tracking-tight text-ink">{batch.name}</h1>
             <div className="text-xs text-brand-ink mt-1">
               {batch.code} • {course?.title || batch.courseId}
             </div>

@@ -95,9 +95,9 @@ beforeEach(async () => {
 // Finding 1: University admin role authority
 // -----------------------------------------------------------------------------
 describe('6.1 — University admin role authority', () => {
-  it('positive control: university_admin CAN activate a pending student and move a student to instructor', async () => {
+  it('positive control: university_admin CAN move a student to instructor (activation is the audited route, Stage C5)', async () => {
     const db = as('uni_admin_1');
-    await assertSucceeds(updateDoc(doc(db, 'users/stu_pending'), { status: 'active' }));
+    await assertFails(updateDoc(doc(db, 'users/stu_pending'), { status: 'active' }));
     await assertSucceeds(updateDoc(doc(db, 'users/stu_1'), { role: 'instructor' }));
   });
 
@@ -157,20 +157,20 @@ describe('6.1 — Self profile updates are limited to presentation fields', () =
 // -----------------------------------------------------------------------------
 describe('6.1 — Course ownership fields cannot be forged', () => {
   it('positive control: instructor CAN create a course attributed to themselves', async () => {
-    await assertSucceeds(setDoc(doc(as('inst_pune'), 'courses/new_course'), {
+    await assertSucceeds(setDoc(doc(as('inst_pune'), 'courses/new_course'), { lastEditedById: 'inst_pune',
       orgId: 'strynkix', title: 'New', status: 'draft', createdById: 'inst_pune', createdAt: NOW,
     }));
   });
 
   it('instructor CANNOT create a course attributed to someone else', async () => {
-    await assertFails(setDoc(doc(as('inst_pune'), 'courses/forged_course'), {
+    await assertFails(setDoc(doc(as('inst_pune'), 'courses/forged_course'), { lastEditedById: 'inst_pune',
       orgId: 'strynkix', title: 'Forged', status: 'draft', createdById: 'uni_admin_1', createdAt: NOW,
     }));
   });
 
   it('nobody can rewrite createdById or createdAt on an existing course', async () => {
-    await assertFails(updateDoc(doc(as('uni_admin_1'), 'courses/course_fs'), { createdById: 'uni_admin_1' }));
-    await assertFails(updateDoc(doc(as('inst_pune'), 'courses/course_fs'), { createdAt: '2020-01-01T00:00:00.000Z' }));
+    await assertFails(updateDoc(doc(as('uni_admin_1'), 'courses/course_fs'), { lastEditedById: 'uni_admin_1', createdById: 'uni_admin_1' }));
+    await assertFails(updateDoc(doc(as('inst_pune'), 'courses/course_fs'), { lastEditedById: 'inst_pune', createdAt: '2020-01-01T00:00:00.000Z' }));
   });
 });
 

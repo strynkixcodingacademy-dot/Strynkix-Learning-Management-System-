@@ -131,6 +131,11 @@ export function RequireRole({ allowedRoles, children, fallback }: RequireRolePro
     return null;
   }
 
+  // Not signed in, paused or unprovisioned: show that state, not "wrong role".
+  if (status !== 'authenticated') {
+    return <RequireAuth>{children}</RequireAuth>;
+  }
+
   const userRole = tenant?.role;
   const isAuthorized = userRole && allowedRoles.includes(userRole);
 

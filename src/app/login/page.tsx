@@ -10,7 +10,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getRoleDefaultRedirect } from '@/lib/auth/redirect';
+import { getRoleDefaultRedirect, safeRedirectPath } from '@/lib/auth/redirect';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { BrandMark } from '@/components/ui/Illustrations';
@@ -44,10 +44,8 @@ function LoginForm() {
   // Auto-redirect if already authenticated
   useEffect(() => {
     if (status === 'authenticated' && tenant?.role) {
-      const destination =
-        redirectParam && redirectParam.startsWith('/')
-          ? redirectParam
-          : getRoleDefaultRedirect(tenant.role);
+      // Only same-origin paths: `//evil.example` would leave the academy (Stage C7).
+      const destination = safeRedirectPath(redirectParam) ?? getRoleDefaultRedirect(tenant.role);
       router.replace(destination);
     }
   }, [status, tenant, redirectParam, router]);
@@ -94,7 +92,7 @@ function LoginForm() {
       <div className="w-full max-w-[420px] space-y-5 rounded-card border border-danger-line bg-surface p-8 text-center shadow-lift">
         <ShieldAlert className="w-12 h-12 text-danger-ink mx-auto" />
         <div className="space-y-1">
-          <h2 className="font-display text-[26px] font-semibold text-ink">Your account is paused</h2>
+          <h2 className="font-display text-[26px] font-extrabold text-ink">Your account is paused</h2>
           <p className="text-sm text-ink-2 leading-relaxed">
             An administrator has paused your access. Your work and progress are safe. Contact your branch manager to have it reactivated.
           </p>
@@ -117,7 +115,7 @@ function LoginForm() {
       <div className="w-full max-w-[420px] space-y-5 rounded-card border border-warning-line bg-surface p-8 text-center shadow-lift">
         <AlertTriangle className="w-12 h-12 text-warning-ink mx-auto" />
         <div className="space-y-1">
-          <h2 className="font-display text-[26px] font-semibold text-ink">Your account isn’t set up yet</h2>
+          <h2 className="font-display text-[26px] font-extrabold text-ink">Your account isn’t set up yet</h2>
           <p className="text-sm text-ink-2 leading-relaxed">
             You signed in, but your academy hasn’t finished setting up your account (your branch and role). Ask your branch manager to complete it, then sign in again.
           </p>
@@ -138,7 +136,7 @@ function LoginForm() {
     return (
       <div className="w-full max-w-[420px] space-y-6">
         <div className="space-y-2">
-          <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight text-ink"><span className="marker">Reset your password</span></h1>
+          <h1 className="font-display text-[34px] font-extrabold leading-tight tracking-tight text-ink">Reset your password</h1>
           <p className="text-sm text-ink-3">Enter your academy email and we&apos;ll send you a link to choose a new password.</p>
         </div>
         {resetSent ? (
@@ -177,8 +175,8 @@ function LoginForm() {
   return (
     <div className="w-full max-w-[420px] space-y-7">
       <div className="space-y-2">
-        <h1 className="font-display text-[34px] font-semibold leading-tight tracking-tight text-ink">
-          <span className="marker">Welcome back</span>
+        <h1 className="font-display text-[34px] font-extrabold leading-tight tracking-tight text-ink">
+          Welcome back
         </h1>
         <p className="text-[15px] text-ink-3">
           Sign in with the email and password your academy gave you.
@@ -274,18 +272,18 @@ function BrandPanel() {
       <Link href="/" className="relative flex items-center gap-3">
         <BrandMark size={40} />
         <span className="leading-tight">
-          <span className="block font-display text-[20px] font-semibold text-ink">Live Books</span>
+          <span className="block font-display text-[20px] font-extrabold text-ink">Live Books</span>
           <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-ink-3">Strynkix Coding Academy</span>
         </span>
       </Link>
       <div className="relative max-w-md space-y-8">
-        <h2 className="font-display text-[44px] font-semibold leading-[1.08] tracking-tight text-ink">
+        <h2 className="font-display text-[44px] font-extrabold leading-[1.08] tracking-tight text-ink">
           Learn by doing, <span className="marker">one day at a time.</span>
         </h2>
         <ul className="space-y-4">
           {POINTS.map((p, i) => (
             <li key={p.title} className="flex gap-4 rounded-2xl border border-line bg-surface/80 p-4 shadow-card backdrop-blur-sm">
-              <span className="font-display text-[22px] font-semibold leading-none text-brand">{String(i + 1).padStart(2, '0')}</span>
+              <span className="font-display text-[22px] font-extrabold leading-none text-brand">{String(i + 1).padStart(2, '0')}</span>
               <span>
                 <span className="block text-sm font-extrabold text-ink">{p.title}</span>
                 <span className="block text-sm text-ink-3">{p.body}</span>

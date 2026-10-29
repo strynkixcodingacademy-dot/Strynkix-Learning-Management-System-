@@ -17,10 +17,10 @@ import {
   getLessonsForCourse,
   createModule,
   createLesson,
-  setCourseStatus,
-  setLessonStatus,
 } from '@/lib/courses/service';
-import { Course, Module, Lesson, LessonType, EntityStatus } from '@/types/domain';
+import { ReviewControls } from '@/components/review/ReviewControls';
+import { courseReviewTarget, lessonReviewTarget } from '@/lib/review/workflow';
+import { Course, Module, Lesson, LessonType } from '@/types/domain';
 import {
   BookOpen,
   Plus,
@@ -30,8 +30,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   Eye,
-  Check,
-  XCircle,
   FileCode,
   Layers,
   Edit3,
@@ -42,9 +40,7 @@ interface CurriculumPageProps {
 }
 
 function CurriculumBuilderView({ courseId }: { courseId: string }) {
-  const { tenant } = useAuth();
-  // Only the Super Admin publishes shared courses and lessons (owner decision D3).
-  const canPublish = tenant?.role === 'super_admin';
+  const { tenant, user } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -140,31 +136,6 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
     };
   }, [courseId, tenant?.orgId]);
 
-  const handleToggleCoursePublish = async () => {
-    if (!course) return;
-    const nextStatus: EntityStatus = course.status === 'published' ? 'draft' : 'published';
-    try {
-      await setCourseStatus(course.id, nextStatus);
-      setSuccessMsg(`Course is now ${nextStatus.toUpperCase()}.`);
-      await reloadCurriculum();
-    } catch (err: unknown) {
-      const e = err as Error;
-      setError(`Failed to update course status: ${e.message}`);
-    }
-  };
-
-  const handleToggleLessonPublish = async (lesson: Lesson) => {
-    const nextStatus: EntityStatus = lesson.status === 'published' ? 'draft' : 'published';
-    try {
-      await setLessonStatus(lesson.id, nextStatus);
-      setSuccessMsg(`Lesson "${lesson.title}" is now ${nextStatus.toUpperCase()}.`);
-      await reloadCurriculum();
-    } catch (err: unknown) {
-      const e = err as Error;
-      setError(`Failed to update lesson status: ${e.message}`);
-    }
-  };
-
   const handleCreateModule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant?.orgId) return;
@@ -198,7 +169,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tenant?.orgId) return;
+    if (!tenant?.orgId || !user) return;
 
     setIsSubmittingLesson(true);
     setLessonError(null);
@@ -213,6 +184,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
         orderIndex: Number(lesOrder),
         estimatedMinutes: Number(lesMinutes),
         status: 'draft',
+        createdById: user.uid,
         blocks: [
           {
             id: `blk_intro_${Date.now().toString(36)}`,
@@ -295,23 +267,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
         </div>
 
         <div className="flex items-center gap-2.5">
-{canPublish ? (<>
-          {/* Publish / Unpublish Course */}
-          <button
-            type="button"
-            onClick={handleToggleCoursePublish}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
- isPub
- ? 'bg-warning-soft text-warning-ink border border-warning-line hover:bg-surface-muted'
- : 'bg-success-soft text-success-ink border border-success-line hover:bg-surface-muted'
- }`}
-          >
-            {isPub ? <XCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-            <span>{isPub ? 'Unpublish Course' : 'Publish Course'}</span>
-          </button>
-          </>) : (
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface-muted px-3 py-2 text-xs font-semibold text-ink-3" title="Only the Super Admin publishes shared courses">{isPub ? 'Published course' : 'Draft · Super Admin publishes'}</span>
-          )}
+          <ReviewControls target={courseReviewTarget(course)} course={course} compact onChanged={reloadCurriculum} />
 
           {/* Preview Syllabus */}
           <Link
@@ -438,23 +394,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-{canPublish ? (<>
-                            {/* Toggle Publish */}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleLessonPublish(l)}
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
- isLesPub
- ? 'bg-warning-soft text-warning-ink border border-warning-line hover:bg-surface-muted'
- : 'bg-success-soft text-success-ink border border-success-line hover:bg-surface-muted'
- }`}
-                              title={isLesPub ? 'Revert to Draft' : 'Publish to Students'}
-                            >
-                              {isLesPub ? 'Unpublish' : 'Publish'}
-                            </button>
-                            </>) : (
-                              <span className="rounded-lg border border-line bg-surface-muted px-2 py-1 text-[11px] font-semibold text-ink-3">{isLesPub ? 'Published' : 'Draft'}</span>
-                            )}
+                            <ReviewControls target={lessonReviewTarget(l)} course={course} compact onChanged={reloadCurriculum} />
 
                             {/* Preview Lesson */}
                             <Link
@@ -731,7 +671,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 function CurriculumBuilderContent({ params }: CurriculumPageProps) {
   const resolved = use(params);
   return (
-    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor']}>
+    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer']}>
       <AppShell pageTitle="Curriculum Builder">
         <CurriculumBuilderView courseId={resolved.courseId} />
       </AppShell>

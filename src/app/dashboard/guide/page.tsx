@@ -16,24 +16,25 @@ import { EmptyState } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
 import { GuideTopic, topicsForRole } from '@/lib/help/guide';
 import { scoreTopic, tokenize } from '@/lib/help/assistant';
-import { ArrowRight, BookOpen, Compass, GraduationCap, Info, LifeBuoy, MessageCircleQuestion, Search, Settings2, Store, Wrench, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BookOpen, Compass, GraduationCap, Info, LifeBuoy, MessageCircleQuestion, PenTool, Search, Settings2, Store, Wrench, type LucideIcon } from 'lucide-react';
 
 const CATEGORY_ICON: Record<GuideTopic['category'], LucideIcon> = {
   'Getting started': Compass,
   Learning: GraduationCap,
   Teaching: BookOpen,
+  'Course design': PenTool,
   'Branch operations': Store,
   'Academy administration': Settings2,
   Troubleshooting: Wrench,
 };
 
-const CATEGORY_ORDER: GuideTopic['category'][] = ['Getting started', 'Learning', 'Teaching', 'Branch operations', 'Academy administration', 'Troubleshooting'];
+const CATEGORY_ORDER: GuideTopic['category'][] = ['Getting started', 'Learning', 'Teaching', 'Course design', 'Branch operations', 'Academy administration', 'Troubleshooting'];
 
 function TopicCard({ topic, index }: { topic: GuideTopic; index: number }) {
   return (
     <article id={topic.id} className="scroll-mt-24 rounded-card border border-line bg-surface p-5 shadow-card sm:p-6 target:ring-2 target:ring-highlight">
       <div className="flex items-start gap-3">
-        <span className="font-display text-[22px] font-semibold leading-none text-ink-4 tabular-nums">{String(index).padStart(2, '0')}</span>
+        <span className="font-display text-[22px] font-extrabold leading-none text-ink-4 tabular-nums">{String(index).padStart(2, '0')}</span>
         <div className="min-w-0 flex-1 space-y-3">
           <div>
             <h3 className="text-[16px] font-extrabold tracking-tight text-ink">{topic.title}</h3>

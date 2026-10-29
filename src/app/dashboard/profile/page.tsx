@@ -115,7 +115,7 @@ export default function ProfilePage() {
               <div className="-mt-10 flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:px-6">
                 <span className="rounded-full bg-surface p-1 shadow-card"><Avatar name={profile.displayName || profile.email} size={76} /></span>
                 <div className="min-w-0 flex-1 pb-1">
-                  <h2 className="truncate font-display text-[24px] font-semibold text-ink">{profile.displayName}</h2>
+                  <h2 className="truncate font-display text-[24px] font-extrabold text-ink">{profile.displayName}</h2>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <StatusPill tone="brand" icon={ShieldCheck} size="sm">{ROLE_LABELS[tenant.role]}</StatusPill>
                     <StatusPill tone={profile.status === 'active' ? 'success' : 'warning'} icon={BadgeCheck} size="sm">
