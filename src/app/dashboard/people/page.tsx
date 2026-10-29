@@ -24,9 +24,13 @@ import { getBatchesForTenant } from '@/lib/batches/service';
 import { getBranches } from '@/lib/admin/service';
 import { grantsContentAccess } from '@/lib/batches/scope';
 import { Batch, Branch, Enrollment, UserProfile, UserStatus } from '@/types/domain';
-import { CircleCheck, CirclePause, Clock3, GraduationCap, Search, UserPlus, Users, UserX } from 'lucide-react';
+import { CircleCheck, CirclePause, Clock3, GraduationCap, PenTool, Search, UserPlus, Users, UserX } from 'lucide-react';
+import { ContentMemberDialog } from '@/components/people/ContentMemberDialog';
+import { CourseDesignMembershipDialog } from '@/components/people/CourseDesignMembershipDialog';
+import { isEligibleForCourseDesign, hasOrgWideScope } from '@/lib/admin/course-design';
 
-type RoleFilter = 'all' | 'student' | 'instructor' | 'branch_admin';
+type RoleFilter = 'all' | 'student' | 'instructor' | 'branch_admin' | 'content';
+const isContent = (r: string) => r === 'content_lead' || r === 'content_designer';
 type StatusFilter = 'all' | 'active' | 'pending' | 'suspended';
 
 const STATUS_LOOK: Record<UserStatus, { tone: Tone; label: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -59,6 +63,8 @@ export default function PeoplePage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [q, setQ] = useState('');
+  const [showContentForm, setShowContentForm] = useState(false);
+  const [membershipFor, setMembershipFor] = useState<UserProfile | null>(null);
 
   const canManage = tenant?.role === 'super_admin' || tenant?.role === 'branch_admin';
 
@@ -105,7 +111,7 @@ export default function PeoplePage() {
   };
 
   const filtered = people.filter((p) => {
-    if (roleFilter !== 'all' && p.role !== roleFilter) return false;
+    if (roleFilter === 'content' ? !isContent(p.role) : roleFilter !== 'all' && p.role !== roleFilter) return false;
     if (statusFilter === 'active' && p.status !== 'active') return false;
     if (statusFilter === 'pending' && !isPending(p.status)) return false;
     if (statusFilter === 'suspended' && p.status !== 'suspended') return false;
@@ -143,7 +149,7 @@ export default function PeoplePage() {
     ['all', 'Everyone'],
     ['student', 'Students'],
     ['instructor', 'Instructors'],
-    ...(tenant?.role === 'super_admin' ? [['branch_admin', 'Branch managers'] as [RoleFilter, string]] : []),
+    ...(tenant?.role === 'super_admin' ? [['branch_admin', 'Branch managers'] as [RoleFilter, string], ['content', 'Content team'] as [RoleFilter, string]] : []),
   ];
 
   return (
@@ -154,11 +160,16 @@ export default function PeoplePage() {
             eyebrow={tenant?.role === 'branch_admin' ? 'Your branch' : 'Academy-wide'}
             title="People"
             description="Everyone you manage, the batches they’re in, and their account status."
-            actions={
+            actions={<>
+              {tenant?.role === 'super_admin' && (
+                <button type="button" onClick={() => setShowContentForm(true)} className={buttonClasses('secondary')}>
+                  <PenTool className="h-4 w-4" /> Add content team member
+                </button>
+              )}
               <Link href="/dashboard/batches" className={buttonClasses('primary')}>
                 <UserPlus className="h-4 w-4" /> Add people from a batch
               </Link>
-            }
+            </>}
           />
 
           {loading ? (
@@ -231,7 +242,7 @@ export default function PeoplePage() {
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 md:w-[22%]">
-                            <StatusPill tone={p.role === 'student' ? 'brand' : p.role === 'instructor' ? 'teal' : 'lavender'} size="sm">{ROLE_LABELS[p.role]}</StatusPill>
+                            <StatusPill tone={p.role === 'student' ? 'brand' : p.role === 'instructor' ? 'teal' : isContent(p.role) ? 'coral' : 'lavender'} size="sm">{ROLE_LABELS[p.role]}</StatusPill>
                             {tenant?.role === 'super_admin' && p.branchId && <span className="truncate text-xs font-semibold text-ink-3">{branchName.get(p.branchId) ?? p.branchId}</span>}
                           </div>
                           <div className="min-w-0 flex-1 text-xs text-ink-3">
@@ -244,12 +255,19 @@ export default function PeoplePage() {
                               </div>
                             ) : p.role === 'branch_admin' ? (
                               <span>Manages {branchName.get(p.branchId ?? '') ?? 'a branch'}</span>
+                            ) : p.courseDesign ? (
+                              <span>Course Design · {p.courseDesign.responsibilities.length} responsibilit{p.courseDesign.responsibilities.length === 1 ? 'y' : 'ies'} · {hasOrgWideScope(p) ? 'every course' : `${p.courseDesign.assignedCourseIds.length} course${p.courseDesign.assignedCourseIds.length === 1 ? '' : 's'}`}</span>
+                            ) : isContent(p.role) ? (
+                              <span className="italic">No Course Design membership yet</span>
                             ) : (
                               <span className="italic">Not in a batch yet</span>
                             )}
                           </div>
                           <div className="flex items-center justify-between gap-3 md:w-[24%] md:justify-end">
                             <StatusPill tone={look.tone} icon={look.icon} size="sm">{look.label}</StatusPill>
+                            {tenant?.role === 'super_admin' && user && p.id !== user.uid && isEligibleForCourseDesign(p.role) && p.status === 'active' && (
+                              <button type="button" onClick={() => setMembershipFor(p)} className={buttonClasses('secondary', 'sm')}>Course Design</button>
+                            )}
                             {action && (
                               <button type="button" disabled={busy === p.id} onClick={() => runAction(p, action)}
                                 className={buttonClasses(action === 'suspend' ? 'danger' : action === 'approve' ? 'primary' : 'secondary', 'sm')}>
@@ -270,6 +288,24 @@ export default function PeoplePage() {
           )}
         </div>
         {dialog}
+        {membershipFor && (
+          <CourseDesignMembershipDialog
+            person={membershipFor}
+            onClose={() => setMembershipFor(null)}
+            onSaved={(courseDesign) => {
+              setPeople((list) => list.map((x) => (x.id === membershipFor.id ? { ...x, courseDesign } : x)));
+              setNotice({ kind: 'success', text: courseDesign ? `Course Design membership saved for ${membershipFor.displayName}.` : `Course Design membership removed from ${membershipFor.displayName}.` });
+              setMembershipFor(null);
+            }}
+          />
+        )}
+        {showContentForm && tenant && (
+          <ContentMemberDialog
+            orgId={tenant.orgId}
+            onClose={() => setShowContentForm(false)}
+            onCreated={(person) => setPeople((list) => [...list, person].sort((a, b) => a.displayName.localeCompare(b.displayName)))}
+          />
+        )}
       </RequireRole>
     </AppShell>
   );

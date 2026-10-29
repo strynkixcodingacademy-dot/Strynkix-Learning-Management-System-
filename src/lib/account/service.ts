@@ -8,6 +8,7 @@
 import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase/client';
+import { postWithIdToken } from '@/lib/api/authed';
 import { TenantContext } from '@/types/auth';
 import { Enrollment, UserProfile, UserStatus } from '@/types/domain';
 
@@ -85,8 +86,12 @@ export function statusActionFor(person: UserProfile, viewer: { uid: string; role
 
 const NEXT_STATUS: Record<StatusAction, UserStatus> = { approve: 'active', suspend: 'suspended', reactivate: 'active' };
 
+/**
+ * Approves, suspends or reactivates an account through the audited server route
+ * (Stage C5). Suspension also revokes Course Design membership and ends the
+ * user's sessions.
+ */
 export async function changePersonStatus(person: UserProfile, action: StatusAction): Promise<UserStatus> {
-  const status = NEXT_STATUS[action];
-  await updateDoc(doc(db, 'users', person.id), { status, updatedAt: new Date().toISOString() });
-  return status;
+  const res = await postWithIdToken<{ status: UserStatus }>('/api/admin/account-status', { userId: person.id, action });
+  return res.status ?? NEXT_STATUS[action];
 }

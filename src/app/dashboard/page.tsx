@@ -15,7 +15,7 @@ import { StaffHome } from '@/components/learning/StaffHome';
 export default function DashboardPage() {
   const { tenant } = useAuth();
   return (
-    <AppShell>
+    <AppShell fit>
       {tenant?.role === 'student' ? <StudentDashboard /> : tenant ? <StaffHome /> : null}
     </AppShell>
   );
