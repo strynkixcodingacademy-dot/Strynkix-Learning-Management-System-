@@ -13,9 +13,11 @@
  * 4. Idempotent: can be executed safely multiple times.
  */
 
-import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import { initializeTestEnvironment, type RulesTestContext } from '@firebase/rules-unit-testing';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { enrollmentIdFor } from '../src/lib/batches/scope';
+import { splitQuizAnswers } from '../src/lib/livebook/quiz';
+import type { LessonBlock } from '../src/types/domain';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -159,6 +161,24 @@ async function ensureAuthUser(user: SeedUser): Promise<string> {
   }
 }
 
+/**
+ * Stage C1: lessons are stored without quiz answers; the answers go to the
+ * confidential lessons/{id}/answerKey/current document, as the Block Studio does.
+ */
+async function seedLesson(db: ReturnType<RulesTestContext['firestore']>, lesson: { id: string; orgId: string; courseId: string; blocks: LessonBlock[] } & Record<string, unknown>) {
+  const { blocks, items } = splitQuizAnswers(lesson.blocks);
+  await setDoc(doc(db, 'lessons', lesson.id), { ...lesson, blocks });
+  if (items.length) {
+    const keyRef = doc(db, 'lessons', lesson.id, 'answerKey', 'current');
+    const existing = await getDoc(keyRef);
+    await setDoc(keyRef, {
+      orgId: lesson.orgId, courseId: lesson.courseId, lessonId: lesson.id,
+      keyVersion: existing.exists() ? Number(existing.data().keyVersion) : 1,
+      release: 'after_pass', items, updatedById: 'system_seed', updatedAt: new Date().toISOString(),
+    });
+  }
+}
+
 async function main() {
   console.log('================================================================');
   console.log('  Strynkix LMS — Local Emulator Trusted Bootstrap Execution');
@@ -285,8 +305,7 @@ async function main() {
       console.log('✓ Provisioned Modules: mod_ts_foundations & mod_cloud_data');
 
       // Lesson 1.1: Type Safety & Zero-Trust Domain Models
-      const lesson11Ref = doc(db, 'lessons/lesson_ts_architecture');
-      await setDoc(lesson11Ref, {
+      await seedLesson(db, {
         id: 'lesson_ts_architecture',
         orgId: 'strynkix',
         courseId: 'course_fullstack_2026',
@@ -409,8 +428,7 @@ export const batchSchema = z.object({
       });
 
       // Lesson 1.2: Asynchronous Observers & Race Condition Defense
-      const lesson12Ref = doc(db, 'lessons/lesson_state_observers');
-      await setDoc(lesson12Ref, {
+      await seedLesson(db, {
         id: 'lesson_state_observers',
         orgId: 'strynkix',
         courseId: 'course_fullstack_2026',
@@ -483,8 +501,7 @@ const loadUserProfile = async (user: User | null) => {
       });
 
       // Lesson 2.1: Multi-Tenant Isolation & Least Privilege Rules
-      const lesson21Ref = doc(db, 'lessons/lesson_firestore_security');
-      await setDoc(lesson21Ref, {
+      await seedLesson(db, {
         id: 'lesson_firestore_security',
         orgId: 'strynkix',
         courseId: 'course_fullstack_2026',
@@ -594,7 +611,7 @@ const loadUserProfile = async (user: User | null) => {
           });
           for (const [li, lessonTitle] of lessonTitles.entries()) {
             const lessonId = `${moduleId}_l${li + 1}`;
-            await setDoc(doc(db, 'lessons', lessonId), {
+            await seedLesson(db, {
               id: lessonId, orgId: 'strynkix', courseId: subject.id, moduleId, title: lessonTitle, slug: `l${li + 1}`, type: 'concept',
               orderIndex: li + 1, estimatedMinutes: 20, status: 'published', createdAt: now, updatedAt: now,
               blocks: [

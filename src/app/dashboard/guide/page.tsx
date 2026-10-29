@@ -16,18 +16,19 @@ import { EmptyState } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
 import { GuideTopic, topicsForRole } from '@/lib/help/guide';
 import { scoreTopic, tokenize } from '@/lib/help/assistant';
-import { ArrowRight, BookOpen, Compass, GraduationCap, Info, LifeBuoy, MessageCircleQuestion, Search, Settings2, Store, Wrench, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BookOpen, Compass, GraduationCap, Info, LifeBuoy, MessageCircleQuestion, PenTool, Search, Settings2, Store, Wrench, type LucideIcon } from 'lucide-react';
 
 const CATEGORY_ICON: Record<GuideTopic['category'], LucideIcon> = {
   'Getting started': Compass,
   Learning: GraduationCap,
   Teaching: BookOpen,
+  'Course design': PenTool,
   'Branch operations': Store,
   'Academy administration': Settings2,
   Troubleshooting: Wrench,
 };
 
-const CATEGORY_ORDER: GuideTopic['category'][] = ['Getting started', 'Learning', 'Teaching', 'Branch operations', 'Academy administration', 'Troubleshooting'];
+const CATEGORY_ORDER: GuideTopic['category'][] = ['Getting started', 'Learning', 'Teaching', 'Course design', 'Branch operations', 'Academy administration', 'Troubleshooting'];
 
 function TopicCard({ topic, index }: { topic: GuideTopic; index: number }) {
   return (

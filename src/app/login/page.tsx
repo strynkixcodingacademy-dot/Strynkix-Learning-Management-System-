@@ -10,7 +10,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getRoleDefaultRedirect } from '@/lib/auth/redirect';
+import { getRoleDefaultRedirect, safeRedirectPath } from '@/lib/auth/redirect';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { BrandMark } from '@/components/ui/Illustrations';
@@ -44,10 +44,8 @@ function LoginForm() {
   // Auto-redirect if already authenticated
   useEffect(() => {
     if (status === 'authenticated' && tenant?.role) {
-      const destination =
-        redirectParam && redirectParam.startsWith('/')
-          ? redirectParam
-          : getRoleDefaultRedirect(tenant.role);
+      // Only same-origin paths: `//evil.example` would leave the academy (Stage C7).
+      const destination = safeRedirectPath(redirectParam) ?? getRoleDefaultRedirect(tenant.role);
       router.replace(destination);
     }
   }, [status, tenant, redirectParam, router]);

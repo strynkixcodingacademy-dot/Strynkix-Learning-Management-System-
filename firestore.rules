@@ -101,6 +101,176 @@ service cloud.firestore {
       );
     }
 
+    // -------------------------------------------------------------------------
+    // Course Design membership (Stage B). The optional users/{uid}.courseDesign
+    // map is the ONLY source of Course Design authority; the content_lead /
+    // content_designer roles are labels and grant nothing on their own.
+    // Authority requires an active account, the same org as the content, an
+    // eligible role, a well-formed membership, a matching responsibility and the
+    // course in assignedCourseIds (['*'] = every course in the member's org,
+    // only when granted explicitly and alone). Anything else fails closed.
+    // -------------------------------------------------------------------------
+    function isValidCourseDesignShape(cd) {
+      return cd is map &&
+        cd.keys().hasAll(['department', 'responsibilities', 'assignedCourseIds', 'assignedAt', 'assignedByUserId']) &&
+        cd.keys().hasOnly(['department', 'responsibilities', 'assignedCourseIds', 'assignedAt', 'assignedByUserId']) &&
+        cd.department == 'course_design' &&
+        cd.responsibilities is list &&
+        cd.responsibilities.size() >= 1 && cd.responsibilities.size() <= 5 &&
+        cd.responsibilities.hasOnly(['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer']) &&
+        cd.responsibilities.toSet().size() == cd.responsibilities.size() &&
+        cd.assignedCourseIds is list &&
+        cd.assignedCourseIds.size() >= 1 && cd.assignedCourseIds.size() <= 50 &&
+        cd.assignedCourseIds.toSet().size() == cd.assignedCourseIds.size() &&
+        (cd.assignedCourseIds == ['*'] || !cd.assignedCourseIds.hasAny(['*'])) &&
+        isIsoTimestamp(cd.assignedAt) &&
+        cd.assignedByUserId is string && cd.assignedByUserId.size() > 0;
+    }
+
+    function hasCourseDesignAuthority(orgId, courseId, responsibilities) {
+      return isAuthenticated() && isAccountActive() &&
+        getUserOrgId() == orgId &&
+        getUserRole() in ['content_lead', 'content_designer', 'instructor'] &&
+        isValidCourseDesignShape(getUserData().get('courseDesign', null)) &&
+        getUserData().courseDesign.responsibilities.hasAny(responsibilities) &&
+        (getUserData().courseDesign.assignedCourseIds == ['*'] ||
+          getUserData().courseDesign.assignedCourseIds.hasAny([courseId]));
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage C1: confidential quiz answer keys (lessons/{id}/answerKey/current).
+    // Students can never read them; keyed quizzes are graded only by the
+    // trusted server route (Admin SDK), which bypasses these rules.
+    // -------------------------------------------------------------------------
+    function answerKeyPath(lessonId) {
+      return /databases/$(database)/documents/lessons/$(lessonId)/answerKey/current;
+    }
+
+    // A lesson "carries a quiz" when it has a non-empty answer key.
+    function isQuizLesson(lessonId) {
+      return exists(answerKeyPath(lessonId)) && get(answerKeyPath(lessonId)).data.items.size() > 0;
+    }
+
+    function canReadAnswerKey(k) {
+      return isSuperAdmin() || canAuthorInOrg(k.orgId) ||
+        hasCourseDesignAuthority(k.orgId, k.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer']);
+    }
+
+    // Authors manage keys like lesson content; Course Design members only for
+    // in-scope draft courses. Reviewers read only.
+    function canManageAnswerKey(k) {
+      return isSuperAdmin() || canAuthorInOrg(k.orgId) ||
+        (hasCourseDesignAuthority(k.orgId, k.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer']) &&
+          isCourseDraft(k.courseId));
+    }
+
+    function isValidAnswerKey(d, lessonId) {
+      let lesson = get(/databases/$(database)/documents/lessons/$(lessonId));
+      return d.keys().hasAll(['orgId', 'courseId', 'lessonId', 'keyVersion', 'release', 'items', 'updatedById', 'updatedAt']) &&
+        d.keys().hasOnly(['orgId', 'courseId', 'lessonId', 'keyVersion', 'release', 'items', 'updatedById', 'updatedAt']) &&
+        d.lessonId == lessonId &&
+        lesson != null && lesson.data.orgId == d.orgId && lesson.data.courseId == d.courseId &&
+        d.keyVersion is int && d.keyVersion >= 1 &&
+        d.release == 'after_pass' &&
+        d.items is list && d.items.size() <= 20 &&
+        d.updatedById == request.auth.uid &&
+        isIsoTimestamp(d.updatedAt);
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage C2: content review. Publication `status` and the `review` cycle
+    // change only through the audited server route (Admin SDK), never from a
+    // client — not even the Super Admin's (D3 is enforced there). Every client
+    // write names its writer, and content is frozen while in review or approved.
+    // -------------------------------------------------------------------------
+    function reviewUnchanged() {
+      return request.resource.data.get('review', null) == resource.data.get('review', null);
+    }
+
+    function statusUnchanged() {
+      return request.resource.data.get('status', 'draft') == resource.data.get('status', 'draft');
+    }
+
+    function isContentFrozen(data) {
+      return data.get('review', {}).get('state', 'none') in ['in_review', 'approved'];
+    }
+
+    function isNamedWriter() {
+      return request.resource.data.get('lastEditedById', '') == request.auth.uid;
+    }
+
+    function isNewDraft() {
+      return request.resource.data.get('status', 'draft') == 'draft' && !('review' in request.resource.data) && isNamedWriter();
+    }
+
+    // Stage C3: only drafts are edited in place. Published content is immutable;
+    // a published lesson changes through its working revision.
+    function isAllowedContentEdit() {
+      return resource.data.get('status', 'draft') == 'draft' &&
+        statusUnchanged() && reviewUnchanged() && !isContentFrozen(resource.data) && isNamedWriter();
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage C3: working revisions of published lessons and immutable versions.
+    // -------------------------------------------------------------------------
+    function revisionPath(lessonId) {
+      return /databases/$(database)/documents/lessons/$(lessonId)/revisions/working;
+    }
+
+    function isRevisionFrozen(lessonId) {
+      return exists(revisionPath(lessonId)) && isContentFrozen(get(revisionPath(lessonId)).data);
+    }
+
+    function isLessonStatus(lessonId, status) {
+      return lessonExists(lessonId) && getLessonDoc(lessonId).data.get('status', 'draft') == status;
+    }
+
+    // Same authority as writing the lesson itself.
+    function canEditLesson(lessonId) {
+      let l = getLessonDoc(lessonId).data;
+      return canAuthorInOrg(l.orgId) ||
+        (hasCourseDesignAuthority(l.orgId, l.courseId, ['lead', 'curriculum_architect', 'content_developer']) && isCourseDraft(l.courseId));
+    }
+
+    function canReadLessonAsStaff(lessonId) {
+      let l = getLessonDoc(lessonId).data;
+      return isSuperAdmin() || canAuthorInOrg(l.orgId) ||
+        hasCourseDesignAuthority(l.orgId, l.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer']);
+    }
+
+    function isValidRevisionShape(d) {
+      return d.keys().hasAll(['title', 'estimatedMinutes', 'blocks', 'baseVersion', 'lastEditedById', 'createdAt', 'updatedAt']) &&
+        d.keys().hasOnly(['title', 'estimatedMinutes', 'blocks', 'baseVersion', 'review', 'lastEditedById', 'createdAt', 'updatedAt']) &&
+        d.title is string && d.title.size() >= 2 && d.title.size() <= 160 &&
+        d.estimatedMinutes is int && d.estimatedMinutes >= 1 && d.estimatedMinutes <= 600 &&
+        d.blocks is list && d.blocks.size() <= 50 &&
+        d.baseVersion is int && d.baseVersion >= 0 &&
+        isIsoTimestamp(d.createdAt) && isIsoTimestamp(d.updatedAt);
+    }
+
+    function isCourseDraft(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId));
+      return course != null && course.data.get('status', 'draft') == 'draft';
+    }
+
+    // Stage C5: Course Design membership and account status change only through
+    // the audited server routes (/api/admin/course-design, /api/admin/account-status),
+    // never with a client write — not even the Super Admin's.
+    function courseDesignUnchanged() {
+      return request.resource.data.get('courseDesign', null) == resource.data.get('courseDesign', null);
+    }
+
+    function accountStatusUnchanged() {
+      return request.resource.data.get('status', 'active') == resource.data.get('status', 'active');
+    }
+
+    // Membership can't outlive eligibility: a role change to an ineligible role
+    // needs the membership revoked first (server route, audited).
+    function membershipStillEligible() {
+      return !('courseDesign' in request.resource.data) ||
+        request.resource.data.role in ['content_lead', 'content_designer', 'instructor'];
+    }
+
     function courseBelongsToOrg(courseId, orgId) {
       let course = get(/databases/$(database)/documents/courses/$(courseId));
       return course != null && course.data.orgId == orgId;
@@ -166,7 +336,7 @@ service cloud.firestore {
     function isValidProgressShape(data) {
       return data.keys().hasOnly([
           'id', 'orgId', 'courseId', 'moduleId', 'lessonId', 'studentId', 'batchId', 'status',
-          'timeSpentSeconds', 'lastAccessedAt', 'completedAt', 'createdAt', 'updatedAt'
+          'timeSpentSeconds', 'lastAccessedAt', 'completedAt', 'quiz', 'createdAt', 'updatedAt'
         ]) &&
         data.status in ['not_started', 'in_progress', 'completed'] &&
         data.timeSpentSeconds is int &&
@@ -450,9 +620,10 @@ service cloud.firestore {
         (isAccountActive() && isScopedBranchAdminRole() && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.get('branchId', ''))
       );
 
-      // Self signup OR administrative provisioning
+      // Self signup OR administrative provisioning. No client creates a profile
+      // carrying Course Design membership; it is granted afterwards by the server.
       allow create: if isAuthenticated() && (
-        isSuperAdmin() ||
+        (isSuperAdmin() && !('courseDesign' in request.resource.data)) ||
         (
           // SELF REGISTRATION: User can only create their own record (userId == auth.uid)
           // SECURITY INVARIANT: Role MUST be 'student' and status MUST be
@@ -465,26 +636,29 @@ service cloud.firestore {
           request.resource.data.displayName is string &&
           request.resource.data.displayName.size() <= 100 &&
           request.resource.data.orgId is string &&
-          request.resource.data.orgId.size() <= 128
+          request.resource.data.orgId.size() <= 128 &&
+          !('courseDesign' in request.resource.data)
         ) ||
         (
           // University admin creating branch admin / instructor / student in their org
           isAccountActive() && getUserRole() == 'university_admin' &&
           getUserOrgId() == request.resource.data.orgId &&
           request.resource.data.role in ['branch_admin', 'instructor', 'student'] &&
-          isValidBranchAssignment(request.resource.data)
+          isValidBranchAssignment(request.resource.data) &&
+          !('courseDesign' in request.resource.data)
         ) ||
         (
           // Branch admin creating instructor / student in their branch
           isAccountActive() && isScopedBranchAdminRole() &&
           getUserOrgId() == request.resource.data.orgId &&
           getUserBranchId() == request.resource.data.branchId &&
-          request.resource.data.role in ['instructor', 'student']
+          request.resource.data.role in ['instructor', 'student'] &&
+          !('courseDesign' in request.resource.data)
         )
       );
 
       // Updates
-      allow update: if isAuthenticated() && (
+      allow update: if isAuthenticated() && courseDesignUnchanged() && accountStatusUnchanged() && membershipStillEligible() && (
         isSuperAdmin() ||
         (
           // Self update: presentation fields only. role, status, orgId, branchId and
@@ -505,6 +679,7 @@ service cloud.firestore {
           request.resource.data.orgId == resource.data.orgId &&
           resource.data.role in ['branch_admin', 'instructor', 'student'] &&
           request.resource.data.role in ['branch_admin', 'instructor', 'student'] &&
+          courseDesignUnchanged() &&
           (
             request.resource.data.get('branchId', null) == resource.data.get('branchId', null) ||
             isValidBranchAssignment(request.resource.data)
@@ -519,7 +694,8 @@ service cloud.firestore {
           request.resource.data.orgId == resource.data.orgId &&
           request.resource.data.branchId == resource.data.get('branchId', '') &&
           resource.data.role in ['instructor', 'student'] &&
-          request.resource.data.role in ['instructor', 'student']
+          request.resource.data.role in ['instructor', 'student'] &&
+          courseDesignUnchanged()
         )
       );
 
@@ -536,33 +712,51 @@ service cloud.firestore {
         (getUserOrgId() == resource.data.orgId && (
           getUserRole() in ['university_admin', 'branch_admin', 'instructor'] ||
           (getUserRole() == 'student' && resource.data.get('status', '') == 'published' && hasCourseAccess(courseId))
-        ))
+        )) ||
+        // Course Design members read only the courses in their scope.
+        hasCourseDesignAuthority(resource.data.orgId, courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer'])
       );
 
       // Course governance (owner decision D3): courses are shared by every
       // branch, so only the Super Admin publishes, unpublishes, archives or
-      // deletes them. Other staff create drafts and edit a course only while it
-      // is still a draft. createdById must be the caller; it and createdAt are immutable.
-      allow create: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
-        getUserOrgId() == request.resource.data.orgId &&
-        request.resource.data.get('status', 'draft') == 'draft' &&
+      // deletes them — through the audited review route (Stage C2), never with
+      // a client write. Other staff create drafts and edit a course only while it
+      // is still a draft. Course Design members with the lead or
+      // curriculum_architect responsibility may do the same for in-scope
+      // courses. createdById must be the caller; it and createdAt are immutable.
+      allow create: if (isSuperAdmin() || (
+        (
+          (isAuthenticated() && isAccountActive() &&
+            (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
+            getUserOrgId() == request.resource.data.orgId) ||
+          hasCourseDesignAuthority(request.resource.data.orgId, courseId, ['lead', 'curriculum_architect'])
+        ) &&
         request.resource.data.get('createdById', request.auth.uid) == request.auth.uid
-      );
+      )) && isNewDraft();
 
-      allow update: if isSuperAdmin() || (
-        isAuthenticated() && isAccountActive() &&
-        (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
-        getUserOrgId() == resource.data.orgId &&
+      allow update: if (isSuperAdmin() || (
+        (
+          (isAuthenticated() && isAccountActive() &&
+            (getUserRole() in ['university_admin', 'branch_admin', 'instructor']) &&
+            getUserOrgId() == resource.data.orgId) ||
+          hasCourseDesignAuthority(resource.data.orgId, courseId, ['lead', 'curriculum_architect'])
+        ) &&
         resource.data.get('status', 'draft') == 'draft' &&
-        request.resource.data.get('status', 'draft') == 'draft' &&
         request.resource.data.orgId == resource.data.orgId &&
         request.resource.data.get('createdById', null) == resource.data.get('createdById', null) &&
         request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
-      );
+      )) && isAllowedContentEdit();
 
       allow delete: if isSuperAdmin();
+
+      // Stage C3: immutable published snapshots of course details (server-written).
+      match /versions/{versionId} {
+        allow read: if isAuthenticated() && isAccountActive() && (
+          isSuperAdmin() || canAuthorInOrg(resource.data.orgId) ||
+          hasCourseDesignAuthority(resource.data.orgId, resource.data.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer'])
+        );
+        allow write: if false;
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -616,16 +810,26 @@ service cloud.firestore {
             isCoursePublished(resource.data.courseId) &&
             hasCourseAccess(resource.data.courseId)
           )
-        ))
+        )) ||
+        hasCourseDesignAuthority(resource.data.orgId, resource.data.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer'])
       );
 
       // Tenant ownership is checked against the EXISTING document on update so a
       // foreign-org author cannot take over a record by relabelling its orgId.
       // Modules are structure, not a release step; lesson and course status gate visibility.
-      allow create: if canAuthorInOrg(request.resource.data.orgId) &&
+      // Course Design members (lead / curriculum_architect) structure in-scope draft courses only.
+      allow create: if (
+          canAuthorInOrg(request.resource.data.orgId) ||
+          (hasCourseDesignAuthority(request.resource.data.orgId, request.resource.data.courseId, ['lead', 'curriculum_architect']) &&
+            isCourseDraft(request.resource.data.courseId))
+        ) &&
         courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId);
 
-      allow update: if canAuthorInOrg(resource.data.orgId) &&
+      allow update: if (
+          canAuthorInOrg(resource.data.orgId) ||
+          (hasCourseDesignAuthority(resource.data.orgId, resource.data.courseId, ['lead', 'curriculum_architect']) &&
+            isCourseDraft(resource.data.courseId))
+        ) &&
         request.resource.data.orgId == resource.data.orgId &&
         request.resource.data.courseId == resource.data.courseId;
 
@@ -646,20 +850,117 @@ service cloud.firestore {
             isCoursePublished(resource.data.courseId) &&
             hasCourseAccess(resource.data.courseId)
           )
-        ))
+        )) ||
+        hasCourseDesignAuthority(resource.data.orgId, resource.data.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer'])
       );
 
-      // Staff write content; only the Super Admin changes status (D3).
-      allow create: if canAuthorInOrg(request.resource.data.orgId) &&
+      // Staff write content; status changes only through the audited review
+      // route, where only the Super Admin publishes (D3, Stage C2). Course
+      // Design members (lead / curriculum_architect / content_developer) write
+      // lessons of in-scope draft courses only, and never change status.
+      allow create: if (
+          canAuthorInOrg(request.resource.data.orgId) ||
+          (hasCourseDesignAuthority(request.resource.data.orgId, request.resource.data.courseId, ['lead', 'curriculum_architect', 'content_developer']) &&
+            isCourseDraft(request.resource.data.courseId))
+        ) &&
         courseBelongsToOrg(request.resource.data.courseId, request.resource.data.orgId) &&
-        (isSuperAdmin() || request.resource.data.get('status', 'draft') == 'draft');
+        isNewDraft();
 
-      allow update: if canAuthorInOrg(resource.data.orgId) &&
+      allow update: if (
+          canAuthorInOrg(resource.data.orgId) ||
+          (hasCourseDesignAuthority(resource.data.orgId, resource.data.courseId, ['lead', 'curriculum_architect', 'content_developer']) &&
+            isCourseDraft(resource.data.courseId))
+        ) &&
         request.resource.data.orgId == resource.data.orgId &&
         request.resource.data.courseId == resource.data.courseId &&
-        (isSuperAdmin() || request.resource.data.get('status', 'draft') == resource.data.get('status', 'draft'));
+        isAllowedContentEdit();
 
       allow delete: if isSuperAdmin();
+
+      match /answerKey/{keyId} {
+        // A key that doesn't exist yet reveals nothing; lesson staff may confirm that
+        // (the Block Studio loads it for every lesson). Students never read keys.
+        allow read: if keyId in ['current', 'working'] && isAuthenticated() && isAccountActive() && (
+          resource == null ? canReadLessonAsStaff(lessonId) : canReadAnswerKey(resource.data)
+        );
+        allow create: if keyId == 'current' && isAuthenticated() && isAccountActive() &&
+          canManageAnswerKey(request.resource.data) &&
+          isValidAnswerKey(request.resource.data, lessonId) &&
+          !isContentFrozen(getLessonDoc(lessonId).data) &&
+          isLessonStatus(lessonId, 'draft') &&
+          request.resource.data.keyVersion == 1;
+        // Every change bumps keyVersion, so each graded attempt names the key it used.
+        allow update: if keyId == 'current' && isAuthenticated() && isAccountActive() &&
+          canManageAnswerKey(resource.data) &&
+          isValidAnswerKey(request.resource.data, lessonId) &&
+          !isContentFrozen(getLessonDoc(lessonId).data) &&
+          isLessonStatus(lessonId, 'draft') &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.courseId == resource.data.courseId &&
+          request.resource.data.keyVersion == resource.data.keyVersion + 1;
+        // Stage C3: the live key of a published lesson never changes from a client;
+        // its revision's answers are edited in 'working' and go live on publish.
+        allow create: if keyId == 'working' && isAuthenticated() && isAccountActive() &&
+          canManageAnswerKey(request.resource.data) &&
+          isValidAnswerKey(request.resource.data, lessonId) &&
+          isLessonStatus(lessonId, 'published') &&
+          !isRevisionFrozen(lessonId);
+        allow update: if keyId == 'working' && isAuthenticated() && isAccountActive() &&
+          canManageAnswerKey(resource.data) &&
+          isValidAnswerKey(request.resource.data, lessonId) &&
+          isLessonStatus(lessonId, 'published') &&
+          !isRevisionFrozen(lessonId) &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.courseId == resource.data.courseId;
+        allow delete: if isSuperAdmin() || (keyId == 'working' && isAuthenticated() && isAccountActive() &&
+          canManageAnswerKey(resource.data) && !isRevisionFrozen(lessonId));
+      }
+
+      // Stage C3: the working copy of a published lesson. Never readable by
+      // students; it follows the same review cycle and freeze as a draft.
+      match /revisions/{revisionId} {
+        allow read: if revisionId == 'working' && isAuthenticated() && isAccountActive() && canReadLessonAsStaff(lessonId);
+        allow create: if revisionId == 'working' && isAuthenticated() && isAccountActive() &&
+          isLessonStatus(lessonId, 'published') && canEditLesson(lessonId) &&
+          isValidRevisionShape(request.resource.data) && !('review' in request.resource.data) && isNamedWriter();
+        allow update: if revisionId == 'working' && isAuthenticated() && isAccountActive() &&
+          isLessonStatus(lessonId, 'published') && canEditLesson(lessonId) &&
+          isValidRevisionShape(request.resource.data) && reviewUnchanged() && !isContentFrozen(resource.data) && isNamedWriter();
+        allow delete: if isSuperAdmin() || (isAuthenticated() && isAccountActive() && canEditLesson(lessonId) && !isContentFrozen(resource.data));
+      }
+
+      // Stage C4: original blocks kept by the legacy quiz migration for recovery.
+      // They contain answers, so no client may read or write them.
+      match /legacyBackup/{backupId} {
+        allow read, write: if false;
+      }
+
+      // Stage C3: immutable published snapshots, written only by the review route.
+      match /versions/{versionId} {
+        allow read: if isAuthenticated() && isAccountActive() && canReadAnswerKey(resource.data);
+        allow write: if false;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage C2: /auditLog/{auditId} — review, publication and assessment
+    // decisions. Written only by the trusted server route in the same
+    // transaction as the change it records, with a Firestore server timestamp.
+    // Never written, changed or deleted by a client.
+    // -------------------------------------------------------------------------
+    // Content entries carry a courseId; account entries (Stage C5: membership and
+    // status changes) have courseId null and are visible only to the Super Admin
+    // and the University Admin of that org.
+    match /auditLog/{auditId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        (resource.data.courseId is string && (
+          canAuthorInOrg(resource.data.orgId) ||
+          hasCourseDesignAuthority(resource.data.orgId, resource.data.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer'])
+        )) ||
+        (resource.data.courseId == null && isUniversityAdmin(resource.data.orgId))
+      );
+      allow write: if false;
     }
 
     // -------------------------------------------------------------------------
@@ -746,7 +1047,11 @@ service cloud.firestore {
           isLessonPublishedAndInOrg(request.resource.data.lessonId, getUserOrgId()) &&
           getLessonDoc(request.resource.data.lessonId).data.courseId == request.resource.data.courseId &&
           getLessonDoc(request.resource.data.lessonId).data.moduleId == request.resource.data.moduleId &&
-          isEnrolledInBatch(request.resource.data.courseId, request.resource.data.batchId)
+          isEnrolledInBatch(request.resource.data.courseId, request.resource.data.batchId) &&
+          // Quiz results are written only by the grading server; quiz lessons
+          // are completed only by passing there.
+          !('quiz' in request.resource.data) &&
+          (request.resource.data.status != 'completed' || !isQuizLesson(request.resource.data.lessonId))
         )
       );
 
@@ -765,6 +1070,8 @@ service cloud.firestore {
           request.resource.data.timeSpentSeconds >= resource.data.get('timeSpentSeconds', 0) &&
           request.resource.data.timeSpentSeconds <= resource.data.get('timeSpentSeconds', 0) + 86400 &&
           (resource.data.get('status', '') != 'completed' || request.resource.data.status == 'completed') &&
+          request.resource.data.get('quiz', null) == resource.data.get('quiz', null) &&
+          (request.resource.data.status != 'completed' || resource.data.get('status', '') == 'completed' || !isQuizLesson(resource.data.lessonId)) &&
           hasCourseAccess(resource.data.courseId) &&
           (
             // batchId may only stay as-is or be (re)tagged to the current enrollment batch.
@@ -775,6 +1082,18 @@ service cloud.firestore {
       );
 
       allow delete: if isSuperAdmin();
+
+      // Immutable attempt history, written only by the grading server.
+      match /quizAttempts/{attemptId} {
+        allow read: if isAuthenticated() && isAccountActive() && (
+          isSuperAdmin() ||
+          (getUserOrgId() == resource.data.orgId && resource.data.studentId == request.auth.uid) ||
+          isUniversityAdmin(resource.data.orgId) ||
+          (isScopedBranchAdminRole() && getUserOrgId() == resource.data.orgId && isBatchInBranch(resource.data.batchId, getUserBranchId())) ||
+          (isInstructor(resource.data.orgId) && isAssignedInstructor(resource.data.batchId))
+        );
+        allow write: if false;
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -823,6 +1142,7 @@ service cloud.firestore {
         (resource.data.status != 'published' || request.resource.data.totalPoints == resource.data.totalPoints);
 
       allow delete: if isSuperAdmin();
+
     }
 
     // -------------------------------------------------------------------------

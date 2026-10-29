@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getStudentEnrollments } from '@/lib/batches/service';
 import { grantsContentAccess } from '@/lib/batches/scope';
 import { getCourseWithCurriculum, getStudentCourseProgress } from '@/lib/livebook/service';
+import { getCourseDesignCourses } from '@/lib/courses/service';
 import { Course, CourseLevel } from '@/types/domain';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { LiveBooksFrame } from '@/components/livebook/LiveBooksFrame';
@@ -62,7 +63,7 @@ function CourseCard({ course, stats }: { course: Course; stats?: CourseStats }) 
 }
 
 export default function CoursesPage() {
-  const { user, tenant } = useAuth();
+  const { user, profile, tenant } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [unpublishedEnrollments, setUnpublishedEnrollments] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,6 +107,12 @@ export default function CoursesPage() {
           const published = results.filter((c): c is Course => c !== null && c.status === 'published');
           setCourses(published.sort((a, b) => a.title.localeCompare(b.title)));
           setUnpublishedEnrollments(enrollments.length - published.length);
+        } else if (tenant.role === 'content_lead' || tenant.role === 'content_designer') {
+          // Course Design members see only the published courses in their scope.
+          const scoped = await getCourseDesignCourses(profile ?? { orgId: tenant.orgId });
+          if (!isMounted) return;
+          setCourses(scoped.filter((c) => c.status === 'published').sort((a, b) => a.title.localeCompare(b.title)));
+          setUnpublishedEnrollments(0);
         } else {
           const q = query(
             collection(db, 'courses'),
@@ -129,7 +136,7 @@ export default function CoursesPage() {
     return () => {
       isMounted = false;
     };
-  }, [tenant?.orgId, tenant?.role, user?.uid, reloadKey]);
+  }, [tenant?.orgId, tenant?.role, user?.uid, reloadKey, profile]);
 
   // Per-course modules, lessons and the learner's completed lessons.
   const [stats, setStats] = useState<Record<string, CourseStats>>({});

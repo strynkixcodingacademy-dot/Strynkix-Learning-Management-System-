@@ -9,14 +9,16 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { ReviewControls } from '@/components/review/ReviewControls';
+import { courseReviewTarget } from '@/lib/review/workflow';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
 import {
   getAdminCourses,
+  getCourseDesignCourses,
   createCourse,
-  setCourseStatus,
 } from '@/lib/courses/service';
-import { Course, CourseLevel, EntityStatus } from '@/types/domain';
+import { Course, CourseLevel } from '@/types/domain';
 import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
 import {
   BookOpen,
@@ -28,14 +30,12 @@ import {
   CheckCircle2,
   ArrowRight,
   Eye,
-  Check,
-  XCircle,
 } from 'lucide-react';
 
 export default function CourseAuthoringPage() {
-  const { user, tenant } = useAuth();
+  const { user, profile, tenant } = useAuth();
+  const isContentRole = (r: string) => r === 'content_lead' || r === 'content_designer';
   // Only the Super Admin publishes shared courses and lessons (owner decision D3).
-  const canPublish = tenant?.role === 'super_admin';
   const [courses, setCourses] = useState<Course[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +59,9 @@ export default function CourseAuthoringPage() {
     try {
       setIsLoading(true);
       const isSuper = tenant.role === 'super_admin';
-      const loaded = await getAdminCourses(isSuper ? undefined : tenant.orgId);
+      const loaded = isContentRole(tenant.role)
+        ? await getCourseDesignCourses(profile ?? { orgId: tenant.orgId })
+        : await getAdminCourses(isSuper ? undefined : tenant.orgId);
       setCourses(loaded);
     } finally {
       setIsLoading(false);
@@ -77,7 +79,9 @@ export default function CourseAuthoringPage() {
       }
       try {
         const isSuper = tenant.role === 'super_admin';
-        const loaded = await getAdminCourses(isSuper ? undefined : tenant.orgId);
+        const loaded = isContentRole(tenant.role)
+          ? await getCourseDesignCourses(profile ?? { orgId: tenant.orgId })
+          : await getAdminCourses(isSuper ? undefined : tenant.orgId);
         if (isMounted) {
           setCourses(loaded);
           setError(null);
@@ -96,7 +100,7 @@ export default function CourseAuthoringPage() {
     return () => {
       isMounted = false;
     };
-  }, [tenant?.orgId, tenant?.role]);
+  }, [tenant?.orgId, tenant?.role, profile]);
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
@@ -151,27 +155,13 @@ export default function CourseAuthoringPage() {
     }
   };
 
-  const handleTogglePublish = async (course: Course) => {
-    const nextStatus: EntityStatus = course.status === 'published' ? 'draft' : 'published';
-    try {
-      await setCourseStatus(course.id, nextStatus);
-      setSuccessMsg(
-        `Course "${course.title}" status changed to ${nextStatus.toUpperCase()}.`
-      );
-      await refreshCourses();
-    } catch (err: unknown) {
-      const e = err as Error;
-      setError(`Failed to update status: ${e.message}`);
-    }
-  };
-
   const filteredCourses = courses.filter((c) => {
     if (statusFilter === 'all') return true;
     return c.status === statusFilter;
   });
 
   return (
-    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor']}>
+    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer']}>
       <AppShell pageTitle="Course Authoring">
         <div className="space-y-6">
           {/* Action Header */}
@@ -298,24 +288,7 @@ export default function CourseAuthoringPage() {
                     {/* Actions Toolbar */}
                     <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        {canPublish ? (<>
-                        {/* Publish / Unpublish Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePublish(c)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
- isPub
- ? 'bg-warning-soft hover:bg-surface-muted text-warning-ink border border-warning-line'
- : 'bg-success-soft hover:bg-surface-muted text-success-ink border border-success-line'
- }`}
-                          title={isPub ? 'Revert to Draft' : 'Publish to Students'}
-                        >
-                          {isPub ? <XCircle className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
-                          <span>{isPub ? 'Unpublish' : 'Publish'}</span>
-                        </button>
-                        </>) : (
-                          <span className="inline-flex items-center rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-ink-3" title="Only the Super Admin publishes shared courses">{isPub ? 'Published' : 'Draft'}</span>
-                        )}
+                        <ReviewControls target={courseReviewTarget(c)} course={c} compact onChanged={refreshCourses} />
 
                         {/* Preview Student Syllabus */}
                         <Link

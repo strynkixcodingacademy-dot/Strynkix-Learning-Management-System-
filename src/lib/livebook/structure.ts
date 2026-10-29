@@ -51,14 +51,7 @@ export function readingBlocks(lesson: Pick<Lesson, 'blocks'>): LessonBlock[] {
   return (lesson.blocks ?? []).filter((b) => b.type !== 'quiz');
 }
 
-export const QUIZ_PASS_PERCENT = 60;
-
-export function quizScore(questions: QuizBlock[], answers: Record<string, string>): { correct: number; total: number; percent: number; passed: boolean } {
-  const total = questions.length;
-  const correct = questions.filter((q) => answers[q.id] === q.correctOptionId).length;
-  const percent = total ? Math.round((correct / total) * 100) : 0;
-  return { correct, total, percent, passed: total > 0 && percent >= QUIZ_PASS_PERCENT };
-}
+export { QUIZ_PASS_PERCENT } from './quiz';
 
 export interface RevisionNotes {
   /** Section titles, in order. */

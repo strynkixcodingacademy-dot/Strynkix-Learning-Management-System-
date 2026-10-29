@@ -13,7 +13,7 @@ import { getCourseWithCurriculum, getLesson, getStudentCourseProgress, recordLes
 import { getStudentCourseEnrollment } from '@/lib/batches/service';
 import { grantsContentAccess } from '@/lib/batches/scope';
 
-const STAFF = ['super_admin', 'university_admin', 'branch_admin', 'instructor'];
+const STAFF = ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer'];
 
 export interface LiveBookState {
   course: Course | null;
@@ -94,5 +94,12 @@ export function useLiveBook(courseId: string, lessonId: string, opts: { recordVi
     setState((s) => ({ ...s, progress }));
   }, [uid, orgId, current, currentBatch, courseId]);
 
-  return { ...state, markCompleted };
+  /** Reloads progress after the server graded a quiz attempt. */
+  const refreshProgress = useCallback(async () => {
+    if (!uid || !orgId) return;
+    const progress = await getStudentCourseProgress(courseId, uid, orgId);
+    setState((s) => ({ ...s, progress }));
+  }, [uid, orgId, courseId]);
+
+  return { ...state, markCompleted, refreshProgress };
 }

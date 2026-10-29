@@ -16,10 +16,19 @@ import {
 } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { db } from '@/lib/firebase/client';
+import { auth, db } from '@/lib/firebase/client';
 import { getFirebaseConfig } from '@/lib/firebase/config';
-import { Organization, Branch } from '@/types/domain';
+import { Organization, Branch, Course, CourseDesignProfile, UserProfile } from '@/types/domain';
 import { organizationSchema, branchSchema } from '@/types/validation';
+import { validateUserProfile } from '@/lib/auth/profile';
+import { postWithIdToken } from '@/lib/api/authed';
+import {
+  ALL_COURSES,
+  Actor,
+  MembershipInput,
+  validateMembershipAssignment,
+  validateMembershipRevocation,
+} from './course-design';
 
 // Firestore rejects `undefined` field values, and Zod keeps optional keys as
 // `undefined`, so blank optional form fields must be dropped before writing.
@@ -179,7 +188,10 @@ export interface ProvisionInput {
   password: string;
   displayName: string;
   orgId: string;
+  /** Required for branch roles; content team accounts are academy-wide. */
   branchId: string;
+  /** Optional Course Design membership; never defaulted. Super Admin only (enforced by rules). */
+  courseDesign?: MembershipInput;
 }
 
 export interface ProvisionedAccount {
@@ -220,7 +232,8 @@ export function validateProvisionInput(input: ProvisionInput): string | null {
   return null;
 }
 
-type ProvisionRole = 'branch_admin' | 'instructor' | 'student';
+type ProvisionRole = 'branch_admin' | 'instructor' | 'student' | 'content_lead' | 'content_designer';
+const ACADEMY_WIDE: ProvisionRole[] = ['content_lead', 'content_designer'];
 
 /**
  * Creates the Firebase Auth login on a throwaway secondary app (so the admin
@@ -232,6 +245,18 @@ type ProvisionRole = 'branch_admin' | 'instructor' | 'student';
 async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Promise<ProvisionedAccount> {
   const invalid = validateProvisionInput(params);
   if (invalid) throw new Error(invalid);
+  if (params.courseDesign) {
+    // Check membership against a stand-in for the new account before any login exists.
+    const actor = await loadActor();
+    const courses = await loadCourses(params.courseDesign.assignedCourseIds);
+    const membershipError = validateMembershipAssignment({
+      actor,
+      target: { id: '__new__', orgId: params.orgId, role, status: 'active', email: params.email, displayName: params.displayName, createdAt: '', updatedAt: '' },
+      input: params.courseDesign,
+      courses,
+    });
+    if (membershipError) throw new Error(membershipError);
+  }
   const email = params.email.trim().toLowerCase();
   const displayName = params.displayName.trim();
 
@@ -259,7 +284,7 @@ async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Pr
       if (code === 'auth/email-already-in-use') {
         // Reuse only an account of the same role in the same branch; anything
         // else (another branch, another role) must be handled by an administrator.
-        if (role !== 'branch_admin') {
+        if (role !== 'branch_admin' && !ACADEMY_WIDE.includes(role)) {
           const existing = await getDocs(
             query(
               collection(db, 'users'),
@@ -298,7 +323,7 @@ async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Pr
         displayName,
         role,
         orgId: params.orgId,
-        branchId: params.branchId,
+        ...(ACADEMY_WIDE.includes(role) ? {} : { branchId: params.branchId }),
         status: 'active',
         createdAt: now,
         updatedAt: now,
@@ -308,6 +333,16 @@ async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Pr
       await credential.user.delete().catch((e) => console.error('Could not roll back new login', e));
       const denied = (err as { code?: string }).code === 'permission-denied';
       throw new Error(denied ? 'You are not allowed to create this account for that branch.' : (err as Error).message || 'Failed to save the profile.');
+    }
+
+    // Membership was validated before the login was created (see provisionAccount);
+    // it is granted through the audited server route once the profile exists.
+    if (params.courseDesign) {
+      try {
+        await postWithIdToken('/api/admin/course-design', { action: 'assign', userId: uid, membership: params.courseDesign });
+      } catch (err) {
+        throw new Error(`The account was created, but Course Design membership could not be granted: ${(err as Error).message}. Grant it from People.`);
+      }
     }
 
     if (role === 'branch_admin') {
@@ -327,6 +362,60 @@ async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Pr
 /** Creates a Branch Manager account (Super Admin). */
 export function createBranchManager(params: ProvisionInput): Promise<ProvisionedAccount> {
   return provisionAccount('branch_admin', params);
+}
+
+/**
+ * Creates a Course Design team account (Super Admin). Academy-wide: no branch.
+ * The role is a label; authority comes only from `courseDesign` (never defaulted).
+ */
+export async function createContentMember(
+  role: 'content_lead' | 'content_designer',
+  params: Omit<ProvisionInput, 'branchId'>
+): Promise<ProvisionedAccount & { profile: UserProfile }> {
+  const account = await provisionAccount(role, { ...params, branchId: '' });
+  const profile = await loadTarget(account.uid);
+  if (!profile) throw new Error('The account was created but its profile could not be read back.');
+  return { ...account, profile };
+}
+
+async function loadActor(): Promise<Actor | null> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return null;
+  const snap = await getDoc(doc(db, 'users', uid));
+  const parsed = validateUserProfile(uid, snap.exists() ? snap.data() : undefined);
+  return parsed.profile ? { uid, role: parsed.profile.role, status: parsed.profile.status } : null;
+}
+
+async function loadTarget(userId: string): Promise<UserProfile | null> {
+  const snap = await getDoc(doc(db, 'users', userId));
+  return snap.exists() ? validateUserProfile(userId, snap.data()).profile : null;
+}
+
+async function loadCourses(ids: string[]): Promise<Course[]> {
+  const explicit = ids.filter((id) => id !== ALL_COURSES);
+  const snaps = await Promise.all(explicit.map((id) => getDoc(doc(db, 'courses', id)).catch(() => null)));
+  return snaps.flatMap((s) => (s?.exists() ? [{ id: s.id, ...s.data() } as Course] : []));
+}
+
+/**
+ * Grants or updates Course Design membership on an existing account.
+ * Super Admin only. The checks run here first (clear messages) and again on
+ * the server, which writes the change and its audit entry together (Stage C5).
+ */
+export async function assignCourseDesignMembership(userId: string, input: MembershipInput): Promise<CourseDesignProfile> {
+  const [actor, target, courses] = await Promise.all([loadActor(), loadTarget(userId), loadCourses(input.assignedCourseIds)]);
+  const error = validateMembershipAssignment({ actor, target, input, courses });
+  if (error) throw new Error(error);
+  const res = await postWithIdToken<{ courseDesign: CourseDesignProfile }>('/api/admin/course-design', { action: 'assign', userId, membership: input });
+  return res.courseDesign;
+}
+
+/** Removes Course Design membership. Super Admin only; audited on the server. */
+export async function revokeCourseDesignMembership(userId: string): Promise<void> {
+  const [actor, target] = await Promise.all([loadActor(), loadTarget(userId)]);
+  const error = validateMembershipRevocation({ actor, target });
+  if (error) throw new Error(error);
+  await postWithIdToken('/api/admin/course-design', { action: 'revoke', userId });
 }
 
 /** Creates a student account in a branch (Branch Manager or Super Admin). */

@@ -43,6 +43,8 @@ export const userRoleEnum = z.enum([
   'branch_admin',
   'instructor',
   'student',
+  'content_lead',
+  'content_designer',
 ]);
 
 export const userStatusEnum = z.enum([
@@ -53,6 +55,37 @@ export const userStatusEnum = z.enum([
 ]);
 
 export const entityStatusEnum = z.enum(['draft', 'published', 'archived']);
+
+export const courseDesignResponsibilityEnum = z.enum([
+  'lead',
+  'curriculum_architect',
+  'content_developer',
+  'assessment_designer',
+  'reviewer',
+]);
+
+/** Course scope: explicit course IDs, or exactly ['*'] (org-wide, explicit grant only). Mirrors firestore.rules. */
+export const courseDesignScopeSchema = z
+  .array(z.string().min(1).max(128))
+  .min(1, 'Choose at least one course, or grant every course explicitly.')
+  .max(50, 'A member can be assigned at most 50 courses.')
+  .refine((ids) => new Set(ids).size === ids.length, { message: 'Each course can be assigned only once.' })
+  .refine((ids) => !ids.includes('*') || ids.length === 1, { message: '"All courses" cannot be combined with specific courses.' });
+
+export const courseDesignInputSchema = z.object({
+  responsibilities: z
+    .array(courseDesignResponsibilityEnum)
+    .min(1, 'At least one responsibility is required')
+    .max(5)
+    .refine((r) => new Set(r).size === r.length, { message: 'Each responsibility can be assigned only once.' }),
+  assignedCourseIds: courseDesignScopeSchema,
+});
+
+export const courseDesignProfileSchema = courseDesignInputSchema.extend({
+  department: z.literal('course_design'),
+  assignedAt: z.string().datetime(),
+  assignedByUserId: idSchema,
+}).strict();
 
 // -----------------------------------------------------------------------------
 // Security Constraint: Public Registration vs Admin Creation
@@ -82,6 +115,7 @@ export const adminUserProvisionSchema = z.object({
   branchId: idSchema.optional(),
   status: userStatusEnum.default('active'),
   phoneNumber: z.string().max(30).optional(),
+  courseDesign: courseDesignProfileSchema.optional(),
 });
 
 // -----------------------------------------------------------------------------
@@ -262,18 +296,65 @@ export const quizOptionSchema = z.object({
   text: z.string().min(1).max(400).trim(),
 });
 
+// Quiz question as stored in a lesson. Keyed lessons omit correctOptionId and
+// explanation (they live in the confidential answer key); legacy lessons still
+// carry both inline until migrated.
 export const quizBlockSchema = z.object({
   id: idSchema,
   type: z.literal('quiz'),
   question: z.string().min(5).max(2000).trim(),
   options: z.array(quizOptionSchema).min(2).max(8),
-  correctOptionId: idSchema,
-  explanation: z.string().min(5).max(3000).trim(),
+  correctOptionId: idSchema.optional(),
+  explanation: z.string().min(5).max(3000).trim().optional(),
   hint: z.string().max(1000).optional(),
 }).refine(
-  (data) => data.options.some((opt) => opt.id === data.correctOptionId),
+  (data) => data.correctOptionId === undefined || data.options.some((opt) => opt.id === data.correctOptionId),
   { message: 'correctOptionId must match one of the provided quiz option IDs' }
+).refine(
+  (data) => (data.correctOptionId === undefined) === (data.explanation === undefined),
+  { message: 'A quiz question needs both its correct option and an explanation, or neither (keyed lessons).' }
 );
+
+/** What an author must supply for every question in the Block Studio. */
+export const quizAuthoringSchema = z.object({
+  id: idSchema,
+  question: z.string().min(5, 'Write a question of at least 5 characters.').max(2000),
+  options: z.array(quizOptionSchema).min(2, 'Give at least two options.').max(8),
+  correctOptionId: idSchema,
+  explanation: z.string().trim().min(5, 'Write an explanation of at least 5 characters.').max(3000),
+}).refine((d) => d.options.some((o) => o.id === d.correctOptionId), { message: 'Mark one of the options as correct.' });
+
+export const MAX_QUIZ_QUESTIONS = 20;
+
+export const answerKeyItemSchema = z.object({
+  blockId: idSchema,
+  correctOptionId: idSchema,
+  explanation: z.string().min(5).max(3000),
+});
+
+/** Confidential answer key (lessons/{id}/answerKey/current). Mirrors firestore.rules. */
+export const lessonAnswerKeySchema = z.object({
+  orgId: idSchema,
+  courseId: idSchema,
+  lessonId: idSchema,
+  keyVersion: z.number().int().min(1),
+  release: z.literal('after_pass'),
+  items: z.array(answerKeyItemSchema).max(MAX_QUIZ_QUESTIONS)
+    .refine((items) => new Set(items.map((i) => i.blockId)).size === items.length, { message: 'Duplicate question in answer key.' }),
+  updatedById: idSchema,
+  updatedAt: z.string().datetime(),
+}).strict();
+
+/** Body of POST /api/quiz/attempt. Nothing else from the client is trusted. */
+export const quizAttemptRequestSchema = z.object({
+  courseId: idSchema,
+  lessonId: idSchema,
+  /** Published version the reader showed (Stage C3); a newer one is refused, not mis-graded. */
+  lessonVersion: z.number().int().min(0).nullable().optional(),
+  answers: z.record(idSchema, idSchema)
+    .refine((a) => Object.keys(a).length >= 1, { message: 'Answer at least one question.' })
+    .refine((a) => Object.keys(a).length <= MAX_QUIZ_QUESTIONS, { message: 'Too many answers.' }),
+}).strict();
 
 export const practiceTaskBlockSchema = z.object({
   id: idSchema,
@@ -450,3 +531,26 @@ export const instructorGradingSchema = z.object({
   feedback: z.string().max(5000),
   status: z.enum(['graded', 'resubmit_requested']),
 });
+
+// -----------------------------------------------------------------------------
+// Content review & assessment authoring requests (Stage C2)
+// -----------------------------------------------------------------------------
+export const MIN_REASON_LENGTH = 10;
+
+/** Body of POST /api/content/review. Identity and time come from the server. */
+export const contentActionRequestSchema = z.object({
+  targetType: z.enum(['course', 'lesson']),
+  targetId: idSchema,
+  action: z.enum(['submit', 'reopen', 'approve', 'request_changes', 'publish', 'unpublish', 'archive']),
+  comment: z.string().trim().min(1).max(2000).optional(),
+  /** Required when the Super Admin publishes without a current approval. */
+  reason: z.string().trim().min(MIN_REASON_LENGTH, `Give a reason of at least ${MIN_REASON_LENGTH} characters.`).max(1000).optional(),
+}).strict();
+
+/** Body of POST /api/content/assessment: a lesson's full set of quiz questions. */
+export const assessmentUpdateRequestSchema = z.object({
+  lessonId: idSchema,
+  questions: z.array(quizBlockSchema).max(MAX_QUIZ_QUESTIONS)
+    .refine((qs) => qs.every((q) => quizAuthoringSchema.safeParse(q).success), { message: 'Each question needs a correct option and an explanation.' })
+    .refine((qs) => new Set(qs.map((q) => q.id)).size === qs.length, { message: 'Each question needs a unique id.' }),
+}).strict();

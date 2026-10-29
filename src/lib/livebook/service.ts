@@ -14,7 +14,8 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { Course, Module, Lesson, Progress, ProgressStatus } from '@/types/domain';
+import { ApiError, postWithIdToken } from '@/lib/api/authed';
+import { Course, Module, Lesson, Progress, ProgressStatus, QuizAttemptResult } from '@/types/domain';
 import { lessonBlockSchema } from '@/types/validation';
 
 export interface CourseWithCurriculum {
@@ -220,4 +221,18 @@ export async function recordLessonProgress(
 
     await setDoc(progressDocRef, updatedRecord, { merge: true });
   }
+}
+
+/** A quiz submission the server refused (cooldown, daily limit, access…). */
+export { ApiError as QuizSubmitError };
+
+/**
+ * Submits a keyed lesson quiz for server grading (Stage C1). Only the lesson
+ * and the chosen options are sent; identity comes from the ID token and the
+ * score, completion and limits are decided by the server.
+ */
+export async function submitQuizAttempt(
+  courseId: string, lessonId: string, answers: Record<string, string>, lessonVersion: number | null
+): Promise<QuizAttemptResult> {
+  return postWithIdToken<QuizAttemptResult>('/api/quiz/attempt', { courseId, lessonId, answers, lessonVersion });
 }

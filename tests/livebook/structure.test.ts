@@ -4,7 +4,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { lessonNumber, lessonQuiz, numberCurriculum, quizScore, readingBlocks, revisionNotes } from '@/lib/livebook/structure';
+import { lessonNumber, lessonQuiz, numberCurriculum, readingBlocks, revisionNotes } from '@/lib/livebook/structure';
+import { gradeAnswers, inlineAnswerKey } from '@/lib/livebook/quiz';
 import { youtubeEmbedUrl, youtubeId } from '@/lib/livebook/video';
 import { lessonBlockSchema } from '@/types/validation';
 import { Lesson, LessonBlock, Module, QuizBlock } from '@/types/domain';
@@ -33,11 +34,12 @@ describe('quiz', () => {
     expect(readingBlocks({ blocks }).map((b) => b.id)).toEqual(['t']);
     expect(lessonQuiz({ blocks }).map((b) => b.id)).toEqual(['q1', 'q2', 'q3']);
   });
-  it('passes at 60% and rounds the score', () => {
-    const qs = lessonQuiz({ blocks });
-    expect(quizScore(qs, { q1: 'a', q2: 'a', q3: 'a' })).toMatchObject({ correct: 2, total: 3, percent: 67, passed: true });
-    expect(quizScore(qs, { q1: 'a', q2: 'b', q3: 'a' })).toMatchObject({ correct: 1, percent: 33, passed: false });
-    expect(quizScore([], {})).toMatchObject({ passed: false });
+  // C4: inline (legacy) quizzes are graded by the server from their inline key, with the same pass mark.
+  it('passes at 60% and rounds the score when graded from inline answers', () => {
+    const items = inlineAnswerKey(blocks)!;
+    expect(gradeAnswers({ items }, { q1: 'a', q2: 'a', q3: 'a' })).toMatchObject({ correct: 2, total: 3, percent: 67, passed: true });
+    expect(gradeAnswers({ items }, { q1: 'a', q2: 'b', q3: 'a' })).toMatchObject({ correct: 1, percent: 33, passed: false });
+    expect(inlineAnswerKey([])).toBeNull();
   });
 });
 

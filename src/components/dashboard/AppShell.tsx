@@ -45,8 +45,11 @@ interface NavItem {
   group: NavGroup;
 }
 
-const ALL: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'student'];
+const CONTENT: UserRole[] = ['content_lead', 'content_designer'];
+const ALL: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'student', ...CONTENT];
 const STAFF: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor'];
+// Staff author drafts; Course Design members author in-scope drafts (rules enforce scope).
+const AUTHORS: UserRole[] = [...STAFF, ...CONTENT];
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Home', href: '/dashboard', icon: Home, roles: ALL, group: 'Overview' },
@@ -55,8 +58,8 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'My Courses', href: '/courses', icon: BookOpen, roles: ['student'], group: 'Learn' },
   { name: 'My Batches', href: '/dashboard/batches', icon: Users, roles: ['instructor'], group: 'Teach' },
   { name: 'Batches & Enrollment', href: '/dashboard/batches', icon: Users, roles: ['super_admin', 'university_admin', 'branch_admin'], group: 'Teach' },
-  { name: 'Course Authoring', href: '/dashboard/courses', icon: PenTool, roles: STAFF, group: 'Teach' },
-  { name: 'Live Books Preview', href: '/courses', icon: BookOpen, roles: STAFF, group: 'Teach' },
+  { name: 'Course Authoring', href: '/dashboard/courses', icon: PenTool, roles: AUTHORS, group: 'Teach' },
+  { name: 'Live Books', href: '/courses', icon: BookOpen, roles: [...STAFF, ...CONTENT], group: 'Teach' },
   { name: 'People', href: '/dashboard/people', icon: UsersRound, roles: ['super_admin', 'branch_admin'], group: 'Manage' },
   { name: 'Branches', href: '/dashboard/branches', icon: GitBranch, roles: ['super_admin', 'university_admin'], group: 'Manage' },
   { name: 'Organizations', href: '/dashboard/organizations', icon: Building2, roles: ['super_admin'], group: 'Manage' },
@@ -71,6 +74,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   branch_admin: 'Branch Manager',
   instructor: 'Instructor',
   student: 'Student',
+  content_lead: 'Content Lead',
+  content_designer: 'Content Designer',
 };
 
 function isActive(pathname: string, href: string) {

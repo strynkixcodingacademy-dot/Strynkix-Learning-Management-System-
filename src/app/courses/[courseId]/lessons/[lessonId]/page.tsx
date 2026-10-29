@@ -9,13 +9,13 @@
 
 import React, { Suspense, use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
 import { RequireAuth } from '@/components/auth/RouteGuards';
 import { headingAnchor, LessonBlockRenderer } from '@/components/livebook/LessonBlockRenderer';
 import { LessonNavigation } from '@/components/livebook/LessonNavigation';
 import { QuizTime } from '@/components/livebook/QuizTime';
 import { useLiveBook } from '@/components/livebook/useLiveBook';
 import { getAdjacentLessons } from '@/lib/livebook/curriculum';
+import { submitQuizAttempt } from '@/lib/livebook/service';
 import { lessonNumber, lessonQuiz, readingBlocks } from '@/lib/livebook/structure';
 import { buttonClasses } from '@/components/ui/Button';
 import { EmptyState, Skeleton } from '@/components/ui/States';
@@ -59,9 +59,8 @@ function useReadingProgress(anchorIds: string[]) {
 }
 
 function ReaderView({ courseId, lessonId }: { courseId: string; lessonId: string }) {
-  const { user } = useAuth();
   const book = useLiveBook(courseId, lessonId, { recordVisit: true });
-  const { course, modules, lessons, lesson, progress, batchId, loading, error, markCompleted } = book;
+  const { course, modules, lessons, lesson, progress, batchId, loading, error, markCompleted, refreshProgress } = book;
   const blocks = lesson ? readingBlocks(lesson) : [];
   const anchors = blocks.flatMap((b) => (b.type === 'heading' && b.level <= 2 ? [headingAnchor(b.id, b.text)] : []));
   const { pct, marks } = useReadingProgress(anchors);
@@ -90,7 +89,8 @@ function ReaderView({ courseId, lessonId }: { courseId: string; lessonId: string
 
   const number = lessonNumber(modules, lessons, lesson.id);
   const questions = lessonQuiz(lesson);
-  const isCompleted = progress.some((p) => p.lessonId === lesson.id && p.status === 'completed');
+  const lessonProgress = progress.find((p) => p.lessonId === lesson.id);
+  const isCompleted = lessonProgress?.status === 'completed';
   const { prevLesson, nextLesson } = getAdjacentLessons(modules, lessons, lesson.id);
 
   return (
@@ -143,10 +143,15 @@ function ReaderView({ courseId, lessonId }: { courseId: string; lessonId: string
           <>
             <QuizTime
               questions={questions}
-              storageKey={`lb-best:${user?.uid ?? 'anon'}:${lesson.id}`}
               isCompleted={isCompleted}
               canTrackProgress={Boolean(batchId)}
-              onPassed={markCompleted}
+              bestPercent={lessonProgress?.quiz?.bestPercent ?? null}
+              onSubmit={async (answers) => {
+                const result = await submitQuizAttempt(courseId, lesson.id, answers, lesson.publishedVersion ?? null);
+                // The server already saved the attempt; a failed refresh only delays the tick.
+                refreshProgress().catch((err) => console.warn('Failed to refresh progress', err));
+                return result;
+              }}
             />
             <hr className="my-12 border-line" />
             <nav aria-label="Lesson navigation" className="flex flex-wrap items-center justify-between gap-4 text-[15px] font-medium text-ink-3">
