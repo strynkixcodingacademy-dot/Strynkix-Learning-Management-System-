@@ -1,8 +1,8 @@
 /**
- * Strynkix Coding Academy LMS — Domain Validation Schemas
- * Implements strict runtime validation, size boundaries (DoS prevention),
- * and security barriers against privilege escalation.
- */
+* Strynkix Coding Academy LMS — Domain Validation Schemas
+* Implements strict runtime validation, size boundaries (DoS prevention),
+* and security barriers against privilege escalation.
+*/
 
 import { z } from 'zod';
 
@@ -419,6 +419,172 @@ export const studentSubmissionSchema = z.object({
   submissionUrl: z.string().url().max(500).optional(),
   codeContent: z.string().max(100000).optional(),
   notes: z.string().max(2000).optional(),
+});
+
+// -----------------------------------------------------------------------------
+// Stage 8: Weekly Timetable, Revisioning, Approval & Assessment Scheduling
+// -----------------------------------------------------------------------------
+
+export const dayOfWeekEnum = z.enum([
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]);
+
+export const activityTypeEnum = z.enum([
+  'lesson',
+  'practical_exercise',
+  'assignment',
+  'revision',
+  'project_work',
+  'doubt_solving',
+  'quiz',
+  'examination',
+  'practical_assessment',
+]);
+
+export const assessmentTypeEnum = z.enum([
+  'quiz',
+  'unit_test',
+  'weekly_test',
+  'practical_exam',
+  'coding_assessment',
+  'revision_test',
+  'final_exam',
+]);
+
+export const assessmentFormatEnum = z.enum(['mcq', 'coding', 'written', 'practical', 'hybrid']);
+
+export const timeStringSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be in HH:mm 24-hour format (e.g. 09:30, 14:00)');
+
+export const assessmentScheduleSchema = z
+  .object({
+    assessmentType: assessmentTypeEnum,
+    maxMarks: z.number().int().min(1, 'Max marks must be at least 1').max(1000),
+    passingMarks: z.number().int().min(1).max(1000).optional(),
+    format: assessmentFormatEnum,
+    syllabus: z.string().trim().min(2, 'Syllabus must be at least 2 characters').max(2000),
+    instructions: z.string().trim().min(2, 'Instructions must be at least 2 characters').max(5000),
+    rules: z.array(z.string().trim().max(500)).max(20).optional(),
+    availabilityWindow: z
+      .object({
+        start: z.string().datetime(),
+        end: z.string().datetime(),
+      })
+      .refine((w) => w.end >= w.start, { message: 'Window end cannot be before start' })
+      .optional(),
+    submissionDeadline: z.string().datetime().optional(),
+  })
+  .refine((data) => !data.passingMarks || data.passingMarks <= data.maxMarks, {
+    message: 'Passing marks cannot exceed maximum marks',
+    path: ['passingMarks'],
+  });
+
+export const activityCompletionRequirementsSchema = z.object({
+  type: z.enum([
+    'lesson_completion',
+    'assignment_submission',
+    'assessment_submission',
+    'manual_acknowledgement',
+  ]),
+  minScore: z.number().int().min(0).max(1000).optional(),
+});
+
+export const timetableActivitySchema = z
+  .object({
+    id: idSchema,
+    orderIndex: z.number().int().min(0).max(50),
+    type: activityTypeEnum,
+    title: titleSchema,
+    startTime: timeStringSchema,
+    endTime: timeStringSchema,
+    durationMinutes: z.number().int().min(1).max(600),
+    courseId: idSchema,
+    moduleId: idSchema.optional(),
+    lessonId: idSchema.optional(),
+    assignmentId: idSchema.optional(),
+    assessment: assessmentScheduleSchema.optional(),
+    objectives: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
+    instructions: z.string().trim().max(5000).optional(),
+    completionRequirements: activityCompletionRequirementsSchema.optional(),
+  })
+  .refine(
+    (a) => a.endTime >= a.startTime,
+    {
+      message: 'End time cannot be earlier than start time',
+      path: ['endTime'],
+    }
+  );
+
+export const dayScheduleSchema = z.object({
+  date: planDateSchema,
+  dayOfWeek: dayOfWeekEnum,
+  theme: z.string().trim().max(200).optional(),
+  activities: z.array(timetableActivitySchema).max(20),
+});
+
+export const timetableStatusEnum = z.enum([
+  'draft',
+  'submitted',
+  'changes_requested',
+  'approved',
+]);
+
+export const timetableDaysRecordSchema = z.object({
+  monday: dayScheduleSchema,
+  tuesday: dayScheduleSchema,
+  wednesday: dayScheduleSchema,
+  thursday: dayScheduleSchema,
+  friday: dayScheduleSchema,
+  saturday: dayScheduleSchema,
+  sunday: dayScheduleSchema,
+});
+
+export const timetableRevisionSchema = z.object({
+  id: idSchema,
+  timetableId: idSchema,
+  revisionNumber: z.number().int().min(1).max(1000),
+  orgId: idSchema,
+  branchId: idSchema,
+  batchId: idSchema,
+  courseId: idSchema,
+  weekStartDate: planDateSchema,
+  weekEndDate: planDateSchema,
+  status: timetableStatusEnum,
+  days: timetableDaysRecordSchema,
+  createdById: idSchema,
+  submittedById: idSchema.nullable().optional(),
+  submittedAt: z.string().datetime().nullable().optional(),
+  reviewedById: idSchema.nullable().optional(),
+  reviewedAt: z.string().datetime().nullable().optional(),
+  reviewComment: z.string().max(5000).nullable().optional(),
+});
+
+export const weeklyTimetableSchema = z.object({
+  id: idSchema,
+  orgId: idSchema,
+  branchId: idSchema,
+  batchId: idSchema,
+  courseId: idSchema,
+  weekStartDate: planDateSchema,
+  weekEndDate: planDateSchema,
+  activeRevisionId: idSchema.nullable(),
+  currentRevisionId: idSchema,
+  latestStatus: timetableStatusEnum,
+});
+
+export const timetableCorrectionSchema = z.object({
+  comment: z.string().trim().min(5, 'Correction comment must be at least 5 characters').max(5000),
+});
+
+export const timetableApprovalSchema = z.object({
+  comment: z.string().trim().max(5000).optional(),
 });
 
 export const instructorGradingSchema = z.object({

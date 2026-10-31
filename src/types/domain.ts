@@ -395,6 +395,152 @@ export interface DailyPlan {
 // -----------------------------------------------------------------------------
 // Multi-Tenant Session Context
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// 13. Weekly Timetable (Stage 8: Super Admin-approved cohort timetable)
+// -----------------------------------------------------------------------------
+
+export type DayOfWeek =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export type ActivityType =
+  | 'lesson'
+  | 'practical_exercise'
+  | 'assignment'
+  | 'revision'
+  | 'project_work'
+  | 'doubt_solving'
+  | 'quiz'
+  | 'examination'
+  | 'practical_assessment';
+
+export type AssessmentType =
+  | 'quiz'
+  | 'unit_test'
+  | 'weekly_test'
+  | 'practical_exam'
+  | 'coding_assessment'
+  | 'revision_test'
+  | 'final_exam';
+
+export type AssessmentFormat = 'mcq' | 'coding' | 'written' | 'practical' | 'hybrid';
+
+export interface AssessmentSchedule {
+  assessmentType: AssessmentType;
+  maxMarks: number;
+  passingMarks?: number;
+  format: AssessmentFormat;
+  syllabus: string;
+  instructions: string;
+  rules?: string[];
+  availabilityWindow?: {
+    start: string; // ISO-8601
+    end: string;   // ISO-8601
+  };
+  submissionDeadline?: string; // ISO-8601
+}
+
+export interface ActivityCompletionRequirements {
+  type: 'lesson_completion' | 'assignment_submission' | 'assessment_submission' | 'manual_acknowledgement';
+  minScore?: number;
+}
+
+export interface TimetableActivity {
+  id: string;
+  orderIndex: number;
+  type: ActivityType;
+  title: string;
+  startTime: string; // "HH:mm" (24-hour)
+  endTime: string;   // "HH:mm" (24-hour)
+  durationMinutes: number;
+  courseId: string;
+  moduleId?: string;
+  lessonId?: string;
+  assignmentId?: string;
+  assessment?: AssessmentSchedule;
+  objectives: string[];
+  instructions?: string;
+  completionRequirements?: ActivityCompletionRequirements;
+}
+
+export interface DaySchedule {
+  date: string; // YYYY-MM-DD
+  dayOfWeek: DayOfWeek;
+  theme?: string;
+  activities: TimetableActivity[];
+}
+
+export type TimetableStatus = 'draft' | 'submitted' | 'changes_requested' | 'approved';
+
+export interface TimetableRevision {
+  id: string; // e.g. "rev_1"
+  timetableId: string;
+  revisionNumber: number;
+  orgId: string;
+  branchId: string;
+  batchId: string;
+  courseId: string;
+  weekStartDate: string; // YYYY-MM-DD (Monday)
+  weekEndDate: string;   // YYYY-MM-DD (Sunday)
+  status: TimetableStatus;
+  days: Record<DayOfWeek, DaySchedule>;
+  createdById: string;
+  submittedById?: string | null;
+  submittedAt?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: string | null;
+  reviewComment?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WeeklyTimetable {
+  id: string; // deterministic `timetable_${batchId}_${weekStartDate}`
+  orgId: string;
+  branchId: string;
+  batchId: string;
+  courseId: string;
+  weekStartDate: string; // YYYY-MM-DD (Monday)
+  weekEndDate: string;   // YYYY-MM-DD (Sunday)
+  activeRevisionId: string | null;
+  currentRevisionId: string;
+  latestStatus: TimetableStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TimetableAuditAction =
+  | 'create_draft'
+  | 'submit'
+  | 'request_changes'
+  | 'resubmit'
+  | 'approve';
+
+export interface TimetableAuditLog {
+  id: string;
+  timetableId: string;
+  revisionId: string;
+  fromStatus: TimetableStatus;
+  toStatus: TimetableStatus;
+  action: TimetableAuditAction;
+  actorUid: string;
+  actorRole: UserRole;
+  comment?: string;
+  timestamp: string; // server timestamp, normalised to ISO on read
+}
+
+export type ActivityProgressState =
+  | 'not_started'
+  | 'in_progress'
+  | 'completed'
+  | 'overdue'
+  | 'blocked';
+
 export interface AuthenticatedUserSession {
   uid: string;
   email: string | null;

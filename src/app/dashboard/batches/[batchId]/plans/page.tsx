@@ -112,6 +112,18 @@ function PlansView({ batchId }: { batchId: string }) {
 
   return (
     <div className="space-y-6">
+      <div className="p-4 rounded-xl border border-brand/30 bg-brand-soft/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <span className="text-ink">
+          <strong>Weekly Timetable System:</strong> Plan complete Monday–Sunday schedules with multi-activity streams, lessons, assessments, and Super Admin approval.
+        </span>
+        <Link
+          href={`/dashboard/batches/${batch.id}/timetable`}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-brand hover:bg-brand-strong text-white font-semibold whitespace-nowrap shadow-sm self-start sm:self-auto"
+        >
+          Open Weekly Timetable <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
       <Link href={`/dashboard/batches/${batch.id}`} className="inline-flex items-center gap-2 text-xs text-ink-3 hover:text-ink">
         <ArrowLeft className="w-4 h-4" /> {batch.name}
       </Link>
