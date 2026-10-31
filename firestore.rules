@@ -264,6 +264,72 @@ service cloud.firestore {
         plan.data.orgId == data.orgId;
     }
 
+    // -------------------------------------------------------------------------
+    // Helper Functions: Stage 8 Weekly Timetable, Revisions & Approval
+    // -------------------------------------------------------------------------
+
+    function canManageBatchTimetable(batchId) {
+      let batch = get(/databases/$(database)/documents/batches/$(batchId));
+      return batch != null && isAuthenticated() && isAccountActive() && (
+        isSuperAdmin() ||
+        isUniversityAdmin(batch.data.orgId) ||
+        isBranchAdmin(batch.data.orgId, batch.data.branchId)
+      );
+    }
+
+    function isValidTimetableRoot(data) {
+      return data.keys().hasAll([
+          'id', 'orgId', 'branchId', 'batchId', 'courseId', 'weekStartDate', 'weekEndDate',
+          'currentRevisionId', 'latestStatus'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'orgId', 'branchId', 'batchId', 'courseId', 'weekStartDate', 'weekEndDate',
+          'activeRevisionId', 'currentRevisionId', 'latestStatus', 'createdAt', 'updatedAt'
+        ]) &&
+        data.weekStartDate is string && data.weekStartDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        data.weekEndDate is string && data.weekEndDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        data.latestStatus in ['draft', 'submitted', 'changes_requested', 'approved'] &&
+        (!('activeRevisionId' in data) || data.activeRevisionId == null || data.activeRevisionId is string) &&
+        isOptionalIsoTimestamp(data, 'createdAt') &&
+        isOptionalIsoTimestamp(data, 'updatedAt');
+    }
+
+    function isValidTimetableRevision(data) {
+      return data.keys().hasAll([
+          'id', 'timetableId', 'revisionNumber', 'orgId', 'branchId', 'batchId', 'courseId',
+          'weekStartDate', 'weekEndDate', 'status', 'days', 'createdById'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'timetableId', 'revisionNumber', 'orgId', 'branchId', 'batchId', 'courseId',
+          'weekStartDate', 'weekEndDate', 'status', 'days', 'createdById', 'submittedById',
+          'submittedAt', 'reviewedById', 'reviewedAt', 'reviewComment', 'createdAt', 'updatedAt'
+        ]) &&
+        data.revisionNumber is int && data.revisionNumber >= 1 &&
+        data.status in ['draft', 'submitted', 'changes_requested', 'approved'] &&
+        data.days is map &&
+        data.days.keys().hasAll(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']) &&
+        isOptionalIsoTimestamp(data, 'submittedAt') &&
+        isOptionalIsoTimestamp(data, 'reviewedAt') &&
+        isOptionalIsoTimestamp(data, 'createdAt') &&
+        isOptionalIsoTimestamp(data, 'updatedAt');
+    }
+
+    function isValidTimetableAuditLog(data) {
+      return data.keys().hasAll([
+          'id', 'timetableId', 'revisionId', 'fromStatus', 'toStatus', 'action',
+          'actorUid', 'actorRole', 'timestamp'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'timetableId', 'revisionId', 'fromStatus', 'toStatus', 'action',
+          'actorUid', 'actorRole', 'comment', 'timestamp'
+        ]) &&
+        data.action in ['create_draft', 'submit', 'request_changes', 'resubmit', 'approve'] &&
+        data.fromStatus in ['draft', 'submitted', 'changes_requested', 'approved'] &&
+        data.toStatus in ['draft', 'submitted', 'changes_requested', 'approved'] &&
+        data.actorUid == request.auth.uid &&
+        data.timestamp == request.time;
+    }
+
     function isValidSubmissionShape(data) {
       return data.keys().hasOnly([
           'id', 'orgId', 'assignmentId', 'batchId', 'courseId', 'studentId', 'textAnswer', 'codeContent',
@@ -904,6 +970,133 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // 13. /timetables/{timetableId}
+    // Stage 8: Weekly Timetables (Monday-Sunday cohort schedules).
+    // Revisions must be approved by Super Admin before becoming active.
+    // Students only read active approved revisions for their enrolled batch.
+    // -------------------------------------------------------------------------
+    match /timetables/{timetableId} {
+      allow read: if isAuthenticated() && isAccountActive() && (
+        canManageBatchTimetable(resource.data.batchId) ||
+        (isInstructor(resource.data.orgId) && request.auth.uid in get(/databases/$(database)/documents/batches/$(resource.data.batchId)).data.get('instructorUserIds', [])) ||
+        (
+          isStudent(resource.data.orgId) &&
+          resource.data.activeRevisionId != null &&
+          isCoursePublished(resource.data.courseId) &&
+          isEnrolledInBatch(resource.data.courseId, resource.data.batchId)
+        )
+      );
+
+      allow create: if canManageBatchTimetable(request.resource.data.batchId) &&
+        timetableId == 'timetable_' + request.resource.data.batchId + '_' + request.resource.data.weekStartDate &&
+        isValidTimetableRoot(request.resource.data) &&
+        request.resource.data.activeRevisionId == null &&
+        request.resource.data.latestStatus == 'draft' &&
+        planMatchesOpenBatch(request.resource.data);
+
+      allow update: if isAuthenticated() && isAccountActive() &&
+        isValidTimetableRoot(request.resource.data) &&
+        request.resource.data.orgId == resource.data.orgId &&
+        request.resource.data.branchId == resource.data.branchId &&
+        request.resource.data.batchId == resource.data.batchId &&
+        request.resource.data.courseId == resource.data.courseId &&
+        request.resource.data.weekStartDate == resource.data.weekStartDate &&
+        request.resource.data.weekEndDate == resource.data.weekEndDate &&
+        (
+          // Super admin can update everything including activeRevisionId
+          isSuperAdmin() ||
+          // Branch manager can update currentRevisionId and latestStatus (draft/submitted) but NEVER activeRevisionId
+          (
+            canManageBatchTimetable(resource.data.batchId) &&
+            request.resource.data.activeRevisionId == resource.data.activeRevisionId &&
+            request.resource.data.latestStatus in ['draft', 'submitted']
+          )
+        );
+
+      allow delete: if isSuperAdmin();
+
+      // -----------------------------------------------------------------------
+      // 13.1 /timetables/{timetableId}/revisions/{revisionId}
+      // Immutable once approved. Only super_admin can approve or request changes.
+      // -----------------------------------------------------------------------
+      match /revisions/{revisionId} {
+        allow read: if isAuthenticated() && isAccountActive() && (
+          canManageBatchTimetable(resource.data.batchId) ||
+          (isInstructor(resource.data.orgId) && request.auth.uid in get(/databases/$(database)/documents/batches/$(resource.data.batchId)).data.get('instructorUserIds', [])) ||
+          (
+            isStudent(resource.data.orgId) &&
+            revisionId == get(/databases/$(database)/documents/timetables/$(timetableId)).data.activeRevisionId &&
+            resource.data.status == 'approved' &&
+            isCoursePublished(resource.data.courseId) &&
+            isEnrolledInBatch(resource.data.courseId, resource.data.batchId)
+          )
+        );
+
+        allow create: if canManageBatchTimetable(request.resource.data.batchId) &&
+          isValidTimetableRevision(request.resource.data) &&
+          request.resource.data.timetableId == timetableId &&
+          request.resource.data.status == 'draft' &&
+          request.resource.data.createdById == request.auth.uid;
+
+        allow update: if isAuthenticated() && isAccountActive() &&
+          // Immutable once approved!
+          resource.data.status != 'approved' &&
+          isValidTimetableRevision(request.resource.data) &&
+          request.resource.data.timetableId == resource.data.timetableId &&
+          request.resource.data.orgId == resource.data.orgId &&
+          request.resource.data.branchId == resource.data.branchId &&
+          request.resource.data.batchId == resource.data.batchId &&
+          request.resource.data.courseId == resource.data.courseId &&
+          request.resource.data.createdById == resource.data.createdById &&
+          request.resource.data.revisionNumber == resource.data.revisionNumber &&
+          (
+            // Super admin approval: transitioning to 'approved'
+            (
+              isSuperAdmin() &&
+              request.resource.data.status == 'approved' &&
+              resource.data.status == 'submitted' &&
+              request.resource.data.reviewedById == request.auth.uid
+            ) ||
+            // Super admin requesting changes: requires non-empty comment
+            (
+              isSuperAdmin() &&
+              request.resource.data.status == 'changes_requested' &&
+              resource.data.status == 'submitted' &&
+              request.resource.data.reviewedById == request.auth.uid &&
+              request.resource.data.reviewComment is string &&
+              request.resource.data.reviewComment.size() >= 5
+            ) ||
+            // Branch manager editing draft or resubmitting
+            (
+              canManageBatchTimetable(resource.data.batchId) &&
+              resource.data.status in ['draft', 'changes_requested'] &&
+              request.resource.data.status in ['draft', 'submitted']
+            )
+          );
+
+        allow delete: if isSuperAdmin() && resource.data.status != 'approved';
+      }
+
+      // -----------------------------------------------------------------------
+      // 13.2 /timetables/{timetableId}/auditLogs/{logId}
+      // Strictly append-only, immutable transition audit trail.
+      // -----------------------------------------------------------------------
+      match /auditLogs/{logId} {
+        allow read: if isAuthenticated() && isAccountActive() && (
+          canManageBatchTimetable(get(/databases/$(database)/documents/timetables/$(timetableId)).data.batchId)
+        );
+
+        allow create: if isAuthenticated() && isAccountActive() &&
+          canManageBatchTimetable(get(/databases/$(database)/documents/timetables/$(timetableId)).data.batchId) &&
+          request.resource.data.timetableId == timetableId &&
+          isValidTimetableAuditLog(request.resource.data);
+
+        allow update: if false; // Immutability guarantee
+        allow delete: if false; // Append-only guarantee
+      }
+    }
+
     // 12. /dailyPlans/{batchId}_{date}
     // Instructor-planned learning for one batch and day. Students see published
     // plans of the batch they are enrolled in.
@@ -934,7 +1127,8 @@ service cloud.firestore {
         request.resource.data.date == resource.data.date &&
         request.resource.data.createdById == resource.data.createdById &&
         request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null) &&
-        planMatchesOpenBatch(request.resource.data);
+        planMatchesOpenBatch(request.resource.data) &&
+        (request.resource.data.status == 'published' ? (resource.data.status == 'published' || isSuperAdmin()) : true);
 
       allow delete: if isSuperAdmin();
     }

@@ -29,6 +29,7 @@ import {
   BarChart3,
   Building2,
   CalendarCheck,
+  CalendarDays,
   CalendarPlus,
   ClipboardCheck,
   FileEdit,
@@ -216,9 +217,14 @@ export function StaffHome() {
                       <Stat value={r.needsReview} label="need review" tone="attention" />
                       <Stat value={r.corrections} label="awaiting fixes" />
                     </div>
-                    <Link href={planHref} className={buttonClasses(r.plan ? (r.needsReview ? 'primary' : 'secondary') : 'primary', 'sm', 'self-start lg:self-center')}>
-                      {r.plan ? (r.needsReview ? <><ClipboardCheck className="w-3.5 h-3.5" /> Review</> : 'Open plan') : <><CalendarPlus className="w-3.5 h-3.5" /> Plan today</>}
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
+                      <Link href={`/dashboard/batches/${r.batch.id}/timetable`} className={buttonClasses('secondary', 'sm')}>
+                        <CalendarDays className="w-3.5 h-3.5" /> Timetable
+                      </Link>
+                      <Link href={planHref} className={buttonClasses(r.plan ? (r.needsReview ? 'primary' : 'ghost') : 'ghost', 'sm')}>
+                        {r.plan ? (r.needsReview ? <><ClipboardCheck className="w-3.5 h-3.5" /> Review</> : 'Open plan') : <><CalendarPlus className="w-3.5 h-3.5" /> Plan today</>}
+                      </Link>
+                    </div>
                   </div>
                 </Card>
               );
@@ -248,6 +254,14 @@ export function StaffHome() {
             <QuickLink href="/dashboard/branches" icon={GitBranch} tone="lavender" title="Branches" body={counts.branches !== undefined ? `${counts.branches} branch${counts.branches === 1 ? '' : 'es'}. Open one to see its batches and team.` : 'Campuses and franchises.'} />
           )}
           <QuickLink href="/dashboard/courses" icon={PenTool} tone="lavender" title="Write a lesson" body="Build courses, modules and interactive Live Book lessons." />
+          {tenant.role === 'super_admin' && (
+            <QuickLink href="/dashboard/admin/timetables" icon={CalendarCheck} tone="coral"
+              title="Timetable Approvals" body="Review submitted weekly timetables across branches and approve or request changes." />
+          )}
+          {isManager && (
+            <QuickLink href="/dashboard/batches" icon={CalendarDays} tone="brand"
+              title="Weekly Timetables" body="Build, submit, and manage weekly timetables from Monday to Sunday for your cohorts." />
+          )}
           {tenant.role === 'super_admin' && counts.orgs !== undefined && (
             <QuickLink href="/dashboard/organizations" icon={Building2} tone="lavender" title="Organization" body={`${counts.orgs} organization${counts.orgs === 1 ? '' : 's'} configured.`} />
           )}

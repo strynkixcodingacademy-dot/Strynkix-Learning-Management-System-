@@ -16,7 +16,23 @@ import { getStudentSubmissions, loadStudentCourseOverview, StudentCourseOverview
 import { combineMetrics, toLocalDateKey } from '@/lib/learning/metrics';
 import { getDeadlineState } from '@/lib/learning/submission-state';
 import { getResumeLesson } from '@/lib/livebook/curriculum';
-import { Assignment, DailyPlan, Lesson, Submission } from '@/types/domain';
+import { getActiveTimetableForBatch } from '@/lib/learning/timetable-service';
+import {
+  calculateDayCompletion,
+  deriveActivityProgress,
+  getMondayOfWeek,
+} from '@/lib/learning/timetable';
+import { TodayScheduleCard } from '@/components/timetable/TodayScheduleCard';
+import {
+  Assignment,
+  DailyPlan,
+  DaySchedule,
+  Lesson,
+  Submission,
+  TimetableActivity,
+  TimetableRevision,
+  WeeklyTimetable,
+} from '@/types/domain';
 import {
   DeadlineBadge,
   formatDue,
@@ -66,6 +82,15 @@ interface DayGroup {
   overview: StudentCourseOverview;
   plan: DailyPlan;
   steps: Step[];
+}
+
+interface TodayTimetableItem {
+  batchId: string;
+  courseId: string;
+  courseTitle: string;
+  batchName: string;
+  daySchedule: DaySchedule;
+  overview: StudentCourseOverview;
 }
 
 function greeting(now: Date) {
@@ -320,6 +345,7 @@ function DashboardSkeleton() {
 export function StudentDashboard() {
   const { user, profile, tenant } = useAuth();
   const [overviews, setOverviews] = useState<StudentCourseOverview[]>([]);
+  const [activeTimetables, setActiveTimetables] = useState<Map<string, { timetable: WeeklyTimetable; activeRevision: TimetableRevision }>>(new Map());
   const [failedCount, setFailedCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -352,7 +378,20 @@ export function StudentDashboard() {
               .map((e) => [e.courseId, e])
           ).values(),
         ];
-        const submissions = await getStudentSubmissions(tenant.orgId, user.uid);
+        const mondayKey = getMondayOfWeek(loadedAt);
+        const [submissions, timetableSettled] = await Promise.all([
+          getStudentSubmissions(tenant.orgId, user.uid),
+          Promise.allSettled(
+            enrollments.map(async (e) => {
+              try {
+                const res = await getActiveTimetableForBatch(e.batchId, mondayKey);
+                return { batchId: e.batchId, res };
+              } catch {
+                return { batchId: e.batchId, res: null };
+              }
+            })
+          ),
+        ]);
         const results = await Promise.allSettled(enrollments.map((e) => loadStudentCourseOverview(e, user.uid, submissions, loadedAt)));
         if (!isMounted) return;
         const loaded: StudentCourseOverview[] = [];
@@ -364,6 +403,13 @@ export function StudentDashboard() {
             failed += 1;
           }
         }
+        const ttMap = new Map<string, { timetable: WeeklyTimetable; activeRevision: TimetableRevision }>();
+        for (const t of timetableSettled) {
+          if (t.status === 'fulfilled' && t.value.res) {
+            ttMap.set(t.value.batchId, t.value.res);
+          }
+        }
+        setActiveTimetables(ttMap);
         setOverviews(loaded.sort((a, b) => a.course.title.localeCompare(b.course.title)));
         setFailedCount(failed);
         setNow(loadedAt);
@@ -403,15 +449,59 @@ export function StudentDashboard() {
     .flatMap((o) => o.plans.filter((p) => p.date > today).map((p) => ({ plan: p, course: o.course })))
     .sort((a, b) => a.plan.date.localeCompare(b.plan.date))[0], [overviews, today]);
 
+  const todayTimetableItems = useMemo<TodayTimetableItem[]>(() => {
+    return overviews.flatMap((o) => {
+      const activeTt = activeTimetables.get(o.enrollment.batchId);
+      if (!activeTt) return [];
+      const todaySched = Object.values(activeTt.activeRevision.days).find((d) => d.date === today);
+      if (!todaySched || todaySched.activities.length === 0) return [];
+      return [{
+        batchId: o.enrollment.batchId,
+        courseId: o.course.id,
+        courseTitle: o.course.title,
+        batchName: o.course.title,
+        daySchedule: todaySched,
+        overview: o,
+      }];
+    });
+  }, [overviews, activeTimetables, today]);
+
+  const activeBatchIdsWithTimetable = useMemo(
+    () => new Set(todayTimetableItems.map((t) => t.batchId)),
+    [todayTimetableItems]
+  );
+
+  const fallbackDayGroups = useMemo(
+    () => dayGroups.filter((g) => !activeBatchIdsWithTimetable.has(g.overview.enrollment.batchId)),
+    [dayGroups, activeBatchIdsWithTimetable]
+  );
+
+  const timetableStats = useMemo(() => {
+    let completed = 0;
+    let total = 0;
+    for (const item of todayTimetableItems) {
+      const res = calculateDayCompletion(item.daySchedule, item.overview.progress, item.overview.submissions, now);
+      completed += res.completedCount;
+      total += res.totalCount;
+    }
+    return { completed, total };
+  }, [todayTimetableItems, now]);
+
 
   if (isLoading) return <DashboardSkeleton />;
   if (error) return <ErrorState title="Your home page didn’t load" onRetry={reload}>{error}</ErrorState>;
 
   const firstName = (profile?.displayName || '').split(' ')[0] || 'there';
-  const allSteps = dayGroups.flatMap((g) => g.steps);
+  const allSteps = fallbackDayGroups.flatMap((g) => g.steps);
   const doneSteps = allSteps.filter((s) => s.done).length;
   const overdueCount = metrics.overdueLessons.length + metrics.overdueAssignments.length;
-  const statusLine = dayGroups.length === 0
+  const statusLine = todayTimetableItems.length > 0
+    ? timetableStats.total > 0 && timetableStats.completed === timetableStats.total
+      ? 'You’ve finished everything planned for today.'
+      : timetableStats.completed === 0
+        ? `You have ${timetableStats.total} activit${timetableStats.total === 1 ? 'y' : 'ies'} scheduled today. Start with the first one below.`
+        : `You’re ${timetableStats.completed} of ${timetableStats.total} activities through today.`
+    : fallbackDayGroups.length === 0
     ? nextPlan ? `Nothing is planned for today. Next up: ${nextPlan.plan.title} on ${formatPlanDate(nextPlan.plan.date)}.` : 'Nothing is planned for today — a good time to continue a course at your own pace.'
     : doneSteps === allSteps.length && allSteps.length > 0 ? 'You’ve finished everything planned for today.'
       : doneSteps === 0 ? `You have ${allSteps.length} step${allSteps.length === 1 ? '' : 's'} planned today. Start with the first one below.`
@@ -419,8 +509,14 @@ export function StudentDashboard() {
 
   // When today's plan has a next step, My Day already leads with it; the banner
   // is the "pick up where you left off" fallback, so it never duplicates My Day.
-  const hasPlannedNextStep = dayGroups.some((g) => g.steps.some((s) => s.needsAction));
-  const primaryResume = hasPlannedNextStep ? null : getPrimaryResume(dayGroups, overviews);
+  const hasTimetableNext = todayTimetableItems.some((item) =>
+    item.daySchedule.activities.some((act: TimetableActivity) => {
+      const prog = deriveActivityProgress(act, item.daySchedule.date, item.overview.progress, item.overview.submissions, now);
+      return prog.state !== 'completed' && prog.state !== 'blocked';
+    })
+  );
+  const hasPlannedNextStep = hasTimetableNext || fallbackDayGroups.some((g) => g.steps.some((s) => s.needsAction));
+  const primaryResume = hasPlannedNextStep ? null : getPrimaryResume(fallbackDayGroups, overviews);
   const attention = getAttentionItems(overviews, now);
   const assignmentTitle = (id: string) => overviews.flatMap((o) => o.assignments.map((a) => ({ a, courseId: o.course.id }))).find((x) => x.a.id === id);
   const lessonInfo = (id: string) => overviews.flatMap((o) => o.lessons.map((l) => ({ l, courseId: o.course.id }))).find((x) => x.l.id === id);
@@ -515,14 +611,32 @@ export function StudentDashboard() {
           <div className="grid gap-6 lg:grid-cols-3">
             {/* My Day */}
             <Section id="my-day" title="My Day" icon={CalendarDays} className="lg:col-span-2">
-              {dayGroups.length === 0 ? (
+              {todayTimetableItems.length === 0 && fallbackDayGroups.length === 0 ? (
                 <EmptyState compact illustration="calendar" title="No plan for today"
                   action={overviews[0] && <Link href={`/courses/${overviews[0].course.id}`} className={buttonClasses('secondary', 'sm')}>Continue {overviews[0].course.title}</Link>}>
                   {nextPlan ? <>Next up is <strong className="text-ink-2">{nextPlan.plan.title}</strong> ({nextPlan.course.title}) on {formatPlanDate(nextPlan.plan.date)}.</> : 'Your instructor hasn’t published the next plan yet.'}
                 </EmptyState>
               ) : (
                 <div className="space-y-5">
-                  {dayGroups.map((g, i) => <MyDayGroup key={g.plan.id} group={g} isFocus={i === dayGroups.findIndex((x) => x.steps.some((s) => s.needsAction))} />)}
+                  {todayTimetableItems.map((item) => (
+                    <TodayScheduleCard
+                      key={`tt_${item.batchId}`}
+                      day={item.daySchedule}
+                      batchName={item.batchName}
+                      courseTitle={item.courseTitle}
+                      courseId={item.courseId}
+                      studentProgress={item.overview.progress}
+                      studentSubmissions={item.overview.submissions}
+                      now={now}
+                    />
+                  ))}
+                  {fallbackDayGroups.map((g, i) => (
+                    <MyDayGroup
+                      key={g.plan.id}
+                      group={g}
+                      isFocus={todayTimetableItems.length === 0 && i === fallbackDayGroups.findIndex((x) => x.steps.some((s) => s.needsAction))}
+                    />
+                  ))}
                 </div>
               )}
             </Section>

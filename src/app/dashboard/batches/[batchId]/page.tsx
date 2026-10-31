@@ -492,7 +492,14 @@ Please log in to start learning!`;
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
         >
           <CalendarDays className="w-4 h-4" />
-          <span>Daily Plans & Assignments</span>
+          <span>Daily Plans</span>
+        </Link>
+        <Link
+          href={`/dashboard/batches/${batch.id}/timetable`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-sm"
+        >
+          <CalendarDays className="w-4 h-4" />
+          <span>Weekly Timetable</span>
         </Link>
       </div>
 
