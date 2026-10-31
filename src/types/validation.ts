@@ -388,7 +388,18 @@ export const referencesBlockSchema = z.object({
   links: z.array(referenceLinkSchema).min(1).max(20),
 });
 
+export const documentBlockSchema = z.object({
+  id: idSchema,
+  type: z.literal('document'),
+  title: z.string().min(2).max(160).trim(),
+  url: z.string().max(1000).refine((u) => /^https:\/\/[^\s]+$/.test(u), { message: 'Document links must start with https://' }),
+  kind: z.enum(['pdf', 'slides', 'document', 'other']),
+  description: z.string().max(400).optional(),
+  allowDownload: z.boolean(),
+});
+
 export const lessonBlockSchema = z.discriminatedUnion('type', [
+  documentBlockSchema,
   textBlockSchema,
   headingBlockSchema,
   codeExampleBlockSchema,

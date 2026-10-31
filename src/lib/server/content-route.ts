@@ -28,10 +28,11 @@ export async function verifyCaller(auth: Auth, idToken: string | null): Promise<
 export async function handleContentRoute(
   request: Request,
   label: string,
-  run: (services: ReturnType<typeof getAdminServices>, idToken: string | null, body: unknown) => Promise<unknown>
+  run: (services: ReturnType<typeof getAdminServices>, idToken: string | null, body: unknown) => Promise<unknown>,
+  maxBytes: number = MAX_BODY_BYTES
 ): Promise<Response> {
   const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) return json(413, { error: 'invalid_request', message: 'The request is too large.' });
+  if (raw.length > maxBytes) return json(413, { error: 'invalid_request', message: 'The request is too large.' });
   let body: unknown;
   try {
     body = JSON.parse(raw);

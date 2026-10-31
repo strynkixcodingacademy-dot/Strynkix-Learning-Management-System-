@@ -188,7 +188,7 @@ export function StaffHome() {
   // Accounts awaiting approval, for the People tile badge (managers and Super Admin).
   useEffect(() => {
     let alive = true;
-    if (!tenant || (tenant.role !== 'super_admin' && tenant.role !== 'branch_admin')) return;
+    if (!tenant || !['super_admin', 'university_admin', 'branch_admin'].includes(tenant.role)) return;
     getPeople(tenant)
       .then((people) => { if (alive) setPendingPeople(people.filter((p) => p.status === 'pending_verification' || p.status === 'invited').length); })
       .catch(() => {});
@@ -290,12 +290,13 @@ export function StaffHome() {
       sheet: loadingOrError ?? (reviewRows.length ? renderRows(reviewRows) : (
         <EmptyState compact illustration="inbox" title="Nothing to review">New submissions for today’s plans will appear here.</EmptyState>
       )) },
-    ...(role === 'super_admin' || role === 'branch_admin' ? [{ label: 'People', art: 'people' as const, href: '/dashboard/people', badge: pendingPeople, badgeLabel: 'accounts waiting for approval' }] : []),
+    ...(role === 'super_admin' || role === 'university_admin' || role === 'branch_admin' ? [{ label: 'People', art: 'people' as const, href: '/dashboard/people', badge: pendingPeople, badgeLabel: 'accounts waiting for approval' }] : []),
     ...(isAcademyAdmin ? [{ label: 'Branches', art: 'branch' as const, href: '/dashboard/branches' }] : []),
     { label: 'Analytics', art: 'chart', href: '/dashboard/analytics' },
     { label: 'Course Authoring', art: 'pen', href: '/dashboard/courses' },
     { label: 'Live Books', art: 'preview', href: '/courses' },
     ...(role === 'super_admin' ? [{ label: 'Organizations', art: 'building' as const, href: '/dashboard/organizations' }] : []),
+    ...(isAcademyAdmin ? [{ label: 'Audit Log', art: 'review' as const, href: '/dashboard/audit' }] : []),
     { label: 'User Guide', art: 'guide', href: '/dashboard/guide' },
     { label: 'My Profile', art: 'profile', href: '/dashboard/profile' },
     helpTile,

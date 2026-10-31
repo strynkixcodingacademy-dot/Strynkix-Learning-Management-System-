@@ -10,9 +10,11 @@
 import React, { Suspense, use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { RequireAuth } from '@/components/auth/RouteGuards';
+import { useAuth } from '@/context/AuthContext';
 import { headingAnchor, LessonBlockRenderer } from '@/components/livebook/LessonBlockRenderer';
 import { LessonNavigation } from '@/components/livebook/LessonNavigation';
 import { QuizTime } from '@/components/livebook/QuizTime';
+import { LessonActivities } from '@/components/assessments/LessonActivities';
 import { useLiveBook } from '@/components/livebook/useLiveBook';
 import { getAdjacentLessons } from '@/lib/livebook/curriculum';
 import { submitQuizAttempt } from '@/lib/livebook/service';
@@ -59,6 +61,7 @@ function useReadingProgress(anchorIds: string[]) {
 }
 
 function ReaderView({ courseId, lessonId }: { courseId: string; lessonId: string }) {
+  const { user } = useAuth();
   const book = useLiveBook(courseId, lessonId, { recordVisit: true });
   const { course, modules, lessons, lesson, progress, batchId, loading, error, markCompleted, refreshProgress } = book;
   const blocks = lesson ? readingBlocks(lesson) : [];
@@ -137,6 +140,8 @@ function ReaderView({ courseId, lessonId }: { courseId: string; lessonId: string
           )}
         </article>
 
+        {batchId && <LessonActivities courseId={courseId} lessonId={lesson.id} />}
+
         <hr className="my-14 border-line" />
 
         {questions.length > 0 ? (
@@ -146,6 +151,7 @@ function ReaderView({ courseId, lessonId }: { courseId: string; lessonId: string
               isCompleted={isCompleted}
               canTrackProgress={Boolean(batchId)}
               bestPercent={lessonProgress?.quiz?.bestPercent ?? null}
+              draftKey={user ? `lb-quiz-draft:${user.uid}:${lesson.id}:${lesson.publishedVersion ?? 0}` : undefined}
               onSubmit={async (answers) => {
                 const result = await submitQuizAttempt(courseId, lesson.id, answers, lesson.publishedVersion ?? null);
                 // The server already saved the attempt; a failed refresh only delays the tick.

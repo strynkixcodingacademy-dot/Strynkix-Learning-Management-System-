@@ -27,7 +27,6 @@ export function getRoleDefaultRedirect(role?: UserRole): string {
  */
 export function safeRedirectPath(param: string | null | undefined): string | null {
   if (!param || !param.startsWith('/') || param.startsWith('//') || param.includes('\\')) return null;
-  // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f]/.test(param)) return null;
   try {
     const base = 'https://strynkix.invalid';

@@ -52,6 +52,9 @@ export const LESSON_REVIEWABLE_WRITE: CourseDesignResponsibility[] = [...LESSON_
 
 export const reviewStateOf = (t: Pick<ReviewTarget, 'review'>): ReviewState => t.review?.state ?? 'none';
 
+/** Content is locked while in review or approved (mirrors isContentFrozen in firestore.rules). */
+export const isContentFrozen = (t: Pick<ReviewTarget, 'review'>): boolean => ['in_review', 'approved'].includes(reviewStateOf(t));
+
 const isActive = (a: ReviewActor | null): a is ReviewActor => Boolean(a) && (a!.status ?? 'active') === 'active';
 
 /**

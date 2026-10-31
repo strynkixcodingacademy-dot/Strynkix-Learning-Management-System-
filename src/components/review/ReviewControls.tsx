@@ -13,7 +13,7 @@ import { Archive, CheckCircle2, CircleDot, History, MessageSquareWarning, Pencil
 import { useAuth } from '@/context/AuthContext';
 import { AuditEntry, ContentAction, Course, UserProfile } from '@/types/domain';
 import { MIN_REASON_LENGTH } from '@/types/validation';
-import { ReviewError, ReviewTarget, planContentAction, reviewStateOf } from '@/lib/review/workflow';
+import { isContentFrozen, ReviewError, ReviewTarget, planContentAction, reviewStateOf } from '@/lib/review/workflow';
 import { getContentHistory, performContentAction } from '@/lib/courses/service';
 import { ApiError } from '@/lib/api/authed';
 import { Button } from '@/components/ui/Button';
@@ -51,10 +51,7 @@ function lifecycle(target: ReviewTarget): { label: string; tone: Tone; icon: typ
 }
 
 /** True when content can't be edited until it is reopened (mirrors firestore.rules). */
-export function isFrozenForReview(target: Pick<ReviewTarget, 'review'>): boolean {
-  const s = reviewStateOf(target);
-  return s === 'in_review' || s === 'approved';
-}
+export const isFrozenForReview = isContentFrozen;
 
 export function ReviewControls({
   target,

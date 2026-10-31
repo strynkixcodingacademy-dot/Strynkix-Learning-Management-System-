@@ -18,6 +18,7 @@ import { Notice } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { Avatar } from '@/components/ui/DataViz';
 import { sendOwnPasswordReset, updateOwnProfile, validateOwnProfile } from '@/lib/account/service';
+import { ChangeEmailForm, ChangePasswordForm } from '@/components/account/SecurityForms';
 import { BadgeCheck, Building2, KeyRound, LifeBuoy, Mail, MapPin, Save, ShieldCheck } from 'lucide-react';
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }) {
@@ -138,7 +139,7 @@ export default function ProfilePage() {
                     <input id="phoneNumber" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210" className={fieldClasses} />
                   </Field>
                 </div>
-                <Field label="Email address" htmlFor="email" hint="Your sign-in email is managed by your administrator.">
+                <Field label="Email address" htmlFor="email" hint="Change it under “Sign-in email” on this page.">
                   <input id="email" value={profile.email} disabled className={fieldClasses} />
                 </Field>
                 {message && <Notice kind={message.kind}>{message.text}</Notice>}
@@ -162,8 +163,10 @@ export default function ProfilePage() {
 
             <Card className="p-5">
               <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-ink"><KeyRound className="h-4 w-4 text-brand" /> Password</h2>
-              <p className="mt-1 text-sm text-ink-3">We’ll email a secure link to {profile.email} so you can choose a new password.</p>
-              <div className="mt-4">
+              <p className="mt-1 text-sm text-ink-3">Change it here with your current password.</p>
+              <ChangePasswordForm />
+              <p className="mt-5 text-sm text-ink-3">Forgot it? We’ll email a secure link to {profile.email}.</p>
+              <div className="mt-3">
                 {resetState === 'sent' ? (
                   <Notice kind="success">Reset link sent. Check your inbox (and spam folder).</Notice>
                 ) : resetState === 'error' ? (
@@ -175,8 +178,14 @@ export default function ProfilePage() {
             </Card>
 
             <Card className="p-5">
+              <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-ink"><Mail className="h-4 w-4 text-brand" /> Sign-in email</h2>
+              <p className="mt-1 text-sm text-ink-3">You sign in with {profile.email}. We confirm a new address by email before switching.</p>
+              <ChangeEmailForm currentEmail={profile.email} />
+            </Card>
+
+            <Card className="p-5">
               <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-ink"><LifeBuoy className="h-4 w-4 text-brand" /> Need a change?</h2>
-              <p className="mt-1 text-sm text-ink-3">Your role, branch and email are set by your administrators. Ask your branch manager or the academy’s Super Admin.</p>
+              <p className="mt-1 text-sm text-ink-3">Your role and branch are set by your administrators. Ask your branch manager or your academy administrator.</p>
               <Link href="/dashboard/guide#profile" className="mt-3 inline-block text-sm font-bold text-brand-ink hover:underline">Read the profile guide</Link>
             </Card>
           </div>

@@ -24,6 +24,7 @@ import { ALL_COURSES, buildMembership, validateMembershipAssignment, validateMem
 import { validateUserProfile } from '@/lib/auth/profile';
 import { ReviewError } from '@/lib/review/workflow';
 import { verifyCaller } from '@/lib/server/content-route';
+import { notify } from '@/lib/server/notifications';
 
 const membershipRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('assign'), userId: idSchema, membership: courseDesignInputSchema }).strict(),
@@ -87,6 +88,13 @@ export async function manageCourseDesignMembership(services: { db: Firestore; au
       ...(req.action === 'revoke' && req.reason ? { reason: req.reason } : {}),
       at: FieldValue.serverTimestamp(),
     });
+    notify(tx, db, {
+      orgId: target!.orgId, userId: req.userId, sourceId: req.userId,
+      type: req.action === 'revoke' ? 'membership_revoked' : target!.courseDesign ? 'membership_changed' : 'membership_granted',
+      title: req.action === 'revoke' ? 'Your Course Design access was removed' : target!.courseDesign ? 'Your Course Design access changed' : 'You joined the Course Design team',
+      body: req.action === 'revoke' ? 'You can no longer edit course content. Ask the Super Admin if this is unexpected.' : 'Open Course Authoring to see the courses in your scope.',
+      link: req.action === 'revoke' ? undefined : '/dashboard/courses',
+    });
     return { userId: req.userId, courseDesign: next, auditId: auditRef.id };
   });
 }
@@ -143,6 +151,13 @@ export async function changeAccountStatus(services: { db: Firestore; auth: Auth 
       ...(reason ? { reason } : {}),
       at: FieldValue.serverTimestamp(),
     });
+    if (action === 'approve' || action === 'reactivate') {
+      notify(tx, db, {
+        orgId: target.orgId, userId, type: 'account_activated', sourceId: userId,
+        title: action === 'approve' ? 'Your account is approved' : 'Your account is active again',
+        body: 'You can use everything your role allows.', link: '/dashboard',
+      });
+    }
     return { userId, status: t.to, membershipRevoked: revokeMembership, auditId: auditRef.id };
   });
 

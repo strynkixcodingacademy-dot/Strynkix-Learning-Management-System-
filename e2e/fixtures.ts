@@ -28,6 +28,10 @@ export const USERS = {
   stuB: { uid: 'e2e_stu_b', role: 'student', branchId: 'e2e_branch_b', orgId: 'e2e_org_b' },
   suspended: { uid: 'e2e_suspended', role: 'student', branchId: 'e2e_branch', status: 'suspended' },
   noProfile: { uid: 'e2e_noprofile', role: null },
+  // LMS completion milestone journeys.
+  assessor: { uid: 'e2e_assessor', role: 'content_designer', courseDesign: ['assessment_designer'], scope: ['e2e_dcourse'] },
+  stuFree: { uid: 'e2e_stu_free', role: 'student', branchId: 'e2e_branch' },
+  pwUser: { uid: 'e2e_pw', role: 'student', branchId: 'e2e_branch' },
 } as const;
 export type FixtureUser = keyof typeof USERS;
 export const emailOf = (u: FixtureUser) => `${USERS[u].uid}@e2e.test`;
@@ -65,12 +69,12 @@ export async function resetData() {
   await put('branches/e2e_branch_b', { id: 'e2e_branch_b', orgId: 'e2e_org_b', name: 'Other Branch', code: 'OTH', status: 'active', createdAt: NOW, updatedAt: NOW });
 
   for (const key of Object.keys(USERS) as FixtureUser[]) {
-    const u = USERS[key] as { uid: string; role: string | null; branchId?: string; orgId?: string; status?: string; courseDesign?: string[] };
+    const u = USERS[key] as { uid: string; role: string | null; branchId?: string; orgId?: string; status?: string; courseDesign?: string[]; scope?: string[] };
     if (!u.role) continue; // unprovisioned: login exists, profile doesn't
     await put(`users/${u.uid}`, {
       id: u.uid, email: emailOf(key), displayName: `E2E ${key}`, role: u.role, orgId: u.orgId ?? 'e2e_org', status: u.status ?? 'active',
       ...(u.branchId ? { branchId: u.branchId } : {}),
-      ...(u.courseDesign ? { courseDesign: { department: 'course_design', responsibilities: u.courseDesign, assignedCourseIds: ['e2e_course'], assignedAt: NOW, assignedByUserId: 'e2e_super' } } : {}),
+      ...(u.courseDesign ? { courseDesign: { department: 'course_design', responsibilities: u.courseDesign, assignedCourseIds: u.scope ?? ['e2e_course'], assignedAt: NOW, assignedByUserId: 'e2e_super' } } : {}),
       createdAt: NOW, updatedAt: NOW,
     });
   }
@@ -100,6 +104,20 @@ export async function resetData() {
   await lesson('e2e_plain', 'E2E Reading Lesson', 3, []);
   await lesson('e2e_draft', 'E2E Draft Lesson', 4, [], { status: 'draft' });
 
+  // A draft course for course maintenance and assessment-only journeys.
+  await course('e2e_dcourse', 'E2E Draft Course', 'draft');
+  await put('modules/e2e_dmod_a', { id: 'e2e_dmod_a', orgId: 'e2e_org', courseId: 'e2e_dcourse', title: 'First Module', slug: 'a', summary: '', orderIndex: 1, status: 'published', createdAt: NOW, updatedAt: NOW });
+  await put('modules/e2e_dmod_b', { id: 'e2e_dmod_b', orgId: 'e2e_org', courseId: 'e2e_dcourse', title: 'Second Module', slug: 'b', summary: '', orderIndex: 2, status: 'published', createdAt: NOW, updatedAt: NOW });
+  await put('lessons/e2e_dlesson', {
+    id: 'e2e_dlesson', orgId: 'e2e_org', courseId: 'e2e_dcourse', moduleId: 'e2e_dmod_a', title: 'E2E Assessment Lesson', slug: 'dl', type: 'concept', orderIndex: 1,
+    estimatedMinutes: 10, status: 'draft', lastEditedById: 'e2e_inst', createdAt: NOW, updatedAt: NOW,
+    blocks: [{ id: 't1', type: 'text', content: 'Assessment lesson reading content.' }, quiz('q1', 'Which option is right in the draft?')],
+  });
+  await put('lessons/e2e_dlesson/answerKey/current', {
+    orgId: 'e2e_org', courseId: 'e2e_dcourse', lessonId: 'e2e_dlesson', keyVersion: 1, release: 'after_pass',
+    items: [{ blockId: 'q1', correctOptionId: 'opt_a', explanation: 'Option A is right because the draft says so.' }], updatedById: 'e2e_inst', updatedAt: NOW,
+  });
+
   await put('batches/e2e_batch', {
     id: 'e2e_batch', orgId: 'e2e_org', branchId: 'e2e_branch', courseId: 'e2e_course', name: 'E2E Batch', code: 'E2E-B',
     instructorUserIds: ['e2e_inst'], instructorNames: ['E2E inst'], startDate: NOW, endDate: '2027-04-30T00:00:00.000Z', maxStudents: 30,
@@ -107,7 +125,7 @@ export async function resetData() {
   });
   await put('enrollments/e2e_course_e2e_stu', {
     id: 'e2e_course_e2e_stu', orgId: 'e2e_org', branchId: 'e2e_branch', courseId: 'e2e_course', batchId: 'e2e_batch', studentId: 'e2e_stu',
-    status: 'active', enrolledAt: NOW, enrolledById: 'e2e_ba', studentName: 'E2E stu', studentEmail: emailOf('stu'), createdAt: NOW, updatedAt: NOW,
+    status: 'active', enrolledAt: NOW, enrolledById: 'e2e_ba', studentDisplayName: 'E2E stu', studentEmail: emailOf('stu'), createdAt: NOW, updatedAt: NOW,
   });
 }
 

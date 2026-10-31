@@ -168,9 +168,10 @@ describe('C1 — managing answer keys', () => {
     }
   });
 
-  it('instructors and branch admins create and update keys of drafts, bumping keyVersion each time', async () => {
-    await assertSucceeds(setDoc(doc(as('inst'), 'lessons/l_plain_d/answerKey/current'), key('l_plain_d', 'c_pub', { updatedById: 'inst' })));
-    await assertSucceeds(setDoc(doc(as('ba'), 'lessons/l_quiz_d/answerKey/current'), key('l_quiz_d', 'c_pub', { keyVersion: 2, updatedById: 'ba' })));
+  // Milestone G50: answer keys are written only by audited server routes (tests/emulator/lesson-content.emulator.test.ts).
+  it('even instructors and branch admins no longer create or update draft keys with client writes', async () => {
+    await assertFails(setDoc(doc(as('inst'), 'lessons/l_plain_d/answerKey/current'), key('l_plain_d', 'c_pub', { updatedById: 'inst' })));
+    await assertFails(setDoc(doc(as('ba'), 'lessons/l_quiz_d/answerKey/current'), key('l_quiz_d', 'c_pub', { keyVersion: 2, updatedById: 'ba' })));
   });
 
   it('a key update must bump keyVersion by exactly one and keep org and course', async () => {
@@ -194,9 +195,9 @@ describe('C1 — managing answer keys', () => {
     await assertFails(setDoc(target, key('l_plain_d', 'c1', { updatedById: 'inst' })));
   });
 
-  it('content developers and assessment designers manage in-scope draft keys only; reviewers never write', async () => {
-    await assertSucceeds(setDoc(doc(as('designer_c1'), DRAFT_KEY), key('l_draft', 'c1', { keyVersion: 2, updatedById: 'designer_c1' })));
-    await assertSucceeds(setDoc(doc(as('assess_c1'), DRAFT_KEY), key('l_draft', 'c1', { keyVersion: 3, updatedById: 'assess_c1' })));
+  it('no Course Design member writes keys with client writes (server routes only); reviewers never write', async () => {
+    await assertFails(setDoc(doc(as('designer_c1'), DRAFT_KEY), key('l_draft', 'c1', { keyVersion: 2, updatedById: 'designer_c1' })));
+    await assertFails(setDoc(doc(as('assess_c1'), DRAFT_KEY), key('l_draft', 'c1', { keyVersion: 2, updatedById: 'assess_c1' })));
     await assertFails(setDoc(doc(as('reviewer_c1'), DRAFT_KEY), key('l_draft', 'c1', { keyVersion: 4, updatedById: 'reviewer_c1' })));
     // In scope but the course is published: no changes outside the draft stage.
     await assertFails(setDoc(doc(as('designer_pub'), KEY), key('l_quiz', 'c_pub', { keyVersion: 2, updatedById: 'designer_pub' })));
@@ -208,7 +209,8 @@ describe('C1 — managing answer keys', () => {
     await assertSucceeds(testEnv.authenticatedContext('super').firestore().doc(KEY).delete());
   });
 
-  it('Block Studio save path: stripped lesson blocks and the key commit together in one batch', async () => {
+  // Milestone G50: the Block Studio saves through POST /api/content/lesson; the old client batch is refused.
+  it('the old client Block Studio batch (lesson + key) is refused as a whole', async () => {
     const db = as('inst');
     const batch = writeBatch(db);
     batch.update(doc(db, 'lessons/l_draft'), { blocks: [question('q1'), question('q2')], lastEditedById: 'inst', updatedAt: NOW });
@@ -216,7 +218,7 @@ describe('C1 — managing answer keys', () => {
       keyVersion: 2, updatedById: 'inst',
       items: [{ blockId: 'q1', correctOptionId: 'a', explanation: 'Because A.' }, { blockId: 'q2', correctOptionId: 'b', explanation: 'Because B.' }],
     }));
-    await assertSucceeds(batch.commit());
+    await assertFails(batch.commit());
   });
 
   it('a batch with an invalid key rolls back the lesson update too', async () => {

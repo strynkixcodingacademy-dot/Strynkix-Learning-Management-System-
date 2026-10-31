@@ -8,7 +8,7 @@
 import React from 'react';
 import { LessonBlock } from '@/types/domain';
 import { lessonBlockSchema } from '@/types/validation';
-import { AlertTriangle, PlayCircle } from 'lucide-react';
+import { AlertTriangle, Download, ExternalLink, FileText, PlayCircle } from 'lucide-react';
 import { youtubeEmbedUrl } from '@/lib/livebook/video';
 import { CodeBlockView } from './CodeBlockView';
 import { QuizBlockView } from './QuizBlockView';
@@ -131,6 +131,33 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
             <span className="font-semibold text-ink-2">{validBlock.title}</span>
             {validBlock.caption && <span>· {validBlock.caption}</span>}
           </figcaption>
+        </figure>
+      );
+    }
+
+    case 'document': {
+      // PDFs are previewed inline (the browser's own viewer); other documents open in a new tab.
+      const KIND = { pdf: 'PDF', slides: 'Slides', document: 'Document', other: 'File' } as const;
+      return (
+        <figure className="my-8 overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+          <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-coral-soft text-coral-ink"><FileText className="h-4 w-4" aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-semibold text-ink">{validBlock.title}</div>
+              <div className="text-xs text-ink-3">{KIND[validBlock.kind]}{validBlock.description ? ` · ${validBlock.description}` : ''}</div>
+            </div>
+            <a href={validBlock.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-semibold text-ink-2 hover:bg-surface-muted">
+              <ExternalLink className="h-4 w-4" aria-hidden="true" /> Open<span className="sr-only"> {validBlock.title} (opens in a new tab)</span>
+            </a>
+            {validBlock.allowDownload && (
+              <a href={validBlock.url} download className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90">
+                <Download className="h-4 w-4" aria-hidden="true" /> Download
+              </a>
+            )}
+          </div>
+          {validBlock.kind === 'pdf' && (
+            <iframe src={validBlock.url} title={validBlock.title} loading="lazy" referrerPolicy="no-referrer" className="h-[70vh] w-full bg-surface-sunken" />
+          )}
         </figure>
       );
     }

@@ -5,6 +5,7 @@
  * Lists the batch's plans and creates a new draft plan for a chosen date.
  */
 
+import { Breadcrumbs } from '@/components/ui/Page';
 import React, { Suspense, use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -112,6 +113,7 @@ function PlansView({ batchId }: { batchId: string }) {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Batches', href: '/dashboard/batches' }, { label: batch.name, href: `/dashboard/batches/${batch.id}` }, { label: 'Daily plans' }]} />
       <Link href={`/dashboard/batches/${batch.id}`} className="inline-flex items-center gap-2 text-xs text-ink-3 hover:text-ink">
         <ArrowLeft className="w-4 h-4" /> {batch.name}
       </Link>

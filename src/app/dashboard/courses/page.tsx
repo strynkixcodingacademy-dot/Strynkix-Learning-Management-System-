@@ -6,7 +6,8 @@
  * and publish courses within their permitted organization scope.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { ReviewControls } from '@/components/review/ReviewControls';
@@ -14,11 +15,11 @@ import { courseReviewTarget } from '@/lib/review/workflow';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
 import {
-  getAdminCourses,
+  getCoursesPage,
   getCourseDesignCourses,
   createCourse,
 } from '@/lib/courses/service';
-import { Course, CourseLevel } from '@/types/domain';
+import { Course, CourseLevel, EntityStatus } from '@/types/domain';
 import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
 import {
   BookOpen,
@@ -54,17 +55,46 @@ export default function CourseAuthoringPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Pagination (milestone G14): one Firestore page at a time, status filter in the query.
+  const [cursor, setCursor] = useState<QueryDocumentSnapshot | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Course Design members with an explicit course list read just those courses (bounded, unpaged).
+  const explicitScope = tenant ? isContentRole(tenant.role) && profile?.courseDesign?.assignedCourseIds?.[0] !== '*' : false;
+
+  const loadCourses = useCallback(async (after: QueryDocumentSnapshot | null) => {
+    if (!tenant?.orgId) return { courses: [] as Course[], cursor: null, hasMore: false };
+    if (explicitScope) return { courses: await getCourseDesignCourses(profile ?? { orgId: tenant.orgId }), cursor: null, hasMore: false };
+    return getCoursesPage({
+      orgId: tenant.role === 'super_admin' ? undefined : tenant.orgId,
+      status: statusFilter === 'all' ? undefined : (statusFilter as EntityStatus),
+      after,
+    });
+  }, [tenant, profile, explicitScope, statusFilter]);
+
   const refreshCourses = async () => {
-    if (!tenant?.orgId) return;
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const isSuper = tenant.role === 'super_admin';
-      const loaded = isContentRole(tenant.role)
-        ? await getCourseDesignCourses(profile ?? { orgId: tenant.orgId })
-        : await getAdminCourses(isSuper ? undefined : tenant.orgId);
-      setCourses(loaded);
+      const page = await loadCourses(null);
+      setCourses(page.courses);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const page = await loadCourses(cursor);
+      setCourses((list) => [...list, ...page.courses]);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+    } catch {
+      setError('More courses couldn’t be loaded. Try again.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -78,12 +108,11 @@ export default function CourseAuthoringPage() {
         return;
       }
       try {
-        const isSuper = tenant.role === 'super_admin';
-        const loaded = isContentRole(tenant.role)
-          ? await getCourseDesignCourses(profile ?? { orgId: tenant.orgId })
-          : await getAdminCourses(isSuper ? undefined : tenant.orgId);
+        const page = await loadCourses(null);
         if (isMounted) {
-          setCourses(loaded);
+          setCourses(page.courses);
+          setCursor(page.cursor);
+          setHasMore(page.hasMore);
           setError(null);
           setIsLoading(false);
         }
@@ -100,7 +129,7 @@ export default function CourseAuthoringPage() {
     return () => {
       isMounted = false;
     };
-  }, [tenant?.orgId, tenant?.role, profile]);
+  }, [tenant?.orgId, tenant?.role, loadCourses]);
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
@@ -313,6 +342,15 @@ export default function CourseAuthoringPage() {
                 </div>
               );
             })}
+            </div>
+          )}
+
+          {!isLoading && hasMore && (
+            <div className="flex justify-center">
+              <button type="button" onClick={loadMore} disabled={loadingMore}
+                className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-muted disabled:opacity-60">
+                {loadingMore ? 'Loading…' : 'Load more courses'}
+              </button>
             </div>
           )}
 

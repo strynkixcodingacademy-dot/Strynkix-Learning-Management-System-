@@ -6,6 +6,7 @@
  * Schedule, Assignments and About.
  */
 
+import { Breadcrumbs } from '@/components/ui/Page';
 import React, { useEffect, useMemo, useState, use, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -173,6 +174,7 @@ function CourseDetailView({ courseId }: { courseId: string }) {
   return (
     <LiveBooksFrame>
       <div className="h-full overflow-y-auto px-5 py-8 sm:px-12 sm:py-10">
+        <div className="mb-4"><Breadcrumbs items={[{ label: 'Live Books', href: '/courses' }, { label: course.title }]} /></div>
         {/* Course header */}
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
           <CourseIcon course={course} size="lg" />

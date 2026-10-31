@@ -5,6 +5,7 @@
  * right the lesson's three ways in: read the Lesson, Revision Notes, and Quiz.
  */
 
+import { Breadcrumbs } from '@/components/ui/Page';
 import React, { Suspense, use, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/dashboard/AppShell';
@@ -72,6 +73,7 @@ function UnitView({ courseId, lessonId }: { courseId: string; lessonId: string }
       </aside>
 
       <section className="min-w-0 overflow-y-auto px-5 py-8 sm:px-12 sm:py-12">
+        <div className="mb-4"><Breadcrumbs items={[{ label: 'Live Books', href: '/courses' }, { label: course.title, href: `/courses/${courseId}` }, { label: lesson.title }]} /></div>
         <div className="flex items-start gap-4 border-b border-line pb-6">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-sm font-semibold text-ink-2 shadow-card">{number}</span>
           <div className="min-w-0 flex-1">

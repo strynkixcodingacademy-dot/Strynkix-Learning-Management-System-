@@ -70,8 +70,9 @@ describe('C5 — membership changes only through the server', () => {
   it('membership cannot survive a change to an ineligible role', async () => {
     await assertFails(updateDoc(doc(as('uni'), 'users/inst_member'), { role: 'student' }));
     await assertFails(updateDoc(doc(as('ba'), 'users/inst_member'), { role: 'student' }));
-    // Positive control: the same change for an instructor without membership still works.
-    await assertSucceeds(updateDoc(doc(as('uni'), 'users/inst'), { role: 'student' }));
+    // Milestone G40: role changes go through the audited POST /api/admin/account-profile
+    // (tests/emulator/milestone-admin.emulator.test.ts), so even a member-free change is refused for clients.
+    await assertFails(updateDoc(doc(as('uni'), 'users/inst'), { role: 'student' }));
   });
 });
 

@@ -122,10 +122,11 @@ describe('C2 — content is frozen while in review or approved', () => {
     }
   });
 
-  it('positive control: drafts and changes-requested content are editable, keys included', async () => {
+  it('positive control: drafts and changes-requested content are editable (keys only through the server)', async () => {
     await assertSucceeds(updateDoc(doc(as('author'), 'lessons/l_changes'), { title: 'Fixed', lastEditedById: 'author' }));
-    await assertSucceeds(setDoc(doc(as('inst'), 'lessons/l_changes/answerKey/current'), key('l_changes', 2, 'inst')));
-    await assertSucceeds(setDoc(doc(as('inst'), 'lessons/l_draft/answerKey/current'), key('l_draft', 2, 'inst')));
+    // Milestone G50: answer keys are written only by audited server routes (tests/emulator/lesson-content.emulator.test.ts).
+    await assertFails(setDoc(doc(as('inst'), 'lessons/l_changes/answerKey/current'), key('l_changes', 2, 'inst')));
+    await assertFails(setDoc(doc(as('inst'), 'lessons/l_draft/answerKey/current'), key('l_draft', 2, 'inst')));
   });
 
   // Stage C3: published lessons are immutable; changes go through a working revision.

@@ -37,6 +37,13 @@ export function resolveAdminProjectId(env: NodeJS.ProcessEnv = process.env): str
   return projectId;
 }
 
+/** Names (never values) of the Admin variables a non-emulator server still needs. */
+export const ADMIN_VARIABLES = ['FIREBASE_ADMIN_PROJECT_ID', 'FIREBASE_ADMIN_CLIENT_EMAIL', 'FIREBASE_ADMIN_PRIVATE_KEY'] as const;
+/** The project id may fall back to NEXT_PUBLIC_FIREBASE_PROJECT_ID; the two credentials may not. */
+export function missingAdminVariables(env: NodeJS.ProcessEnv = process.env): string[] {
+  return ADMIN_VARIABLES.filter((name) => !env[name] && (name !== 'FIREBASE_ADMIN_PROJECT_ID' || !env.NEXT_PUBLIC_FIREBASE_PROJECT_ID));
+}
+
 /** Throws before any connection is made if the configuration is unsafe. */
 export function assertSafeAdminConfig(env: NodeJS.ProcessEnv = process.env): { projectId: string; emulator: boolean } {
   const projectId = resolveAdminProjectId(env);
@@ -47,8 +54,9 @@ export function assertSafeAdminConfig(env: NodeJS.ProcessEnv = process.env): { p
   if (!emulator && projectId === PRODUCTION_PROJECT_ID && env.ALLOW_PRODUCTION_ADMIN !== 'true') {
     throw new AdminConfigError('Server-side Admin access to the production project is not enabled.');
   }
-  if (!emulator && (!env.FIREBASE_ADMIN_CLIENT_EMAIL || !env.FIREBASE_ADMIN_PRIVATE_KEY)) {
-    throw new AdminConfigError('Server Firebase credentials are not configured.');
+  if (!emulator) {
+    const missing = missingAdminVariables(env);
+    if (missing.length) throw new AdminConfigError(`Server Firebase credentials are not configured: set ${missing.join(', ')} (see docs/STAGING_READINESS.md §13).`);
   }
   return { projectId, emulator };
 }

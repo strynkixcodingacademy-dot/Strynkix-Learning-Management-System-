@@ -19,13 +19,16 @@ import { Card, PageHeader, fieldClasses } from '@/components/ui/Page';
 import { EmptyState, ErrorState, LoadingState, Notice } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { Tone, cx } from '@/components/ui/tones';
-import { changePersonStatus, getPeople, getScopeEnrollments, StatusAction, statusActionFor } from '@/lib/account/service';
+import { changePersonStatus, countPeople, getEnrollmentsForStudents, getPeoplePage, StatusAction, statusActionFor } from '@/lib/account/service';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import { getBatchesForTenant } from '@/lib/batches/service';
 import { getBranches } from '@/lib/admin/service';
 import { grantsContentAccess } from '@/lib/batches/scope';
 import { Batch, Branch, Enrollment, UserProfile, UserStatus } from '@/types/domain';
 import { CircleCheck, CirclePause, Clock3, GraduationCap, PenTool, Search, UserPlus, Users, UserX } from 'lucide-react';
 import { ContentMemberDialog } from '@/components/people/ContentMemberDialog';
+import { AccountEditDialog } from '@/components/people/AccountEditDialog';
+import { canCorrectAccount } from '@/lib/admin/account-authority';
 import { CourseDesignMembershipDialog } from '@/components/people/CourseDesignMembershipDialog';
 import { isEligibleForCourseDesign, hasOrgWideScope } from '@/lib/admin/course-design';
 
@@ -46,10 +49,9 @@ const ACTION_LOOK: Record<StatusAction, { label: string; confirm: string; body: 
   reactivate: { label: 'Reactivate', confirm: 'Reactivate account', body: 'They regain access with everything their role allows.' },
 };
 
-const isPending = (s: UserStatus) => s === 'pending_verification' || s === 'invited';
 
 export default function PeoplePage() {
-  const { user, tenant } = useAuth();
+  const { user, tenant, profile } = useAuth();
   const { confirm, dialog } = useConfirm();
   const [people, setPeople] = useState<UserProfile[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -65,22 +67,35 @@ export default function PeoplePage() {
   const [q, setQ] = useState('');
   const [showContentForm, setShowContentForm] = useState(false);
   const [membershipFor, setMembershipFor] = useState<UserProfile | null>(null);
+  const [editingAccount, setEditingAccount] = useState<UserProfile | null>(null);
 
-  const canManage = tenant?.role === 'super_admin' || tenant?.role === 'branch_admin';
+  const canManage = tenant?.role === 'super_admin' || tenant?.role === 'university_admin' || tenant?.role === 'branch_admin';
+
+  // Pagination (milestone G14): role and status filters and full-email search run in
+  // Firestore; a partial name filters the people already loaded.
+  const [cursor, setCursor] = useState<QueryDocumentSnapshot | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [counts, setCounts] = useState({ students: 0, instructors: 0, pending: 0, suspended: 0 });
+  const emailSearch = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q.trim()) ? q.trim().toLowerCase() : undefined;
 
   useEffect(() => {
     let alive = true;
     async function load() {
       if (!tenant || !user || !canManage) return;
       try {
-        const [p, e, b, br] = await Promise.all([
-          getPeople(tenant),
-          getScopeEnrollments(tenant).catch(() => []),
+        const [page, c, b, br] = await Promise.all([
+          getPeoplePage(tenant, { role: roleFilter, status: statusFilter, email: emailSearch }, null),
+          countPeople(tenant).catch(() => null),
           getBatchesForTenant(tenant, user.uid).catch(() => []),
-          tenant.role === 'super_admin' ? getBranches(tenant.orgId).catch(() => []) : Promise.resolve([]),
+          tenant.role === 'super_admin' || tenant.role === 'university_admin' ? getBranches(tenant.orgId).catch(() => []) : Promise.resolve([]),
         ]);
+        const e = await getEnrollmentsForStudents(tenant, page.people.filter((x) => x.role === 'student').map((x) => x.id)).catch(() => []);
         if (!alive) return;
-        setPeople(p.filter((x) => x.role !== 'super_admin' && x.role !== 'university_admin'));
+        setPeople(page.people);
+        setCursor(page.cursor);
+        setHasMore(page.hasMore);
+        if (c) setCounts(c);
         setEnrollments(e);
         setBatches(b);
         setBranches(br);
@@ -96,7 +111,24 @@ export default function PeoplePage() {
     return () => {
       alive = false;
     };
-  }, [tenant, user, canManage, reloadKey]);
+  }, [tenant, user, canManage, reloadKey, roleFilter, statusFilter, emailSearch]);
+
+  const loadMore = async () => {
+    if (!tenant || !cursor) return;
+    setLoadingMore(true);
+    try {
+      const page = await getPeoplePage(tenant, { role: roleFilter, status: statusFilter, email: emailSearch }, cursor);
+      const e = await getEnrollmentsForStudents(tenant, page.people.filter((x) => x.role === 'student').map((x) => x.id)).catch(() => []);
+      setPeople((list) => [...list, ...page.people]);
+      setEnrollments((list) => [...list, ...e]);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+    } catch {
+      setNotice({ kind: 'error', text: 'More people couldn’t be loaded. Try again.' });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const batchById = useMemo(() => new Map(batches.map((b) => [b.id, b])), [batches]);
   const branchName = useMemo(() => new Map(branches.map((b) => [b.id, b.name])), [branches]);
@@ -110,22 +142,10 @@ export default function PeoplePage() {
     return [];
   };
 
-  const filtered = people.filter((p) => {
-    if (roleFilter === 'content' ? !isContent(p.role) : roleFilter !== 'all' && p.role !== roleFilter) return false;
-    if (statusFilter === 'active' && p.status !== 'active') return false;
-    if (statusFilter === 'pending' && !isPending(p.status)) return false;
-    if (statusFilter === 'suspended' && p.status !== 'suspended') return false;
-    const needle = q.trim().toLowerCase();
-    return !needle || `${p.displayName} ${p.email}`.toLowerCase().includes(needle);
-  });
-
-  const counts = {
-    students: people.filter((p) => p.role === 'student').length,
-    instructors: people.filter((p) => p.role === 'instructor').length,
-    pending: people.filter((p) => isPending(p.status)).length,
-    suspended: people.filter((p) => p.status === 'suspended').length,
-  };
-  const unassigned = people.filter((p) => p.role === 'student' && p.status === 'active' && batchesFor(p).length === 0).length;
+  // Role, status and full-email filters already ran in Firestore; a partial name narrows the loaded page.
+  const needle = emailSearch ? '' : q.trim().toLowerCase();
+  const filtered = people.filter((p) => !needle || `${p.displayName} ${p.email}`.toLowerCase().includes(needle));
+  const unassignedLoaded = people.filter((p) => p.role === 'student' && p.status === 'active' && batchesFor(p).length === 0).length;
 
   const runAction = async (person: UserProfile, action: StatusAction) => {
     const look = ACTION_LOOK[action];
@@ -149,12 +169,13 @@ export default function PeoplePage() {
     ['all', 'Everyone'],
     ['student', 'Students'],
     ['instructor', 'Instructors'],
-    ...(tenant?.role === 'super_admin' ? [['branch_admin', 'Branch managers'] as [RoleFilter, string], ['content', 'Content team'] as [RoleFilter, string]] : []),
+    ...(tenant?.role === 'super_admin' || tenant?.role === 'university_admin' ? [['branch_admin', 'Branch managers'] as [RoleFilter, string]] : []),
+    ...(tenant?.role === 'super_admin' ? [['content', 'Content team'] as [RoleFilter, string]] : []),
   ];
 
   return (
     <AppShell>
-      <RequireRole allowedRoles={['super_admin', 'branch_admin']}>
+      <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}>
         <div className="space-y-8">
           <PageHeader
             eyebrow={tenant?.role === 'branch_admin' ? 'Your branch' : 'Academy-wide'}
@@ -166,8 +187,19 @@ export default function PeoplePage() {
                   <PenTool className="h-4 w-4" /> Add content team member
                 </button>
               )}
-              <Link href="/dashboard/batches" className={buttonClasses('primary')}>
-                <UserPlus className="h-4 w-4" /> Add people from a batch
+              <Link href="/dashboard/people/search" className={buttonClasses('secondary')}>
+                <Search className="h-4 w-4" /> Find by mobile or student ID
+              </Link>
+              <Link href="/dashboard/people/onboard?role=instructor" className={buttonClasses('secondary')}>
+                <UserPlus className="h-4 w-4" /> Onboard instructor
+              </Link>
+              {tenant?.role === 'super_admin' && (
+                <Link href="/dashboard/people/onboard?role=content_designer" className={buttonClasses('secondary')}>
+                  <PenTool className="h-4 w-4" /> Onboard course designer
+                </Link>
+              )}
+              <Link href="/dashboard/admissions/new" className={buttonClasses('primary')}>
+                <UserPlus className="h-4 w-4" /> New admission
               </Link>
             </>}
           />
@@ -179,14 +211,14 @@ export default function PeoplePage() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <KpiTile label="Students" value={counts.students} icon={GraduationCap} hint={`${unassigned} active without a batch`} />
+                <KpiTile label="Students" value={counts.students} icon={GraduationCap} hint={hasMore ? `${unassignedLoaded} of those loaded have no batch` : `${unassignedLoaded} active without a batch`} />
                 <KpiTile label="Instructors" value={counts.instructors} icon={Users} tone="teal" hint="Assigned to batches as lead instructors" />
                 <KpiTile label="Pending approval" value={counts.pending} icon={Clock3} tone="warning" hint={counts.pending ? 'Waiting for you to approve' : 'Nobody is waiting'} />
                 <KpiTile label="Suspended" value={counts.suspended} icon={UserX} tone="coral" hint="No access until reactivated" />
               </div>
 
               {counts.pending > 0 && statusFilter !== 'pending' && (
-                <Notice kind="warning" action={<button type="button" onClick={() => setStatusFilter('pending')} className="text-xs font-bold text-warning-ink underline">Review now</button>}>
+                <Notice kind="warning" action={<button type="button" onClick={() => { setLoading(true); setStatusFilter('pending'); }} className="text-xs font-bold text-warning-ink underline">Review now</button>}>
                   {counts.pending} account{counts.pending === 1 ? ' is' : 's are'} waiting for approval.
                 </Notice>
               )}
@@ -196,7 +228,7 @@ export default function PeoplePage() {
                 <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
                   <div role="tablist" aria-label="Filter by role" className="flex gap-1 overflow-x-auto rounded-xl bg-surface-muted p-1">
                     {roleTabs.map(([value, label]) => (
-                      <button key={value} type="button" role="tab" aria-selected={roleFilter === value} onClick={() => setRoleFilter(value)}
+                      <button key={value} type="button" role="tab" aria-selected={roleFilter === value} onClick={() => { if (value !== roleFilter) { setLoading(true); setRoleFilter(value); } }}
                         className={cx('shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors', roleFilter === value ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink')}>
                         {label}
                       </button>
@@ -204,7 +236,7 @@ export default function PeoplePage() {
                   </div>
                   <div className="flex flex-1 flex-col gap-3 sm:flex-row lg:justify-end">
                     <label htmlFor="status-filter" className="sr-only">Filter by status</label>
-                    <select id="status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} className={cx(fieldClasses, 'sm:w-44')}>
+                    <select id="status-filter" value={statusFilter} onChange={(e) => { setLoading(true); setStatusFilter(e.target.value as StatusFilter); }} className={cx(fieldClasses, 'sm:w-44')}>
                       <option value="all">All statuses</option>
                       <option value="active">Active</option>
                       <option value="pending">Pending</option>
@@ -213,7 +245,7 @@ export default function PeoplePage() {
                     <div className="relative sm:w-72">
                       <label htmlFor="people-search" className="sr-only">Search people</label>
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-4" aria-hidden="true" />
-                      <input id="people-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" className={cx(fieldClasses, 'pl-9')} />
+                      <input id="people-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, or full email" className={cx(fieldClasses, 'pl-9')} />
                     </div>
                   </div>
                 </div>
@@ -221,7 +253,7 @@ export default function PeoplePage() {
                 {filtered.length === 0 ? (
                   <div className="p-6">
                     <EmptyState compact illustration="inbox" title={people.length ? 'Nobody matches these filters' : 'No people yet'}
-                      action={people.length ? <button type="button" onClick={() => { setRoleFilter('all'); setStatusFilter('all'); setQ(''); }} className="text-sm font-bold text-brand-ink hover:underline">Clear filters</button>
+                      action={people.length ? <button type="button" onClick={() => { setLoading(true); setRoleFilter('all'); setStatusFilter('all'); setQ(''); }} className="text-sm font-bold text-brand-ink hover:underline">Clear filters</button>
                         : <Link href="/dashboard/batches" className={buttonClasses('primary', 'sm')}>Open batches</Link>}>
                       {people.length ? 'Try a different role, status or search.' : 'Create students and instructors from a batch so they’re enrolled and assigned in one step.'}
                     </EmptyState>
@@ -237,7 +269,7 @@ export default function PeoplePage() {
                           <div className="flex min-w-0 items-center gap-3 md:w-[34%]">
                             <Avatar name={p.displayName || p.email} size={38} />
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-bold text-ink">{p.displayName || 'Unnamed'}</div>
+                              <Link href={`/dashboard/people/${p.id}`} className="block truncate text-sm font-bold text-ink hover:text-brand-ink">{p.displayName || 'Unnamed'}</Link>
                               <div className="truncate text-xs text-ink-3">{p.email}</div>
                             </div>
                           </div>
@@ -268,6 +300,9 @@ export default function PeoplePage() {
                             {tenant?.role === 'super_admin' && user && p.id !== user.uid && isEligibleForCourseDesign(p.role) && p.status === 'active' && (
                               <button type="button" onClick={() => setMembershipFor(p)} className={buttonClasses('secondary', 'sm')}>Course Design</button>
                             )}
+                            {profile && user && canCorrectAccount({ ...profile, id: user.uid }, p) && (
+                              <button type="button" onClick={() => setEditingAccount(p)} className={buttonClasses('ghost', 'sm')}>Edit</button>
+                            )}
                             {action && (
                               <button type="button" disabled={busy === p.id} onClick={() => runAction(p, action)}
                                 className={buttonClasses(action === 'suspend' ? 'danger' : action === 'approve' ? 'primary' : 'secondary', 'sm')}>
@@ -280,6 +315,16 @@ export default function PeoplePage() {
                     })}
                   </ul>
                 )}
+                {(hasMore || (needle && people.length > 0)) && (
+                  <div className="flex flex-col items-center gap-2 border-t border-line p-3 text-xs text-ink-3">
+                    {needle && hasMore && <span>Searching the people loaded so far. Type a full email address to search everyone.</span>}
+                    {hasMore && (
+                      <button type="button" onClick={loadMore} disabled={loadingMore} className={buttonClasses('secondary', 'sm')}>
+                        {loadingMore ? 'Loading…' : 'Load more people'}
+                      </button>
+                    )}
+                  </div>
+                )}
               </Card>
               <p className="text-xs text-ink-3">
                 New students and instructors are created inside a batch, so they’re enrolled or assigned straight away. Accounts are suspended, never deleted, so history is kept.
@@ -288,6 +333,11 @@ export default function PeoplePage() {
           )}
         </div>
         {dialog}
+        {editingAccount && tenant && (
+          <AccountEditDialog person={editingAccount} viewerRole={tenant.role} branches={branches}
+            onClose={() => setEditingAccount(null)}
+            onSaved={(text) => { setEditingAccount(null); setNotice({ kind: 'success', text }); setLoading(true); setReloadKey((k) => k + 1); }} />
+        )}
         {membershipFor && (
           <CourseDesignMembershipDialog
             person={membershipFor}

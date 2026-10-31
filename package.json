@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:unit": "vitest run tests/auth tests/livebook tests/admin tests/courses tests/batches tests/migration tests/learning tests/analytics tests/help tests/review tests/backup",
+    "test:unit": "vitest run tests/academy tests/auth tests/livebook tests/admin tests/courses tests/batches tests/migration tests/learning tests/analytics tests/help tests/review tests/backup",
     "test:rules": "vitest run tests/rules tests/emulator --no-file-parallelism",
     "test:emulator": "JAVA_HOME=\"${JAVA_HOME:-/opt/homebrew/opt/openjdk@21}\" PATH=\"/opt/homebrew/opt/openjdk@21/bin:$PATH\" firebase emulators:exec --project demo-strynkix-lms --only auth,firestore \"npm run test:rules\"",
     "test": "npm run test:unit && npm run test:emulator",
@@ -20,6 +20,7 @@
     "verify:emulator": "JAVA_HOME=\"${JAVA_HOME:-/opt/homebrew/opt/openjdk@21}\" PATH=\"/opt/homebrew/opt/openjdk@21/bin:$PATH\" firebase emulators:exec --only firestore \"npm run verify:journey && npm run verify:batch-workflow\"",
     "migration:enrollments": "tsx scripts/migration/enrollment-migration.ts",
     "migration:quiz-keys": "tsx scripts/migration/quiz-key-migration.ts",
+    "check:admin-env": "tsx scripts/ops/check-admin-env.ts",
     "backup:firestore-export": "tsx scripts/backup/firestore-export.ts",
     "backup:firestore-restore": "tsx scripts/backup/firestore-restore.ts"
   },

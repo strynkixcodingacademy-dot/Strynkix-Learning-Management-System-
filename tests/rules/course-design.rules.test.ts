@@ -85,11 +85,12 @@ describe('Membership administration — only an active Super Admin', () => {
     await assertFails(updateDoc(doc(as('super'), 'users/designer_c1'), { courseDesign: deleteField() }));
   });
 
-  it('Super Admin creates a content account without membership (granted afterwards by the server)', async () => {
+  // Milestone G37/G50: every administrator-created account goes through the audited route.
+  it('no client creates another user’s profile, with or without membership — not even the Super Admin', async () => {
     const profile = { role: 'content_designer', orgId: 'org_a', status: 'active', email: 'n@x.test', displayName: 'N' };
     await assertFails(setDoc(doc(as('super'), 'users/new1'), { ...profile, courseDesign: cd(['content_developer'], ['c1']) }));
     await assertFails(setDoc(doc(as('super'), 'users/new2'), { ...profile, courseDesign: cd(['content_developer'], ['c1'], 'new2') }));
-    await assertSucceeds(setDoc(doc(as('super'), 'users/new3'), profile));
+    await assertFails(setDoc(doc(as('super'), 'users/new3'), profile));
   });
 
   it('denies malformed memberships, forged assigners and unsafe scopes', async () => {

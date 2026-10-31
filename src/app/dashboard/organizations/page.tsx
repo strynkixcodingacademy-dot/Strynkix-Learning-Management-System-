@@ -11,6 +11,8 @@ import { RequireRole } from '@/components/auth/RouteGuards';
 import { useAuth } from '@/context/AuthContext';
 import { getOrganizations, createOrganization } from '@/lib/admin/service';
 import { Organization } from '@/types/domain';
+import { UniversityAdminDialog } from '@/components/people/UniversityAdminDialog';
+import { OrganizationEditDialog } from '@/components/admin/AcademyDialogs';
 import {
   Building2,
   Plus,
@@ -18,6 +20,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Globe,
+  ShieldCheck,
+  Pencil,
 } from 'lucide-react';
 
 export default function OrganizationsPage() {
@@ -27,6 +31,8 @@ export default function OrganizationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [adminFor, setAdminFor] = useState<Organization | null>(null);
+  const [editing, setEditing] = useState<Organization | null>(null);
 
   // Form State
   const [orgId, setOrgId] = useState('');
@@ -224,9 +230,26 @@ export default function OrganizationsPage() {
                       </span>
                     </div>
                   </div>
+                  <div className="flex flex-wrap gap-2 border-t border-line pt-3">
+                    <button type="button" onClick={() => setAdminFor(org)} disabled={org.status !== 'active'}
+                      title={org.status !== 'active' ? 'Reactivate the academy first' : undefined}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-ink hover:border-line-strong disabled:opacity-50">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Add University Admin
+                    </button>
+                    <button type="button" onClick={() => setEditing(org)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-ink hover:border-line-strong">
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
+          )}
+
+          {adminFor && <UniversityAdminDialog orgId={adminFor.id} orgName={adminFor.name} onClose={() => setAdminFor(null)} />}
+          {editing && (
+            <OrganizationEditDialog org={editing} onClose={() => setEditing(null)}
+              onSaved={async (msg) => { setEditing(null); setSuccessMsg(msg); setOrganizations(await getOrganizations()); }} />
           )}
 
           {/* Create Organization Modal */}
