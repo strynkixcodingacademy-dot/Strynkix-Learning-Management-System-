@@ -17,6 +17,7 @@ import {
   assertOrg, canWorkWithBatch, conflict, denied, getDocData, invalid, loadActor, localDate, notFound, parseBody,
 } from '@/lib/server/academy-scope';
 import { attendanceStats, batchSessions } from '@/lib/server/academy-metrics';
+import { recordInvalidation } from '@/lib/server/snapshot-invalidation';
 
 const status = z.enum(['present', 'absent', 'late', 'excused']);
 
@@ -116,6 +117,7 @@ export async function handleAttendance(services: Services, idToken: string | nul
     };
     if (prev) tx.update(ref, doc);
     else tx.create(ref, { ...doc, createdAt: iso });
+    recordInvalidation(tx, db, { orgId: batch.orgId, branchId: batch.branchId, fromDate: req.date, toDate: req.date, reason: 'Attendance recorded or corrected for a past date', sourceType: 'attendance', sourceId: ref.id });
     if (prev && changed.length) {
       tx.create(db.collection('auditLog').doc(), {
         orgId: batch.orgId, courseId: batch.courseId, branchId: batch.branchId, targetType: 'attendance', targetId: ref.id, action: 'attendance_corrected',

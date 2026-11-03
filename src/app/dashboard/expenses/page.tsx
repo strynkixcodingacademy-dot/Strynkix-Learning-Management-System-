@@ -24,6 +24,7 @@ import { EmptyState, ErrorState, LoadingState, Notice } from '@/components/ui/St
 import { StatusPill } from '@/components/ui/StatusPill';
 import { Tabs } from '@/components/ui/Tabs';
 import { cx } from '@/components/ui/tones';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 const METHODS: { id: PaymentMethod; label: string }[] = [{ id: 'cash', label: 'Cash' }, { id: 'upi', label: 'UPI' }, { id: 'bank_transfer', label: 'Bank transfer' }, { id: 'card', label: 'Card' }, { id: 'cheque', label: 'Cheque' }, { id: 'other', label: 'Other' }];
 type Tab = 'history' | 'recurring' | 'analysis' | 'categories';
@@ -84,11 +85,15 @@ function QuickAdd({ branchId, categories, onSaved }: { branchId: string; categor
 function History({ scope, categories, version, onChanged }: { scope: FinanceScope; categories: ExpenseCategory[]; version: number; onChanged: () => void }) {
   const [categoryId, setCategoryId] = useState('');
   const [showVoid, setShowVoid] = useState(false);
+  const [voidError, setVoidError] = useState<string | null>(null);
+  const { prompt, dialog } = useConfirm();
   const key = `${JSON.stringify(scope)}|${categoryId}|${showVoid}|${version}`;
   const { data, error, reload } = useApiData(key, () => expensesApi<{ expenses: Expense[]; total: number }>({ action: 'list', ...scopeParams(scope, { dates: true }), ...(categoryId ? { categoryId } : {}), includeVoid: showVoid }));
   if (error) return <ErrorState onRetry={reload}>{error}</ErrorState>;
   return (
     <div className="space-y-3">
+      {dialog}
+      {voidError && <Notice kind="error">{voidError}</Notice>}
       <div className="flex flex-wrap items-end gap-3 print:hidden">
         <Field label="Category" htmlFor="h-cat"><select id="h-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={fieldClasses}><option value="">All</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
         <label className="flex items-center gap-2 pb-3 text-sm"><input type="checkbox" checked={showVoid} onChange={(e) => setShowVoid(e.target.checked)} /> Show voided</label>
@@ -112,9 +117,10 @@ function History({ scope, categories, version, onChanged }: { scope: FinanceScop
                 <td className="p-3 text-right tabular-nums">{formatMoney(e.amount)}</td>
                 <td className="p-3 text-xs text-ink-2">{METHODS.find((m) => m.id === e.method)?.label}{e.paidTo ? ` · ${e.paidTo}` : ''}{e.reference ? ` · ${e.reference}` : ''}</td>
                 <td className="p-3 text-right print:hidden">{e.status === 'paid' && <button type="button" className="text-xs font-semibold text-danger-ink" onClick={async () => {
-                  const reason = window.prompt('Why is this expense being voided? (at least 5 characters)');
-                  if (!reason || reason.trim().length < 5) return;
-                  try { await expensesApi({ action: 'void_expense', expenseId: e.id, reason: reason.trim() }); onChanged(); } catch (err) { window.alert((err as Error).message); }
+                  const reason = await prompt({ title: `Void “${e.title}”?`, body: 'The expense stays in the history, marked void.', label: 'Why is it being voided?', confirmLabel: 'Void expense', tone: 'danger' });
+                  if (!reason) return;
+                  setVoidError(null);
+                  try { await expensesApi({ action: 'void_expense', expenseId: e.id, reason }); onChanged(); } catch (err) { setVoidError((err as Error).message); }
                 }}>Void</button>}</td>
               </tr>
             ))}</tbody>
@@ -135,12 +141,14 @@ function Recurring({ scope, categories, onChanged }: { scope: FinanceScope; cate
   const { data, error, reload } = useApiData(key, () => expensesApi<{ schedules: RecurringExpense[]; occurrences: Occurrence[] }>({ action: 'schedule', ...scopeParams(scope), from, to }));
   const [f, setF] = useState({ title: '', categoryId: '', amount: '', frequency: 'monthly', startDate: todayLocal(), endDate: '', paidTo: '' });
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const { prompt, dialog } = useConfirm();
   const act = async (body: Record<string, unknown>, ok: string) => {
     try { await expensesApi(body); setMsg({ kind: 'success', text: ok }); reload(); onChanged(); } catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); }
   };
   if (error) return <ErrorState onRetry={reload}>{error}</ErrorState>;
   return (
     <div className="space-y-4">
+      {dialog}
       {scope.branchId && (
         <Card className="space-y-3 p-4">
           <h2 className="text-sm font-bold text-ink">New recurring expense</h2>
@@ -172,14 +180,14 @@ function Recurring({ scope, categories, onChanged }: { scope: FinanceScope; cate
                 <td className="p-3 text-right">{formatMoney(o.amount)}</td>
                 <td className="p-3"><StatusPill size="sm" tone={OCC_TONE[o.state]}>{o.state}{o.paidOn ? ` ${formatDate(o.paidOn)}` : ''}</StatusPill></td>
                 <td className="p-3 text-right">{['due', 'overdue', 'scheduled'].includes(o.state) && <span className="inline-flex gap-2">
-                  <button type="button" className="text-xs font-semibold text-brand-ink" disabled={o.period > todayLocal() && o.state === 'scheduled'} onClick={() => {
-                    const method = (window.prompt('Paid by? (cash, upi, bank_transfer, card, cheque, other)', 'bank_transfer') ?? '').trim();
-                    if (!METHODS.some((m) => m.id === method)) return;
+                  <button type="button" className="text-xs font-semibold text-brand-ink" disabled={o.period > todayLocal() && o.state === 'scheduled'} onClick={async () => {
+                    const method = await prompt({ title: `Mark “${o.title}” paid?`, body: `For ${formatDate(o.period)}, ${formatMoney(o.amount)}, recorded as paid today.`, label: 'Paid by', choices: METHODS.map((m) => ({ value: m.id, label: m.label })), defaultValue: 'bank_transfer', confirmLabel: 'Mark paid' });
+                    if (!method) return;
                     act({ action: 'pay_occurrence', recurringId: o.recurringId, period: o.period, date: todayLocal(), method }, `Paid “${o.title}” for ${formatDate(o.period)}.`);
                   }}>Mark paid</button>
-                  <button type="button" className="text-xs font-semibold text-ink-3" onClick={() => {
-                    const reason = window.prompt('Why is this occurrence cancelled? (at least 5 characters)');
-                    if (reason && reason.trim().length >= 5) act({ action: 'cancel_occurrence', recurringId: o.recurringId, period: o.period, reason: reason.trim() }, 'Occurrence cancelled.');
+                  <button type="button" className="text-xs font-semibold text-ink-3" onClick={async () => {
+                    const reason = await prompt({ title: `Cancel “${o.title}” for ${formatDate(o.period)}?`, label: 'Why is this occurrence cancelled?', confirmLabel: 'Cancel occurrence', tone: 'danger' });
+                    if (reason) act({ action: 'cancel_occurrence', recurringId: o.recurringId, period: o.period, reason }, 'Occurrence cancelled.');
                   }}>Cancel</button>
                 </span>}</td>
               </tr>
@@ -290,5 +298,5 @@ function Expenses() {
 }
 
 export default function ExpensesPage() {
-  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell pageTitle="Expenses"><Expenses /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell><Expenses /></AppShell></RequireRole>;
 }

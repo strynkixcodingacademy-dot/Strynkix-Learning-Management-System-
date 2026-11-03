@@ -205,5 +205,5 @@ function Finance() {
 }
 
 export default function FinancePage() {
-  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell pageTitle="Finance"><Finance /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell><Finance /></AppShell></RequireRole>;
 }

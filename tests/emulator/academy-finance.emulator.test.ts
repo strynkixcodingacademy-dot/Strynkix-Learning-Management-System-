@@ -206,6 +206,25 @@ describe('fee ledger', () => {
     expect((await F('af_ba1', { action: 'accounts', branchId: 'b2' })).status).toBe(404);
     expect((await F('af_ua', { action: 'accounts' })).json.accounts).toHaveLength(1);
   });
+
+  it('a student sees only their own fees and receipts, without internal details', async () => {
+    const owner = (await get(`feeAccounts/${id}`))!.studentId as string;
+    const pay = await F('af_ba1', { action: 'record_payment', feeAccountId: id, requestId: rid(), amount: 5_000_00, method: 'upi', reference: 'UTR-9', date: TODAY, note: 'internal note' });
+    const mine = await F(owner, { action: 'my_fees' });
+    expect(mine.status).toBe(200);
+    expect(mine.json.accounts).toHaveLength(1);
+    const acc = mine.json.accounts[0];
+    expect(acc).toMatchObject({ id, due: GROSS, collected: 5_000_00, balance: GROSS - 5_000_00, paymentStatus: 'partial' });
+    expect(acc.installments).toHaveLength(3);
+    expect(acc.entries).toEqual([expect.objectContaining({ id: pay.json.transactionId, type: 'payment', amount: 5_000_00, method: 'UPI', reversed: false })]);
+    expect(JSON.stringify(mine.json)).not.toMatch(/internal note|createdBy|af_ba1/);
+    expect((await F(owner, { action: 'receipt', transactionId: pay.json.transactionId })).json.receipt).toMatchObject({ amount: 5_000_00 });
+    // Another student: no accounts, and the receipt is not found. Staff can't use the student view.
+    expect((await F('af_stu', { action: 'my_fees' })).json.accounts).toEqual([]);
+    expect((await F('af_stu', { action: 'receipt', transactionId: pay.json.transactionId })).status).toBe(404);
+    expect((await F('af_ba1', { action: 'my_fees' })).status).toBe(403);
+    expect((await F(owner, { action: 'account', feeAccountId: id })).status).toBe(403);
+  });
 });
 
 describe('expenses', () => {

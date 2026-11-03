@@ -299,7 +299,7 @@ function ActivityPageContent({ params }: { params: Promise<{ courseId: string; a
   const { courseId, assessmentId } = use(params);
   return (
     <RequireRole allowedRoles={['student']}>
-      <AppShell pageTitle="Activity">
+      <AppShell>
         <ActivityView courseId={courseId} assessmentId={assessmentId} />
       </AppShell>
     </RequireRole>

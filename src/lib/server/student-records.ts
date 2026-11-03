@@ -115,9 +115,9 @@ export async function handleStudent(services: Services, idToken: string | null, 
   const upcoming: unknown[] = [];
   const attemptsBy = new Map<string, AssessmentAttempt[]>();
   for (const r of results) attemptsBy.set(r.attempt.assessmentId, [...(attemptsBy.get(r.attempt.assessmentId) ?? []), r.attempt]);
-  for (const c of active) {
-    const snap = await db.collection('assessments').where('orgId', '==', orgId).where('courseId', '==', c.courseId).where('status', '==', 'published').get();
-    for (const d of snap.docs) {
+  const published = await Promise.all(active.map((c) => db.collection('assessments').where('orgId', '==', orgId).where('courseId', '==', c.courseId).where('status', '==', 'published').get()));
+  for (const [i, c] of active.entries()) {
+    for (const d of published[i].docs) {
       const a = { id: d.id, ...d.data() } as Assessment;
       if (a.batchIds?.length && !a.batchIds.includes(c.batchId)) continue;
       const mine = (attemptsBy.get(a.id) ?? []).sort((x, y) => y.attemptNumber - x.attemptNumber);

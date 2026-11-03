@@ -50,7 +50,7 @@ function ReceiptView({ id }: { id: string }) {
 
 function ReceiptPageContent({ params }: { params: Promise<{ transactionId: string }> }) {
   const { transactionId } = use(params);
-  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><ReceiptView id={transactionId} /></RequireRole>;
+  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'student']}><ReceiptView id={transactionId} /></RequireRole>;
 }
 
 /** `params` / `searchParams` are read inside Suspense so the route can stream (Next 16). */

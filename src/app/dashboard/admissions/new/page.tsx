@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/ui/Page';
 export default function NewAdmissionPage() {
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}>
-      <AppShell pageTitle="New admission">
+      <AppShell>
         <div className="space-y-6">
           <PageHeader breadcrumbs={[{ label: 'Admissions', href: '/dashboard/admissions' }, { label: 'New admission' }]} title="New admission" description="Fill in each step. Nothing is final until you confirm on the last step." />
           <AdmissionWizard />

@@ -699,7 +699,9 @@ export type NotificationType =
   | 'membership_granted' | 'membership_changed' | 'membership_revoked'
   | 'account_activated'
   | 'submission_graded' | 'correction_requested'
-  | 'assessment_evaluated' | 'assessment_returned' | 'certificate_issued';
+  | 'assessment_evaluated' | 'assessment_returned' | 'certificate_issued'
+  | 'feedback_update' | 'doubt_reply' | 'doubt_status' | 'achievement_awarded' | 'activity_update' | 'activity_reminder'
+  | 'assessment_reminder' | 'attendance_alert' | 'project_review';
 
 export interface AppNotification {
   id: string;

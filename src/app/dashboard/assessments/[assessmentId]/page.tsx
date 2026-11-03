@@ -194,7 +194,7 @@ function AssessmentSubmissionsPageContent({ params, searchParams }: { params: Pr
   const sp = use(searchParams);
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer']}>
-      <AppShell pageTitle="Submissions"><Submissions assessmentId={assessmentId} focus={sp.attempt} /></AppShell>
+      <AppShell><Submissions assessmentId={assessmentId} focus={sp.attempt} /></AppShell>
     </RequireRole>
   );
 }

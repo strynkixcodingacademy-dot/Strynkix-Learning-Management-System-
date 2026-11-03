@@ -94,7 +94,7 @@ function CourseAssessmentsPageContent({ params }: { params: Promise<{ courseId: 
   const { courseId } = use(params);
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer']}>
-      <AppShell pageTitle="Activities & exams"><Listing courseId={courseId} /></AppShell>
+      <AppShell><Listing courseId={courseId} /></AppShell>
     </RequireRole>
   );
 }

@@ -166,7 +166,7 @@ export default function CertificatesPage() {
   const { tenant } = useAuth();
   return (
     <RequireAuth>
-      <AppShell pageTitle="Certificates">
+      <AppShell>
         {!tenant ? <LoadingState label="Loading…" /> : tenant.role === 'student' ? <MyCertificates />
           : ['super_admin', 'university_admin', 'branch_admin', 'instructor'].includes(tenant.role) ? <StaffCertificates />
             : <EmptyState title="Not available">Certificates are managed by branch managers and administrators.</EmptyState>}

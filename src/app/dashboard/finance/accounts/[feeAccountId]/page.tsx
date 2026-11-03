@@ -24,6 +24,7 @@ import { Card, Field, PageHeader, Section, fieldClasses } from '@/components/ui/
 import { ErrorState, LoadingState, Notice } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { cx } from '@/components/ui/tones';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 type Alloc = InstallmentPlanItem & { paid: number; remaining: number; state: 'paid' | 'partial' | 'overdue' | 'due_today' | 'upcoming' };
 interface AccountView {
@@ -31,6 +32,8 @@ interface AccountView {
   transactions: (FeeTransaction & { reversed: boolean; balanceAfter?: number })[];
   canApproveDiscount: boolean;
   canWaive: boolean;
+  context?: { academyName: string; branchName: string; admittedOn: string };
+  reconciled?: boolean;
 }
 type Action = 'payment' | 'refund' | 'charge' | 'waiver' | 'reschedule' | null;
 const METHODS: { id: PaymentMethod; label: string }[] = [{ id: 'cash', label: 'Cash' }, { id: 'upi', label: 'UPI' }, { id: 'bank_transfer', label: 'Bank transfer' }, { id: 'card', label: 'Card' }, { id: 'cheque', label: 'Cheque' }, { id: 'other', label: 'Other' }];
@@ -115,15 +118,16 @@ function Account({ id }: { id: string }) {
   const [action, setAction] = useState<Action>(null);
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string; receipt?: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const { prompt, dialog } = useConfirm();
   if (error) return <ErrorState onRetry={reload}>{error}</ErrorState>;
   if (!data) return <LoadingState label="Loading the fee account…" />;
   const a = data.account;
 
   const reverse = async (t: FeeTransaction) => {
-    const reason = window.prompt(`Why are you reversing this ${t.type} of ${formatMoney(t.amount)}? (at least 5 characters)`);
-    if (!reason || reason.trim().length < 5) return;
+    const reason = await prompt({ title: `Reverse this ${t.type} of ${formatMoney(t.amount)}?`, body: 'A reversing entry is added; the original stays in the ledger. This is audited.', label: 'Why are you reversing it?', confirmLabel: 'Record reversal', tone: 'danger' });
+    if (!reason) return;
     setBusy(true);
-    try { await financeApi({ action: 'reverse', transactionId: t.id, reason: reason.trim() }); setMsg({ kind: 'success', text: 'Reversal recorded. The original entry stays in the ledger.' }); reload(); }
+    try { await financeApi({ action: 'reverse', transactionId: t.id, reason }); setMsg({ kind: 'success', text: 'Reversal recorded. The original entry stays in the ledger.' }); reload(); }
     catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); } finally { setBusy(false); }
   };
   const decide = async (approve: boolean) => {
@@ -134,7 +138,8 @@ function Account({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader breadcrumbs={[{ label: 'Finance', href: '/dashboard/finance' }, { label: a.studentName }]} eyebrow={`Fee account · ${a.admissionNumber}`} title={a.studentName} description={`${a.courseTitle} · pricing version ${a.pricingVersion}`}
+      {dialog}
+      <PageHeader breadcrumbs={[{ label: 'Finance', href: '/dashboard/finance' }, { label: a.studentName }]} eyebrow={`Fee account · ${a.admissionNumber}`} title={a.studentName} description={`${a.courseTitle} · ${data.context ? `${data.context.academyName} · ${data.context.branchName} · admitted ${formatDate(data.context.admittedOn)} · ` : ''}pricing version ${a.pricingVersion}`}
         actions={<><PaymentStatusPill status={a.paymentStatus} /><Link href={`/dashboard/people/${a.studentId}`} className={buttonClasses('ghost', 'sm')}>Student profile</Link></>} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile label="Amount due" value={formatMoney(a.due)} hint={`Standard ${formatMoney(a.grossFee)}${a.discount.amount ? ` − discount ${formatMoney(a.discount.status === 'approved' ? a.discount.amount : 0)}` : ''}${a.totals.adjustments ? ` ${a.totals.adjustments > 0 ? '+' : '−'} adjustments ${formatMoney(Math.abs(a.totals.adjustments))}` : ''}`} />
@@ -142,6 +147,7 @@ function Account({ id }: { id: string }) {
         <KpiTile label="Balance" value={formatMoney(a.balance)} tone={a.balance ? 'warning' : 'success'} />
         <KpiTile label="Next due" value={a.nextDue ? formatMoney(a.nextDue.amount) : '—'} tone={a.overdue ? 'danger' : 'brand'} hint={a.nextDue ? `${formatDate(a.nextDue.dueDate)}${a.overdue ? ` · ${formatMoney(a.overdue)} overdue` : ''}` : 'Nothing left to pay'} />
       </div>
+      {data.reconciled === false && <Notice kind="warning">The stored totals for this account don’t match its ledger entries. Please review; nothing has been changed automatically.</Notice>}
       {a.discount.status === 'pending' && (
         <Notice kind="warning">
           A {a.discount.type === 'percent' ? `${a.discount.value / 100}%` : 'fixed'} discount of {formatMoney(a.discount.amount)} ({a.discount.reason}) is waiting for approval.{' '}
@@ -202,7 +208,7 @@ function Account({ id }: { id: string }) {
 
 function FeeAccountPageContent({ params }: { params: Promise<{ feeAccountId: string }> }) {
   const { feeAccountId } = use(params);
-  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell pageTitle="Fee account"><Account id={feeAccountId} /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell><Account id={feeAccountId} /></AppShell></RequireRole>;
 }
 
 /** `params` / `searchParams` are read inside Suspense so the route can stream (Next 16). */

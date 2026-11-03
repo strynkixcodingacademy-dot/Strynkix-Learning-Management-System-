@@ -124,7 +124,7 @@ function OnboardPageContent({ searchParams }: { searchParams: Promise<{ role?: s
   const role = sp.role === 'content_designer' ? 'content_designer' : 'instructor';
   return (
     <RequireRole allowedRoles={role === 'content_designer' ? ['super_admin'] : ['super_admin', 'university_admin', 'branch_admin']}>
-      <AppShell pageTitle="Onboard"><Onboard role={role} /></AppShell>
+      <AppShell><Onboard role={role} /></AppShell>
     </RequireRole>
   );
 }

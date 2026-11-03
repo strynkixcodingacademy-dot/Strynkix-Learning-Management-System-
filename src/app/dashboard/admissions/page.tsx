@@ -60,5 +60,5 @@ function Admissions() {
 }
 
 export default function AdmissionsPage() {
-  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell pageTitle="Admissions"><Admissions /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell><Admissions /></AppShell></RequireRole>;
 }

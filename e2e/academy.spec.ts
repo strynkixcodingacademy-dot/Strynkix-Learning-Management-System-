@@ -123,7 +123,7 @@ test('Super Admin sees consolidated finance across academies and can export', as
   await page.goto('/dashboard/reports');
   await page.getByRole('tab', { name: 'CSV exports' }).click();
   const download = page.waitForEvent('download');
-  await page.locator('div', { hasText: /^Student list \(enrollments\)/ }).getByRole('button', { name: 'Download CSV' }).first().click();
+  await page.locator('.rounded-card', { hasText: 'Student list (enrollments)' }).getByRole('button', { name: 'Download CSV' }).click();
   expect((await download).suggestedFilename()).toMatch(/^students-.*\.csv$/);
 });
 

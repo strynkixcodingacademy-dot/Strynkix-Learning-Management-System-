@@ -683,3 +683,63 @@ Comparison method: a recursive Admin SDK walk (with `useBigInt`) of every collec
   - YouTube viewing progress isn't tracked;
   - reports read the scope's records on the server for each request, which is fine at academy scale; pre-computed snapshots would be needed for very large datasets.
 
+## 24. Super Admin Command Centre (Stage 8; local only, nothing deployed)
+
+- **Firestore rules:** unchanged. The new `announcements` collection relies on the existing default-deny rule, and all access goes through the server.
+- **New indexes:** 12, bringing the total to 39, none deployed:
+  - admissions (status, confirmedAt), (orgId, status, confirmedAt), (orgId, branchId, status, confirmedAt);
+  - attendance (orgId, date), (orgId, branchId, date);
+  - progress (orgId, lastAccessedAt);
+  - auditLog (orgId, branchId, at desc), (targetId, at desc), (orgId, targetId, at desc);
+  - feeTransactions (orgId, createdAt desc), (orgId, branchId, createdAt desc);
+  - announcements (status, publishAt desc).
+- **Before testing on staging:** deploy the indexes and wait for them to build. Without them, the dashboard's date-range queries and the audit history fail with "requires an index".
+- **Known limits:**
+  - The finance summary and academic intelligence read their scope's records on the server for each request. This is fine at current scale; very large datasets would need scheduled snapshots, with a reconciliation check against the ledger.
+  - Announcements are in-app only: no email or WhatsApp provider is configured.
+  - The global people search matches a name by its beginning only (no full-text search).
+
+## 25. Reporting snapshots and scheduled jobs (Stage 9; local only, nothing deployed)
+
+- **Schedule (needs your approval):** Vercel Cron, which is free on the Hobby plan at once a day.
+  1. Set a random `CRON_SECRET` environment variable in Vercel (Preview and Production).
+  2. Add this file at the repo root:
+
+     ```json
+     { "crons": [{ "path": "/api/jobs/snapshots", "schedule": "30 19 * * *" }] }
+     ```
+
+     That runs at 01:00 Asia/Kolkata, after the reporting day closes. Vercel sends `Authorization: Bearer $CRON_SECRET`; without the secret the route answers 503 and does nothing.
+  3. Until then, the Super Admin can use Command Centre → Reporting & reconciliation → "Run the scheduled job now".
+- **What a run does:**
+  1. applies pending invalidations;
+  2. creates snapshots for yesterday, last month and last year if they are missing;
+  3. recalculates up to 25 stale snapshots;
+  4. reconciles up to 50 unreconciled ones.
+
+  Runs are idempotent and locked.
+- **Runtime:** a run reads all fee accounts, ledger entries and expenses once, then splits them by scope in memory. Reconciliation reads each scope again. The routes set `maxDuration = 60`. At much larger scale, process scopes in batches or move the job to a queue.
+- **Firestore rules:** unchanged. The new collections (`reportSnapshots`, `snapshotJobs`, `snapshotLocks`, `snapshotInvalidations`, `reconciliationReviews`) are server-only under the default-deny rule, which the rules test covers.
+- **New indexes (6, none deployed, 45 in total):**
+  - reportSnapshots (level, periodType, status, periodKey desc), (status, generatedAt desc), (status, reconciliation.checkedAt desc);
+  - snapshotJobs (status, startedAt desc);
+  - reconciliationReviews (status, openedAt desc);
+  - snapshotInvalidations (status, createdAt desc).
+- **Decisions for you:**
+  - All academies report in Asia/Kolkata. Per-academy timezones would need per-academy snapshots.
+  - "Fees expected at period end" uses each account's current agreed fee. A later discount decision marks the affected periods stale for recalculation.
+  - Snapshots don't store "active students" or "pending evaluations": those can't be derived for a past date from the current records.
+
+## 26. Student engagement (Stage 10; local only, nothing deployed)
+
+- **New routes:** `/api/engagement`, `/api/feedback`, `/api/doubts`, `/api/activities`. `/api/career` gains project review.
+- **The scheduled job route** (`/api/jobs/snapshots`) now also sends reminders. It stays inactive until the cron is approved (§25); the Super Admin can call `run_reminders` manually.
+- **Firestore rules:** unchanged. The new collections (`achievements`, `achievementSettings`, `engagementSettings`, `notificationPreferences`, `feedback`, `doubts`, `activities`, `activityRegistrations`) are server-only, which the rules test covers.
+- **New indexes (5, none deployed, 50 in total):**
+  - achievements (orgId, awardedAt);
+  - activities (status, startsAt);
+  - assessments (status, closesAt);
+  - progress (orgId, completedAt);
+  - assessmentAttempts (orgId, submittedAt).
+- **No email, SMS or WhatsApp.** Notifications are in-app only.
+

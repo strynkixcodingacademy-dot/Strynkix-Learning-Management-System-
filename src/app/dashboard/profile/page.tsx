@@ -19,6 +19,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { Avatar } from '@/components/ui/DataViz';
 import { sendOwnPasswordReset, updateOwnProfile, validateOwnProfile } from '@/lib/account/service';
 import { ChangeEmailForm, ChangePasswordForm } from '@/components/account/SecurityForms';
+import { NotificationPreferences } from '@/components/account/NotificationPreferences';
 import { BadgeCheck, Building2, KeyRound, LifeBuoy, Mail, MapPin, Save, ShieldCheck } from 'lucide-react';
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }) {
@@ -159,6 +160,11 @@ export default function ProfilePage() {
                 <InfoRow icon={Building2} label="Organization" value={scope.org ?? tenant.orgId} />
                 {tenant.branchId && <InfoRow icon={MapPin} label="Branch" value={scope.branch ?? tenant.branchId} />}
               </div>
+            </Card>
+
+            <Card className="p-5">
+              <h2 className="text-[15px] font-extrabold text-ink">Notifications</h2>
+              <NotificationPreferences />
             </Card>
 
             <Card className="p-5">

@@ -326,7 +326,7 @@ function AssessmentEditorPageContent({ params, searchParams }: { params: Promise
   const kind = (['quiz', 'short_answer', 'long_answer', 'practical', 'exam'].includes(sp.kind ?? '') ? sp.kind : 'quiz') as AssessmentKind;
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin', 'instructor', 'content_lead', 'content_designer']}>
-      <AppShell pageTitle="Activity editor"><Editor courseId={courseId} assessmentId={assessmentId} initialKind={kind} initialLesson={sp.lessonId} /></AppShell>
+      <AppShell><Editor courseId={courseId} assessmentId={assessmentId} initialKind={kind} initialLesson={sp.lessonId} /></AppShell>
     </RequireRole>
   );
 }

@@ -394,12 +394,13 @@ export async function handleAdmissions(services: Services, idToken: string | nul
       }
       const { compensation, ...rest } = profile ?? ({} as Partial<PersonProfile>);
       return {
-        user: { id: user.id, displayName: user.displayName, email: user.email, role: user.role, status: user.status, branchId: user.branchId ?? null, phoneNumber: user.phoneNumber ?? null, studentId: user.metadata?.studentIdNumber ?? null, createdAt: user.createdAt },
+        user: { id: user.id, orgId: user.orgId, displayName: user.displayName, email: user.email, role: user.role, status: user.status, branchId: user.branchId ?? null, phoneNumber: user.phoneNumber ?? null, studentId: user.metadata?.studentIdNumber ?? null, createdAt: user.createdAt },
         profile: profile ? { ...rest, ...(finance && compensation ? { compensation } : {}) } : null,
         canSeeFinance: finance,
         academic,
         fees: feeAccounts ? feeAccounts.docs.map((d) => { const s = summarize({ id: d.id, ...d.data() } as FeeAccount, today); return { id: s.id, courseTitle: s.courseTitle, due: s.due, collected: s.collected, balance: s.balance, paymentStatus: s.paymentStatus, nextDue: s.nextDue }; }) : null,
         batchesTaught: taught ? taught.docs.map((d) => ({ id: d.id, name: d.data().name as string, courseId: d.data().courseId as string, status: d.data().status as string })) : [],
+        ...(await personExtras(db, actor, user)),
       };
     }
 
@@ -430,3 +431,25 @@ export async function handleAdmissions(services: Services, idToken: string | nul
     }
   }
 }
+
+/** Certificates, academy/branch names and the account's audit history (Stage 8 global profile). */
+async function personExtras(db: Firestore, actor: Actor, user: UserProfile) {
+  const history = actor.role === 'super_admin'
+    ? db.collection('auditLog').where('targetId', '==', user.id).orderBy('at', 'desc').limit(20)
+    : db.collection('auditLog').where('orgId', '==', user.orgId).where('targetId', '==', user.id).orderBy('at', 'desc').limit(20);
+  const [certs, org, branch, audit] = await Promise.all([
+    user.role === 'student' ? db.collection('certificates').where('orgId', '==', user.orgId).where('studentId', '==', user.id).get() : null,
+    getDocData<{ name: string }>(db, `organizations/${user.orgId}`),
+    user.branchId ? getDocData<{ name: string }>(db, `branches/${user.branchId}`) : null,
+    history.get(),
+  ]);
+  const actors = [...new Set(audit.docs.map((d) => d.data().actorId as string).filter((x) => x && !x.startsWith('migration:')))];
+  const actorSnaps = actors.length ? await db.getAll(...actors.map((id) => db.doc(`users/${id}`))) : [];
+  const actorName = new Map(actorSnaps.map((d) => [d.id, (d.data()?.displayName as string) ?? d.id]));
+  return {
+    academyName: org?.name ?? user.orgId, branchName: branch?.name ?? null,
+    certificates: (certs?.docs ?? []).map((d) => ({ id: d.id, courseTitle: d.data().courseTitle as string, certificateNumber: d.data().certificateNumber as string, status: d.data().status as string, completedOn: d.data().completedOn as string })),
+    history: audit.docs.map((d) => ({ id: d.id, action: d.data().action as string, by: actorName.get(d.data().actorId) ?? (d.data().actorId as string), reason: (d.data().reason as string) ?? null, at: (d.data().at as { toDate?: () => Date } | undefined)?.toDate?.().toISOString() ?? null })),
+  };
+}
+

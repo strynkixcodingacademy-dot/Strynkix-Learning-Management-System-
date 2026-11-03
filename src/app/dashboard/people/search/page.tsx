@@ -45,5 +45,5 @@ function Search() {
 }
 
 export default function PeopleSearchPage() {
-  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell pageTitle="Find a person"><Search /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}><AppShell><Search /></AppShell></RequireRole>;
 }

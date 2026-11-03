@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { idSchema, planDateSchema } from '@/types/validation';
 import type { Enrollment, UserProfile } from '@/types/domain';
 import type { AssessmentAttempt, Certificate, PortfolioEntry, Resume } from '@/types/academy';
+import { notify } from '@/lib/server/notifications';
 import { type Actor, canManageBranch, conflict, denied, displayName, getDocData, invalid, loadActor, notFound, parseBody } from '@/lib/server/academy-scope';
 
 const MAX_ENTRIES = 50;
@@ -50,6 +51,11 @@ export const careerRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('delete_entry'), entryId: idSchema }).strict(),
   z.object({ action: z.literal('student_portfolio'), studentId: idSchema }).strict(),
   z.object({ action: z.literal('recommend'), entryId: idSchema, note: t(500).optional(), remove: z.boolean().optional() }).strict(),
+  // Stage 10 — project review.
+  z.object({ action: z.literal('submit_project'), entryId: idSchema, courseId: idSchema }).strict(),
+  z.object({ action: z.literal('project_queue'), status: z.enum(['submitted', 'under_review', 'changes_requested', 'approved']).optional() }).strict(),
+  z.object({ action: z.literal('review_project'), entryId: idSchema, decision: z.enum(['start', 'changes', 'approve']), comment: t(2000).optional() }).strict(),
+  z.object({ action: z.literal('project_reviews'), entryId: idSchema }).strict(),
   z.object({ action: z.literal('resumes') }).strict(),
   z.object({ action: z.literal('save_resume'), resumeId: idSchema.optional(), name: t(60).min(1, 'Name this resume version.'), template: z.enum(['classic', 'modern', 'compact']), data: resumeDataSchema }).strict(),
   z.object({ action: z.literal('delete_resume'), resumeId: idSchema }).strict(),
@@ -111,11 +117,14 @@ export async function handleCareer(services: Services, idToken: string | null, b
           // Editing an entry keeps an instructor's recommendation only if the work itself is unchanged.
           const old = prev.data() as PortfolioEntry;
           const changed = old.title !== e.title || old.description !== e.description || (old.repoUrl ?? '') !== (e.repoUrl ?? '') || (old.liveUrl ?? '') !== (e.liveUrl ?? '');
-          tx.update(ref, { ...clean(e), ...(changed ? { recommendation: FieldValue.delete() } : {}), updatedAt: iso });
+          // Changing the work also withdraws a pending or completed project review: an approval only covers what was reviewed.
+          const reviewed = old.reviewStatus && old.reviewStatus !== 'draft';
+          tx.update(ref, { ...clean(e), ...(changed ? { recommendation: FieldValue.delete(), ...(reviewed ? { reviewStatus: 'draft', verified: false, verifiedById: FieldValue.delete(), verifiedAt: FieldValue.delete() } : {}) } : {}), updatedAt: iso });
+          if (changed && reviewed) tx.create(ref.collection('reviews').doc(), { authorId: actor.id, authorName: displayName(actor), kind: 'status', fromStatus: old.reviewStatus, toStatus: 'draft', body: 'Edited by the student after review; back to draft.', createdAt: iso });
         } else {
           const count = (await tx.get(db.collection('portfolioEntries').where('studentId', '==', actor.id).count())).data().count;
           if (count >= MAX_ENTRIES) throw conflict(`A portfolio holds up to ${MAX_ENTRIES} projects.`);
-          tx.create(ref, { ...clean(e), orgId: actor.orgId, studentId: actor.id, createdAt: iso, updatedAt: iso });
+          tx.create(ref, { ...clean(e), orgId: actor.orgId, studentId: actor.id, reviewStatus: 'draft', verified: false, createdAt: iso, updatedAt: iso });
         }
         return { entryId: ref.id };
       });
@@ -128,6 +137,76 @@ export async function handleCareer(services: Services, idToken: string | null, b
       if (!s.exists || s.data()!.studentId !== actor.id) throw notFound('That portfolio entry');
       await ref.delete();
       return { ok: true };
+    }
+
+    case 'submit_project': {
+      student(actor);
+      const enr = await getDocData<Enrollment>(db, `enrollments/${req.courseId}_${actor.id}`);
+      if (!enr || !['active', 'completed'].includes(enr.status)) throw invalid('Choose a course you are enrolled in; its instructors review the project.');
+      const ref = db.doc(`portfolioEntries/${req.entryId}`);
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const e = snap.data() as PortfolioEntry | undefined;
+        if (!e || e.studentId !== actor.id) throw notFound('That project');
+        if (e.reviewStatus && !['draft', 'changes_requested'].includes(e.reviewStatus)) throw conflict('This project is already submitted or approved.');
+        if (!e.repoUrl && !e.liveUrl) throw invalid('Add a repository or demo link before submitting for review.');
+        tx.update(ref, { reviewStatus: 'submitted', courseId: req.courseId, batchId: enr.batchId, branchId: enr.branchId, submittedAt: iso, updatedAt: iso });
+        tx.create(ref.collection('reviews').doc(), { authorId: actor.id, authorName: displayName(actor), kind: 'status', fromStatus: e.reviewStatus ?? 'draft', toStatus: 'submitted', body: '', createdAt: iso });
+        const batch = (await getDocData<{ instructorUserIds?: string[] }>(db, `batches/${enr.batchId}`))?.instructorUserIds ?? [];
+        for (const uid of batch) notify(tx, db, { orgId: actor.orgId, userId: uid, type: 'project_review', title: `Project submitted for review: ${e.title}`, body: displayName(actor), link: '/dashboard/projects/review', sourceId: ref.id });
+        return { status: 'submitted' };
+      });
+    }
+
+    case 'project_queue': {
+      if (!['instructor', 'branch_admin', 'university_admin', 'super_admin'].includes(actor.role)) throw denied();
+      let rows: (PortfolioEntry & { id: string })[];
+      const map = (snap: FirebaseFirestore.QuerySnapshot) => snap.docs.map((d) => ({ ...(d.data() as PortfolioEntry), id: d.id }));
+      if (actor.role === 'instructor') {
+        const batches = (await db.collection('batches').where('orgId', '==', actor.orgId).where('instructorUserIds', 'array-contains', actor.id).get()).docs.map((d) => d.id);
+        rows = [];
+        for (let i = 0; i < batches.length; i += 10) rows.push(...map(await db.collection('portfolioEntries').where('orgId', '==', actor.orgId).where('batchId', 'in', batches.slice(i, i + 10)).get()));
+      } else if (actor.role === 'branch_admin') rows = map(await db.collection('portfolioEntries').where('orgId', '==', actor.orgId).where('branchId', '==', actor.branchId ?? '-').get());
+      else rows = map(await db.collection('portfolioEntries').where('orgId', '==', actor.orgId).get());
+      const wanted = req.status ? [req.status] : ['submitted', 'under_review', 'changes_requested'];
+      const list = rows.filter((e) => e.reviewStatus && wanted.includes(e.reviewStatus));
+      const names = await (async () => { const ids = [...new Set(list.map((e) => e.studentId))]; const snaps = ids.length ? await db.getAll(...ids.map((id) => db.doc(`users/${id}`))) : []; return new Map(snaps.map((x) => [x.id, (x.data()?.displayName as string) ?? x.id])); })();
+      return { projects: list.sort((a, b) => String(a.submittedAt ?? '').localeCompare(String(b.submittedAt ?? ''))).map((e) => ({ ...e, studentName: names.get(e.studentId) ?? e.studentId })) };
+    }
+
+    case 'review_project': {
+      const ref = db.doc(`portfolioEntries/${req.entryId}`);
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const e = snap.data() as PortfolioEntry | undefined;
+        if (!e || (actor.role !== 'super_admin' && actor.orgId !== e.orgId)) throw notFound('That project');
+        const batch = e.batchId ? (await tx.get(db.doc(`batches/${e.batchId}`))).data() : undefined;
+        const teaches = actor.role === 'instructor' && ((batch?.instructorUserIds as string[] | undefined) ?? []).includes(actor.id);
+        const manages = actor.role === 'super_admin' || (actor.role === 'university_admin' && actor.orgId === e.orgId) || (actor.role === 'branch_admin' && !!e.branchId && actor.branchId === e.branchId);
+        if (!teaches && !manages) throw denied('Only the instructors of the student’s batch and its managers review this project.');
+        const from = e.reviewStatus ?? 'draft';
+        const allowed: Record<string, string[]> = { start: ['submitted'], changes: ['submitted', 'under_review'], approve: ['submitted', 'under_review'] };
+        if (!allowed[req.decision].includes(from)) throw conflict('This project isn’t waiting for that review step.');
+        if (req.decision === 'changes' && !req.comment) throw invalid('Say what needs improving.');
+        const to = req.decision === 'start' ? 'under_review' : req.decision === 'changes' ? 'changes_requested' : 'approved';
+        tx.update(ref, { reviewStatus: to, updatedAt: iso, reviewerId: actor.id, reviewerName: displayName(actor), ...(to === 'approved' ? { verified: true, verifiedById: actor.id, verifiedByName: displayName(actor), verifiedAt: iso } : {}) });
+        tx.create(ref.collection('reviews').doc(), { authorId: actor.id, authorName: displayName(actor), kind: req.comment ? 'comment' : 'status', fromStatus: from, toStatus: to, body: req.comment ?? '', createdAt: iso });
+        if (to !== 'under_review' || req.comment) notify(tx, db, { orgId: e.orgId, userId: e.studentId, type: 'project_review', title: to === 'approved' ? `Project approved: ${e.title}` : to === 'changes_requested' ? `Changes requested: ${e.title}` : `Review started: ${e.title}`, body: req.comment ?? '', link: '/dashboard/portfolio', sourceId: ref.id });
+        tx.create(db.collection('auditLog').doc(), { orgId: e.orgId, branchId: e.branchId ?? null, courseId: e.courseId ?? null, targetType: 'project', targetId: ref.id, action: `project_${to}`, actorId: actor.id, actorRole: actor.role, at: FieldValue.serverTimestamp() });
+        return { status: to };
+      });
+    }
+
+    case 'project_reviews': {
+      const e = await getDocData<PortfolioEntry>(db, `portfolioEntries/${req.entryId}`);
+      if (!e) throw notFound('That project');
+      const owner = actor.id === e.studentId;
+      if (!owner) {
+        const s = await getDocData<UserProfile>(db, `users/${e.studentId}`);
+        if (!s || !(await canViewStudent(db, actor, s))) throw notFound('That project');
+      }
+      const snap = await db.collection(`portfolioEntries/${req.entryId}/reviews`).orderBy('createdAt').get();
+      return { reviews: snap.docs.map((d) => ({ id: d.id, ...d.data() })) };
     }
 
     case 'student_portfolio': {

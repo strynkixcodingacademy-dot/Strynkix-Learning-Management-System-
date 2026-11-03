@@ -144,5 +144,5 @@ function Scores() {
 }
 
 export default function ScoresPage() {
-  return <RequireRole allowedRoles={['student']}><AppShell pageTitle="My Scores"><Scores /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['student']}><AppShell><Scores /></AppShell></RequireRole>;
 }

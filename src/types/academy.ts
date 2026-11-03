@@ -412,6 +412,10 @@ export interface PortfolioEntry {
   attemptId?: string;
   visible: boolean;
   recommendation?: { byId: string; byName: string; note?: string; at: string };
+  /** Project review (Stage 10): verified is true only after an authorized instructor approved it. */
+  reviewStatus?: 'draft' | 'submitted' | 'under_review' | 'changes_requested' | 'approved';
+  verified?: boolean; verifiedById?: string; verifiedByName?: string; verifiedAt?: string;
+  batchId?: string; branchId?: string; submittedAt?: string; reviewerId?: string; reviewerName?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -105,7 +105,7 @@ function AssessmentsPageContent({ searchParams }: { searchParams: Promise<{ tab?
   const sp = React.use(searchParams);
   return (
     <RequireAuth>
-      <AppShell pageTitle="Assessments">
+      <AppShell>
         {!tenant ? <LoadingState label="Loading…" /> : tenant.role === 'student'
           ? <StudentAssessments initial={sp.tab === 'exams' ? 'exams' : 'activities'} />
           : ['super_admin', 'university_admin', 'branch_admin', 'instructor'].includes(tenant.role) ? <EvaluationQueue />

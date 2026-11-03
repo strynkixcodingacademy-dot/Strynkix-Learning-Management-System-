@@ -209,14 +209,13 @@ export async function handleCertificates(services: Services, idToken: string | n
         db.collection('enrollments').where('orgId', '==', actor.orgId).where('studentId', '==', actor.id).get(),
       ]);
       const issued = certs.docs.map((d) => ({ id: d.id, ...d.data() } as Certificate));
-      const progress = [];
-      for (const d of enrollments.docs) {
-        const e = { id: d.id, ...d.data() } as Enrollment;
-        if (!['active', 'completed'].includes(e.status) || issued.some((c) => c.courseId === e.courseId)) continue;
+      const pending = enrollments.docs.map((d) => ({ id: d.id, ...d.data() } as Enrollment))
+        .filter((e) => ['active', 'completed'].includes(e.status) && !issued.some((c) => c.courseId === e.courseId));
+      const progress = (await Promise.all(pending.map(async (e) => {
         const course = await getDocData<Course>(db, `courses/${e.courseId}`);
-        if (!course) continue;
-        progress.push({ courseId: course.id, courseTitle: course.title, eligibility: await evaluateEligibility(db, course, e, await policyFor(db, course)) });
-      }
+        if (!course) return null;
+        return { courseId: course.id, courseTitle: course.title, eligibility: await evaluateEligibility(db, course, e, await policyFor(db, course)) };
+      }))).filter((p) => p !== null);
       return { certificates: issued, inProgress: progress };
     }
   }

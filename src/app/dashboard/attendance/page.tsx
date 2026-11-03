@@ -199,7 +199,7 @@ export default function AttendancePage() {
   const { tenant } = useAuth();
   return (
     <RequireAuth>
-      <AppShell pageTitle="Attendance">
+      <AppShell>
         {!tenant ? <LoadingState label="Loading…" /> : tenant.role === 'student' ? <MyAttendance />
           : ['super_admin', 'university_admin', 'branch_admin', 'instructor'].includes(tenant.role) ? <StaffAttendance />
             : <EmptyState title="Not available">Attendance is recorded by instructors and branch managers.</EmptyState>}

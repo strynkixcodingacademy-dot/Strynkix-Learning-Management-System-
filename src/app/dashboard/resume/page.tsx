@@ -175,5 +175,5 @@ function ResumeBuilder() {
 }
 
 export default function ResumePage() {
-  return <RequireRole allowedRoles={['student']}><AppShell pageTitle="Resume"><ResumeBuilder /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['student']}><AppShell><ResumeBuilder /></AppShell></RequireRole>;
 }

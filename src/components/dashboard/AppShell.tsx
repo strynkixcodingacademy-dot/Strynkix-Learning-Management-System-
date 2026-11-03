@@ -47,6 +47,11 @@ import {
   IndianRupee,
   Receipt,
   FileBarChart,
+  Gauge,
+  Sparkles,
+  HelpCircle,
+  CalendarDays,
+  MessageSquareText,
 } from 'lucide-react';
 
 type NavGroup = 'Overview' | 'Learn' | 'Teach' | 'Manage' | 'Finance' | 'Support';
@@ -69,6 +74,7 @@ const AUTHORS: UserRole[] = [...STAFF, ...CONTENT];
 // Navigation only shows the way; every route and API call authorizes on its own.
 const NAV_ITEMS: NavItem[] = [
   { name: 'Home', href: '/dashboard', icon: Home, roles: ALL, group: 'Overview' },
+  { name: 'Command Centre', href: '/dashboard/command', icon: Gauge, roles: ['super_admin'], group: 'Overview' },
   { name: 'Dashboard', href: '/dashboard/overview', icon: LayoutDashboard, roles: ['student'], group: 'Overview' },
   { name: 'My Progress', href: '/dashboard/analytics', icon: BarChart3, roles: ['student'], group: 'Overview' },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: STAFF, group: 'Overview' },
@@ -78,8 +84,14 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'My Scores', href: '/dashboard/scores', icon: Trophy, roles: ['student'], group: 'Learn' },
   { name: 'Attendance', href: '/dashboard/attendance', icon: CalendarCheck, roles: ['student'], group: 'Learn' },
   { name: 'Certificates', href: '/dashboard/certificates', icon: Award, roles: ['student'], group: 'Learn' },
-  { name: 'Portfolio', href: '/dashboard/portfolio', icon: Briefcase, roles: ['student'], group: 'Learn' },
+  { name: 'My Fees', href: '/dashboard/fees', icon: IndianRupee, roles: ['student'], group: 'Learn' },
+  { name: 'Achievements', href: '/dashboard/achievements', icon: Sparkles, roles: ['student'], group: 'Learn' },
+  { name: 'Doubts', href: '/dashboard/doubts', icon: HelpCircle, roles: ['student'], group: 'Learn' },
+  { name: 'Activities', href: '/dashboard/activities', icon: CalendarDays, roles: ['student'], group: 'Learn' },
+  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquareText, roles: ['student'], group: 'Learn' },
+  { name: 'Projects & Portfolio', href: '/dashboard/portfolio', icon: Briefcase, roles: ['student'], group: 'Learn' },
   { name: 'Resume', href: '/dashboard/resume', icon: FileText, roles: ['student'], group: 'Learn' },
+  { name: 'My Teaching', href: '/dashboard/teaching', icon: Gauge, roles: ['instructor'], group: 'Teach' },
   { name: 'My Batches', href: '/dashboard/batches', icon: Users, roles: ['instructor'], group: 'Teach' },
   { name: 'Batches & Enrollment', href: '/dashboard/batches', icon: Users, roles: MANAGERS, group: 'Teach' },
   { name: 'Course Authoring', href: '/dashboard/courses', icon: PenTool, roles: AUTHORS, group: 'Teach' },
@@ -87,6 +99,11 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'Attendance', href: '/dashboard/attendance', icon: CalendarCheck, roles: STAFF, group: 'Teach' },
   { name: 'Evaluate', href: '/dashboard/assessments', icon: ClipboardList, roles: STAFF, group: 'Teach' },
   { name: 'Certificates', href: '/dashboard/certificates', icon: Award, roles: STAFF, group: 'Teach' },
+  { name: 'Doubts', href: '/dashboard/doubts', icon: HelpCircle, roles: STAFF, group: 'Teach' },
+  { name: 'Project reviews', href: '/dashboard/projects/review', icon: Briefcase, roles: STAFF, group: 'Teach' },
+  { name: 'Activities', href: '/dashboard/activities', icon: CalendarDays, roles: STAFF, group: 'Teach' },
+  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquareText, roles: STAFF, group: 'Teach' },
+  { name: 'Engagement', href: '/dashboard/engagement', icon: Sparkles, roles: MANAGERS, group: 'Manage' },
   { name: 'Admissions', href: '/dashboard/admissions', icon: UserPlus, roles: MANAGERS, group: 'Manage' },
   { name: 'People', href: '/dashboard/people', icon: UsersRound, roles: MANAGERS, group: 'Manage' },
   { name: 'Branches', href: '/dashboard/branches', icon: GitBranch, roles: ['super_admin', 'university_admin'], group: 'Manage' },

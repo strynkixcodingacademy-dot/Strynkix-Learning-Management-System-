@@ -9,7 +9,8 @@
 import React, { useState } from 'react';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
-import { careerApi } from '@/lib/academy/api';
+import { careerApi, studentApi } from '@/lib/academy/api';
+import { ProjectReview } from '@/components/career/ProjectReview';
 import { useApiData } from '@/lib/hooks/useApiData';
 import { formatDate } from '@/lib/academy/format';
 import type { PortfolioEntry } from '@/types/academy';
@@ -62,6 +63,7 @@ function Editor({ initial, entryId, onSaved, onCancel }: { initial: Draft; entry
 }
 
 function Portfolio() {
+  const courses = useApiData('pf-courses', () => studentApi<{ courses: { courseId: string; title: string; enrollmentStatus: string }[] }>({ action: 'courses' }));
   const { data, error, reload } = useApiData('pf', () => careerApi<{ entries: PortfolioEntry[]; verifiedWork: Work[] }>({ action: 'portfolio' }));
   const [editing, setEditing] = useState<{ id?: string; draft: Draft } | null>(null);
   const { confirm, dialog } = useConfirm();
@@ -107,6 +109,8 @@ function Portfolio() {
                 {e.attemptId && <span className="text-xs font-semibold text-success-ink">Evaluated course work</span>}
               </div>
               {e.recommendation && <p className="flex items-start gap-2 rounded-lg bg-success-soft p-2 text-xs text-success-ink"><Award className="h-4 w-4 shrink-0" /> Recommended by {e.recommendation.byName}{e.recommendation.note ? `: “${e.recommendation.note}”` : ''}</p>}
+              {e.verified && <p className="hidden text-xs font-semibold print:block">Verified by {e.verifiedByName ?? 'an instructor'}</p>}
+              <ProjectReview entry={e} courses={courses.data?.courses.filter((c) => c.enrollmentStatus !== 'dropped') ?? []} onChanged={reload} />
               <div className="mt-auto flex gap-2 print:hidden">
                 <Button size="sm" variant="ghost" onClick={() => setEditing({ id: e.id, draft: { title: e.title, description: e.description, skills: e.skills.join(', '), technologies: e.technologies.join(', '), repoUrl: e.repoUrl ?? '', liveUrl: e.liveUrl ?? '', imageUrl: e.imageUrl ?? '', completedOn: e.completedOn ?? '', courseId: e.courseId, attemptId: e.attemptId, visible: e.visible } })}>Edit</Button>
                 <Button size="sm" variant="ghost" onClick={async () => { if (await confirm({ title: `Delete “${e.title}”?`, confirmLabel: 'Delete', tone: 'danger' })) { await careerApi({ action: 'delete_entry', entryId: e.id }); reload(); } }}>Delete</Button>
@@ -120,5 +124,5 @@ function Portfolio() {
 }
 
 export default function PortfolioPage() {
-  return <RequireRole allowedRoles={['student']}><AppShell pageTitle="Portfolio"><Portfolio /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['student']}><AppShell><Portfolio /></AppShell></RequireRole>;
 }

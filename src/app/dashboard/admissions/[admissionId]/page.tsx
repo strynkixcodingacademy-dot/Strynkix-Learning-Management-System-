@@ -10,7 +10,7 @@ function AdmissionPageContent({ params }: { params: Promise<{ admissionId: strin
   const { admissionId } = use(params);
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin']}>
-      <AppShell pageTitle="Admission">
+      <AppShell>
         <div className="space-y-6">
           <PageHeader breadcrumbs={[{ label: 'Admissions', href: '/dashboard/admissions' }, { label: 'Admission' }]} title="Admission" />
           <AdmissionLoader admissionId={admissionId} />

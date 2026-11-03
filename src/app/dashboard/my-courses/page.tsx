@@ -31,5 +31,5 @@ function Courses() {
 }
 
 export default function MyCoursesPage() {
-  return <RequireRole allowedRoles={['student']}><AppShell pageTitle="My Courses"><Courses /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['student']}><AppShell><Courses /></AppShell></RequireRole>;
 }

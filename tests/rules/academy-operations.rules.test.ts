@@ -17,6 +17,10 @@ const as = (uid: string) => testEnv.authenticatedContext(uid).firestore() as unk
 const COLLECTIONS = [
   'assessments', 'assessmentAttempts', 'attendance', 'certificatePolicies', 'certificates', 'admissions', 'personProfiles', 'counters',
   'coursePricing', 'feeAccounts', 'feeTransactions', 'expenseCategories', 'expenses', 'recurringExpenses', 'portfolioEntries', 'resumes',
+  // Stage 8–9
+  'announcements', 'reportSnapshots', 'snapshotJobs', 'snapshotLocks', 'snapshotInvalidations', 'reconciliationReviews',
+  // Stage 10
+  'achievements', 'achievementSettings', 'engagementSettings', 'notificationPreferences', 'feedback', 'doubts', 'activities', 'activityRegistrations',
 ];
 
 beforeAll(async () => {

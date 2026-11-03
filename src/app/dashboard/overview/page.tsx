@@ -14,6 +14,7 @@ import { RequireRole } from '@/components/auth/RouteGuards';
 import { studentApi } from '@/lib/academy/api';
 import { useApiData } from '@/lib/hooks/useApiData';
 import { MyCourseCard } from '@/components/student/MyCourseCard';
+import { EngagementPanel } from '@/components/engagement/EngagementPanel';
 import type { StudentOverview } from '@/components/student/types';
 import { EXAM_TYPE_LABELS, KIND_LABELS } from '@/lib/assessments/grading';
 import type { AssessmentKind, ExamType } from '@/types/academy';
@@ -54,6 +55,8 @@ function Overview() {
         <KpiTile label="Work to do" value={data.pendingCount} tone="coral" icon={ClipboardList} hint="Activities and exams open for you" />
         <KpiTile label="Certificates" value={data.certificates.filter((c) => c.status === 'issued').length} tone="lavender" icon={Award} hint="Issued to you" />
       </div>
+
+      <EngagementPanel />
 
       <nav aria-label="Student sections" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
         {QUICK.map((q) => (
@@ -141,5 +144,5 @@ function Overview() {
 }
 
 export default function StudentOverviewPage() {
-  return <RequireRole allowedRoles={['student']}><AppShell pageTitle="Dashboard"><Overview /></AppShell></RequireRole>;
+  return <RequireRole allowedRoles={['student']}><AppShell><Overview /></AppShell></RequireRole>;
 }

@@ -21,6 +21,7 @@ import {
   type Actor, canManageBranch, conflict, denied, displayName, financeScope, getDocData, invalid, isAcademyManager, loadActor, localDate, notFound, parseBody,
 } from '@/lib/server/academy-scope';
 import { methodSchema } from '@/lib/server/finance';
+import { recordInvalidation } from '@/lib/server/snapshot-invalidation';
 
 export const BUILT_IN_CATEGORIES: { id: string; name: string }[] = [
   ['rent', 'Office or classroom rent'], ['instructor_salary', 'Instructor salary'], ['trainer_salary', 'Trainer salary'], ['staff_salary', 'Staff salary'],
@@ -126,6 +127,7 @@ export async function handleExpenses(services: Services, idToken: string | null,
           status: 'paid', createdById: actor.id, createdByName: displayName(actor), createdAt: iso,
         };
         tx.create(ref, doc);
+        recordInvalidation(tx, db, { orgId: branchOrgId, branchId: req.branchId, fromDate: req.date, toDate: req.date, reason: 'Backdated expense recorded', sourceType: 'expense', sourceId: ref.id });
         audit(tx, req.branchId, 'expense', ref.id, 'expense_add', { orgId: branchOrgId, amount: req.amount, categoryId: cat.id });
         return { expenseId: ref.id };
       });
@@ -141,6 +143,7 @@ export async function handleExpenses(services: Services, idToken: string | null,
         assertBranch(actor, e.orgId, e.branchId);
         if (e.status === 'void') throw conflict('This expense is already void.');
         tx.update(ref, { status: 'void', voidReason: req.reason, voidedById: actor.id, voidedAt: iso });
+        recordInvalidation(tx, db, { orgId: e.orgId, branchId: e.branchId, fromDate: e.date, toDate: e.date, reason: 'Expense voided', sourceType: 'expense', sourceId: ref.id });
         audit(tx, e.branchId, 'expense', ref.id, 'expense_void', { orgId: e.orgId, amount: e.amount, reason: req.reason });
         return { ok: true };
       });
@@ -238,6 +241,7 @@ export async function handleExpenses(services: Services, idToken: string | null,
           recurringId: s.id, period: req.period, status: 'paid', createdById: actor.id, createdByName: displayName(actor), createdAt: iso,
         };
         tx.create(eref, doc);
+        recordInvalidation(tx, db, { orgId: s.orgId, branchId: s.branchId, fromDate: req.date, toDate: req.date, reason: 'Backdated recurring expense paid', sourceType: 'expense', sourceId: eref.id });
         audit(tx, s.branchId, 'expense', eref.id, 'expense_add', { orgId: s.orgId, amount: doc.amount, recurringId: s.id, period: req.period });
         return { expenseId: eref.id };
       });

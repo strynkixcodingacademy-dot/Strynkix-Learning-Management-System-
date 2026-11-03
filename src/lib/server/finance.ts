@@ -31,6 +31,7 @@ import {
   isAcademyManager, isSuper, loadActor, localDate, notFound, parseBody,
 } from '@/lib/server/academy-scope';
 import { codeOf, commit, pad, reserve } from '@/lib/server/counters';
+import { recordInvalidation } from '@/lib/server/snapshot-invalidation';
 
 const paise = z.number().int('Amounts are in paise (whole numbers).');
 const positive = paise.min(1, 'Enter an amount above zero.').max(1_00_00_000_00, 'That amount is too large.');
@@ -61,6 +62,7 @@ export const financeRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reschedule'), feeAccountId: idSchema, installments, reason: z.string().trim().min(5).max(300) }).strict(),
   z.object({ action: z.literal('receipt'), transactionId: idSchema }).strict(),
   z.object({ action: z.literal('reconcile'), feeAccountId: idSchema }).strict(),
+  z.object({ action: z.literal('my_fees') }).strict(),
 ]);
 
 type Services = { db: Firestore; auth: Auth };
@@ -163,6 +165,31 @@ export async function handleFinance(services: Services, idToken: string | null, 
       return { scope, accounts: rows };
     }
 
+    case 'my_fees': {
+      // Read-only view of the signed-in student's own accounts. Internal
+      // fields (reasons, who recorded or approved entries) are left out.
+      if (actor.role !== 'student') throw denied('This view is for students.');
+      const accounts = (await db.collection('feeAccounts').where('studentId', '==', actor.id).get()).docs
+        .map((d) => ({ ...(d.data() as FeeAccount), id: d.id }))
+        .filter((a) => a.orgId === actor.orgId && a.status !== 'cancelled');
+      const ledgers = await Promise.all(accounts.map((a) => db.collection('feeTransactions').where('feeAccountId', '==', a.id).get()));
+      return {
+        accounts: accounts.map((a, i) => {
+          const tx = ledgers[i].docs.map((d) => ({ ...(d.data() as FeeTransaction), id: d.id }));
+          const reversed = new Set(tx.filter((t) => t.type === 'reversal').map((t) => t.reversesId));
+          const s = summarize(a, today);
+          return {
+            id: a.id, courseTitle: a.courseTitle, admissionNumber: a.admissionNumber, grossFee: a.grossFee,
+            discount: a.discount.status === 'approved' ? a.discount.amount : 0, due: s.due, collected: s.collected, balance: s.balance,
+            overdue: s.overdue, nextDue: s.nextDue, paymentStatus: s.paymentStatus,
+            installments: s.allocation.map((it) => ({ dueDate: it.dueDate, amount: it.amount, paid: it.paid, remaining: it.remaining, state: it.state })),
+            entries: tx.filter((t) => t.type === 'payment' || t.type === 'refund').sort((x, y) => y.createdAt.localeCompare(x.createdAt))
+              .map((t) => ({ id: t.id, type: t.type, date: t.date, amount: t.amount, method: METHOD_LABELS[t.method ?? 'other'], receiptNumber: t.receiptNumber ?? null, reversed: reversed.has(t.id) })),
+          };
+        }),
+      };
+    }
+
     case 'account': {
       const a = await getDocData<FeeAccount>(db, `feeAccounts/${req.feeAccountId}`);
       if (!a) throw notFound('That fee account');
@@ -170,9 +197,17 @@ export async function handleFinance(services: Services, idToken: string | null, 
       const tx = (await db.collection('feeTransactions').where('feeAccountId', '==', a.id).get()).docs
         .map((d) => ({ id: d.id, ...d.data() } as FeeTransaction)).sort((x, y) => x.createdAt.localeCompare(y.createdAt));
       const reversed = new Set(tx.filter((t) => t.type === 'reversal').map((t) => t.reversesId));
-      const pricing = await getDocData<CoursePricing>(db, `coursePricing/${a.courseId}`);
+      const [pricing, org, branch] = await Promise.all([
+        getDocData<CoursePricing>(db, `coursePricing/${a.courseId}`),
+        getDocData<{ name: string }>(db, `organizations/${a.orgId}`),
+        getDocData<{ name: string }>(db, `branches/${a.branchId}`),
+      ]);
+      const fromLedger = totalsFromLedger(tx, new Map(tx.map((t) => [t.id, t])));
       return {
         account: summarize(a, today),
+        context: { academyName: org?.name ?? a.orgId, branchName: branch?.name ?? a.branchId, admittedOn: a.createdAt },
+        // The cached totals must equal the ledger; a mismatch is shown for review (nothing is changed automatically).
+        reconciled: fromLedger.paid === a.totals.paid && fromLedger.refunded === a.totals.refunded && fromLedger.adjustments === a.totals.adjustments,
         transactions: tx.map((t) => ({ ...t, reversed: reversed.has(t.id) })),
         canApproveDiscount: a.discount.status === 'pending' && !!pricing && (isSuper(actor) || discountLimitBp(actor.role, pricing) * a.grossFee >= a.discount.amount * 10000),
         canWaive: isAcademyManager(actor, a.orgId),
@@ -237,6 +272,8 @@ export async function handleFinance(services: Services, idToken: string | null, 
         };
         if (counter) commit(tx, counter, iso);
         tx.create(txRef, entry);
+        // A backdated payment or refund changes closed reporting periods: mark them for recalculation.
+        recordInvalidation(tx, db, { orgId: a.orgId, branchId: a.branchId, fromDate: entry.date, toDate: null, reason: `Backdated ${entry.type} recorded`, sourceType: 'fee_transaction', sourceId: txRef.id });
         tx.update(accountRef, { totals, installments: schedule, status: balanceOf(after) === 0 && dueOf(after) > 0 ? 'closed' : 'active', updatedAt: iso });
         audit(tx, a, 'fee_transaction', txRef.id, `fee_${entry.type}`, { feeAccountId: a.id, amount: req.amount, ...(receiptNumber ? { receiptNumber } : {}) });
         return { transactionId: txRef.id, receiptNumber: receiptNumber ?? null, balance: balanceOf(after) };
@@ -292,6 +329,7 @@ export async function handleFinance(services: Services, idToken: string | null, 
           discount: { ...a.discount, status: req.approve ? 'approved' : 'rejected', approvedById: actor.id, ...(req.approve ? {} : { amount: 0 }) },
           agreedFee, installments: schedule, updatedAt: iso,
         });
+        recordInvalidation(tx, db, { orgId: a.orgId, branchId: a.branchId, fromDate: a.createdAt.slice(0, 10), toDate: null, reason: 'Discount decision changed an agreed fee', sourceType: 'fee_account', sourceId: a.id });
         audit(tx, a, 'fee_account', a.id, req.approve ? 'discount_approved' : 'discount_rejected', { amount: a.discount.amount, ...(req.note ? { reason: req.note } : {}) });
         return { agreedFee };
       });
@@ -317,7 +355,9 @@ export async function handleFinance(services: Services, idToken: string | null, 
       if (!t || t.type !== 'payment') throw notFound('That receipt');
       const a = await getDocData<FeeAccount>(db, `feeAccounts/${t.feeAccountId}`);
       if (!a) throw notFound('That receipt');
-      assertAccountAccess(actor, a);
+      // A student may print their own receipts; anyone else needs finance access.
+      if (actor.role === 'student') { if (a.studentId !== actor.id) throw notFound('That receipt'); }
+      else assertAccountAccess(actor, a);
       const [org, branch, reversal, admission] = await Promise.all([
         getDocData<Organization>(db, `organizations/${t.orgId}`),
         getDocData<{ name: string; code: string; location?: { city?: string; state?: string } }>(db, `branches/${t.branchId}`),
