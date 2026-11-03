@@ -11,6 +11,7 @@ import { FieldValue, type Firestore } from 'firebase-admin/firestore';
 import { ContentReview, Course, EntityStatus, Lesson, LessonAnswerKey, LessonRevision, UserProfile } from '@/types/domain';
 import { contentActionRequestSchema, lessonAnswerKeySchema } from '@/types/validation';
 import { ReviewError, ReviewTarget, planContentAction } from '@/lib/review/workflow';
+import { notify } from '@/lib/server/notifications';
 import { buildPublishedLesson, courseSnapshotFields, versionId } from '@/lib/review/versioning';
 import { verifyCaller } from '@/lib/server/content-route';
 
@@ -156,6 +157,20 @@ export async function performContentAction(
     }
 
     tx.create(auditRef, { ...plan.audit, ...(version ? { version } : {}), at: FieldValue.serverTimestamp() });
+
+    // Milestone G46: tell the person who submitted the work about the decision.
+    const decided = (plan.subject === 'revision' ? revision?.review : data.review) as { submittedById?: string } | undefined;
+    const submitter = decided?.submittedById;
+    const kind = action === 'approve' ? 'review_approved' : action === 'request_changes' ? 'review_changes_requested' : action === 'publish' ? 'content_published' : null;
+    if (kind && submitter && submitter !== uid) {
+      const what = `${isLesson ? 'Lesson' : 'Course'} “${(revision?.title ?? data.title ?? targetId) as string}”`;
+      notify(tx, db, {
+        orgId: data.orgId, userId: submitter, type: kind, sourceId: targetId,
+        title: kind === 'review_approved' ? `${what} was approved` : kind === 'review_changes_requested' ? `Changes requested on ${what}` : `${what} is published`,
+        body: kind === 'review_changes_requested' ? (comment ?? 'Open it to see the reviewer’s note.') : kind === 'review_approved' ? 'It is ready for the Super Admin to publish.' : 'Students can now see it.',
+        link: isLesson ? `/dashboard/courses/${courseId}/lessons/${targetId}` : `/dashboard/courses/${targetId}`,
+      });
+    }
     return { targetType, targetId, ...plan.patch, override: plan.audit.override, auditId: auditRef.id, subject: plan.subject, ...(version ? { version } : {}) };
   });
 }

@@ -20,3 +20,8 @@ Checkpoint for resuming work. No secrets, answer keys or personal data here.
 **Next safe action:** owner review; nothing further is started automatically.
 
 **Confirmations:** nothing committed, pushed or deployed; no production or remote staging access; no migration run outside the local emulator.
+
+## LMS completion milestone (2026-10-30)
+
+Status: complete locally on `feature/assessment-security` (not committed, not pushed, nothing deployed). Final verification: typecheck ✓, lint ✓, unit 26 files / 321 ✓, emulator 27 files / 458 ✓, browser 37/37 ✓, build ✓ (no Admin code or e2e settings in client bundles), verify:emulator 46 ✓. Details and operational prerequisites: docs/STAGING_READINESS.md §22.
+

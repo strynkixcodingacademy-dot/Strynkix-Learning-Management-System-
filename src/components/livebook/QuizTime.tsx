@@ -10,7 +10,7 @@
  * server releases them (after passing).
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QuizAttemptResult, QuizBlock } from '@/types/domain';
 import { QUIZ_PASS_PERCENT } from '@/lib/livebook/structure';
 import { QuizSubmitError } from '@/lib/livebook/service';
@@ -21,12 +21,49 @@ import { ArrowRight, Check, Flag, RotateCcw, Timer, Trophy, X } from 'lucide-rea
 
 type Phase = 'intro' | 'question' | 'result';
 
+/**
+ * In-progress answers survive a refresh or navigation (milestone G21). Only
+ * the student's own choices are stored, in this browser, keyed by student,
+ * lesson and published version, so a newer version starts clean. Nothing here
+ * is trusted: the server validates and grades every submission.
+ */
+interface QuizDraft { answers: Record<string, string>; index: number }
+
+export function readQuizDraft(key: string | undefined, questions: QuizBlock[]): QuizDraft | null {
+  if (!key || typeof window === 'undefined') return null;
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(key) ?? 'null') as QuizDraft | null;
+    if (!raw || typeof raw !== 'object' || typeof raw.answers !== 'object' || raw.answers === null) return null;
+    const answers: Record<string, string> = {};
+    for (const q of questions) {
+      const a = raw.answers[q.id];
+      if (typeof a === 'string' && q.options.some((o) => o.id === a)) answers[q.id] = a;
+    }
+    if (!Object.keys(answers).length) return null;
+    const index = Number.isInteger(raw.index) && raw.index >= 0 && raw.index < questions.length ? raw.index : 0;
+    return { answers, index };
+  } catch {
+    return null;
+  }
+}
+
+function writeQuizDraft(key: string | undefined, draft: QuizDraft | null) {
+  if (!key) return;
+  try {
+    if (draft && Object.keys(draft.answers).length) window.localStorage.setItem(key, JSON.stringify(draft));
+    else window.localStorage.removeItem(key);
+  } catch {
+    /* storage unavailable: answers just aren't kept across reloads */
+  }
+}
+
 export function QuizTime({
   questions,
   isCompleted,
   canTrackProgress,
   onSubmit,
   bestPercent,
+  draftKey,
 }: {
   questions: QuizBlock[];
   isCompleted: boolean;
@@ -35,8 +72,10 @@ export function QuizTime({
   onSubmit: (answers: Record<string, string>) => Promise<QuizAttemptResult>;
   /** Best server-recorded score. */
   bestPercent?: number | null;
+  /** Where in-progress answers are kept (per student, lesson and version). */
+  draftKey?: string;
 }) {
-  return <GradedQuiz questions={questions} isCompleted={isCompleted} canSubmit={canTrackProgress} onSubmit={onSubmit} bestPercent={bestPercent ?? null} />;
+  return <GradedQuiz questions={questions} isCompleted={isCompleted} canSubmit={canTrackProgress} onSubmit={onSubmit} bestPercent={bestPercent ?? null} draftKey={canTrackProgress ? draftKey : undefined} />;
 }
 
 function QuizIntro({ count, canTrackProgress, isCompleted, best, onStart, note }: {
@@ -79,16 +118,24 @@ function QuizIntro({ count, canTrackProgress, isCompleted, best, onStart, note }
   );
 }
 
-function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent }: {
+function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent, draftKey }: {
   questions: QuizBlock[];
   isCompleted: boolean;
   canSubmit: boolean;
   onSubmit: (answers: Record<string, string>) => Promise<QuizAttemptResult>;
   bestPercent: number | null;
+  draftKey?: string;
 }) {
-  const [phase, setPhase] = useState<Phase>('intro');
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // A saved draft puts the student straight back where they were.
+  const [draft] = useState(() => readQuizDraft(draftKey, questions));
+  const [phase, setPhase] = useState<Phase>(draft ? 'question' : 'intro');
+  const [index, setIndex] = useState(draft?.index ?? 0);
+  const [answers, setAnswers] = useState<Record<string, string>>(draft?.answers ?? {});
+  const [restored, setRestored] = useState(Boolean(draft));
+
+  useEffect(() => {
+    if (phase === 'question') writeQuizDraft(draftKey, { answers, index });
+  }, [phase, answers, index, draftKey]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<QuizAttemptResult | null>(null);
@@ -100,6 +147,8 @@ function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent }
   const best = result ? Math.max(result.percent, bestPercent ?? 0) : bestPercent;
 
   const start = () => {
+    writeQuizDraft(draftKey, null);
+    setRestored(false);
     setAnswers({});
     setIndex(0);
     setSubmitError(null);
@@ -108,13 +157,18 @@ function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent }
   };
 
   const submit = async () => {
+    if (submitting) return;
     setSubmitting(true);
     setSubmitError(null);
     setCompletedBefore(isCompleted);
     try {
       setResult(await onSubmit(answers));
+      writeQuizDraft(draftKey, null);
+      setRestored(false);
       setPhase('result');
     } catch (err) {
+      // A newer version went live: these answers belong to the old questions.
+      if (err instanceof QuizSubmitError && err.code === 'lesson_updated') writeQuizDraft(draftKey, null);
       setSubmitError(err instanceof QuizSubmitError ? err.message : 'Quiz grading is unavailable right now. Try again later.');
     } finally {
       setSubmitting(false);
@@ -132,6 +186,7 @@ function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent }
 
       {phase === 'question' && q && (
         <div className="p-6 sm:p-9">
+          {restored && <div className="mb-4"><Notice kind="info">We restored the answers you had chosen. Nothing has been submitted yet.</Notice></div>}
           <div className="flex items-center justify-between gap-3">
             <h2 id="quiz-heading" className="text-sm font-bold uppercase tracking-[0.1em] text-ink-3">Question {index + 1} of {questions.length}</h2>
             <div className="flex gap-1" aria-hidden="true">

@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { CourseIcon } from '@/components/ui/CourseIcon';
 import { formatDateTime, formatPlanDate } from '@/components/learning/LearningBits';
+import { QuizResultRow, QuizResultsTable } from '@/components/livebook/QuizResults';
 import { Activity, BookCheck, CircleCheck, ClipboardCheck, Clock3, MessageSquareWarning, Trophy } from 'lucide-react';
 
 const pct = (n: number | null) => (n === null ? '—' : `${n}`);
@@ -55,6 +56,10 @@ export function StudentAnalytics() {
   }, [tenant, user, reloadKey]);
 
   const metrics = useMemo(() => combineMetrics(overviews.map((o) => o.metrics)), [overviews]);
+  // Every lesson with at least one graded attempt (summaries are written by the grading server).
+  const quizRows: QuizResultRow[] = useMemo(() => overviews.flatMap((o) => o.progress
+    .filter((p) => p.quiz && p.quiz.attemptCount > 0)
+    .map((p) => ({ key: p.id, progress: p, lessonTitle: o.lessons.find((l) => l.id === p.lessonId)?.title ?? 'Lesson', context: o.course.title }))), [overviews]);
   const days = useMemo(() => {
     const window = lastNDays(now, 14);
     const count = (dates: Array<string | undefined>) => window.map((d) => dates.filter((x) => x && toLocalDateKey(new Date(x)) === d).length);
@@ -116,6 +121,17 @@ export function StudentAnalytics() {
               </ul>
             </Card>
           </div>
+
+          <Section id="quizzes" title="Quiz results" icon={Trophy}>
+            <Card className="overflow-hidden">
+              <QuizResultsTable
+                rows={quizRows}
+                contextLabel="Course"
+                emptyText="Your quiz scores and attempts will appear here after your first quiz."
+                scopeFor={() => ({ orgId: tenant?.orgId ?? '', studentId: user?.uid })}
+              />
+            </Card>
+          </Section>
 
           <Section id="work" title="Assignments and marks" icon={ClipboardCheck}>
             {graded.length === 0 ? (

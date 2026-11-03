@@ -634,3 +634,112 @@ Comparison method: a recursive Admin SDK walk (with `useBigInt`) of every collec
 - Firestore-only, like the export: no Auth users, IAM, indexes, rules or Storage.
 - Documents larger than Firestore's limits, or other values the server rejects, are only detected at commit time (reported as a partial restore).
 
+## 22. LMS completion milestone (2026-10-30; local only, nothing deployed)
+
+**New trusted routes** (all use `src/lib/server/firebase-admin.ts`, verify the ID token with revocation, take strict Zod bodies and write an audit entry in the same transaction):
+
+| Route | Purpose |
+|---|---|
+| `POST /api/admin/accounts` | create staff, student and University Admin accounts (replaces the browser-side secondary-app provisioning) |
+| `POST /api/admin/account-profile` | role change, branch move, sign-in email correction |
+| `POST /api/admin/academy` | edit / (de)activate academies and branches (never deletes) |
+| `POST /api/account/email-sync` | copy a verified self-service email change onto the profile |
+| `POST /api/content/structure` | edit draft course details; module edit/reorder/delete-if-empty; draft lesson reorder/move/delete-if-never-published |
+| `POST /api/content/lesson` | Block Studio saves (draft or published-lesson revision) with the answer key |
+
+**Rules changes (tightening only).** No client creates another user's profile (self sign-up stays); no client changes `role`, `branchId`, `email` or `orgId` on a profile; no client creates or updates answer keys (`answerKey/*` create/update: false; discarding a working key stays); new `notifications` collection (recipient reads own, may only set `read`; the only client-created kind is a grading notice written in the same batch that grades that submission by someone who teaches its batch); the audit-log read rule is restated so University Admins can list their academy's log (same visibility as before). Removed the now-unused `isValidAnswerKey` helper.
+
+**Indexes added to `firestore.indexes.json`** (required on real Firestore; the emulator doesn't enforce them): users (orgId, role, displayName), (orgId, role, status, displayName), (orgId, branchId, role, displayName), (orgId, branchId, role, status, displayName); courses (orgId, title), (orgId, status, title), (status, title); auditLog (orgId, at desc), (orgId, action, at desc); notifications (orgId, userId, createdAt desc).
+
+**Release coupling (important).** Code, rules and indexes must be deployed together: with the new code but old rules, grading would fail (the notification write has no rule) and nothing else changes; with new rules but old code, the old Block Studio save and old account provisioning would be refused. Staging: `firebase deploy --only firestore:rules,firestore:indexes --project staging` in the same window as the Vercel deploy; wait for indexes to finish building before testing People, Courses, Audit log and notifications.
+
+**GitHub Actions deploy hook (G51).** `.github/workflows/vercel-deploy.yml` reads the hook from the repository secret `VERCEL_DEPLOY_HOOK_URL`, fails if it is missing and never prints it. Owner steps: in Vercel, delete the old hook (its URL is in git history) and create a new one; in GitHub → Settings → Secrets and variables → Actions, add `VERCEL_DEPLOY_HOOK_URL`. Until then, pushes to `main`/`staging` fail the workflow instead of deploying.
+
+**Admin configuration check (G52).** `npm run check:admin-env` prints set/MISSING for `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY` (names only, no values, no network) and warns about the production project or `ALLOW_PRODUCTION_ADMIN`. A server missing them answers 503 and logs which variable names are missing. The service account additionally needs **Firebase Authentication Admin** (create/update users, revoke sessions).
+
+**Legacy quizzes (G24).** No migration was run. A new emulator test (`tests/emulator/quiz-migration-rollback.emulator.test.ts`) proves the full sequence with the real CLIs: backup export → dry run → apply (progress, attempts and enrollments unchanged; answers out of lessons) → restore from the backup returns the exact pre-migration lessons. Runbook unchanged (§16, §20).
+
+**Decisions taken (owner may revisit).**
+- Deactivation uses the existing statuses (academy `suspended`, branch `inactive`); no "archived" state was added. Deactivated academies/branches get no new accounts or batches; **data access for members of a suspended academy is not blocked by the rules** — doing so needs an extra lookup in every rule (decision required).
+- Course details and module structure change only while the course is a draft; published lessons keep their place (only drafts reorder/move); only never-published draft lessons can be deleted, and only empty modules (Super Admin).
+- Role changes refuse to strand data: students with active enrollments and instructors with running batches must be withdrawn/unassigned first; Course Design members must lose membership before an ineligible role.
+- People search: role/status filters and a full email run in Firestore; a partial name filters the loaded pages (no full-text index).
+- Profile photo (G07), file attachments (G19) and email notifications (G47) are deferred: no Firebase Storage or email provider is configured in this repository. Recommendation: Firebase Storage with `storage.rules` mirroring tenant scope (note: new default buckets require the Blaze plan) and a transactional-email provider behind a server route; both need owner approval.
+
+## 23. Academy operations (2026-10-31; local only, nothing deployed)
+
+- **Firestore rules:**
+  - no rule was changed or added for the 16 new collections (`assessments`, `assessmentAttempts`, `attendance`, `certificatePolicies`, `certificates`, `admissions`, `personProfiles`, `counters`, `coursePricing`, `feeAccounts`, `feeTransactions`, `expenseCategories`, `expenses`, `recurringExpenses`, `portfolioEntries`, `resumes`);
+  - the existing default-deny rule refuses all browser access to them, and `tests/rules/academy-operations.rules.test.ts` proves it, including for the Super Admin and the record's own student;
+  - all access goes through the new server routes (details in docs/ACADEMY_OPERATIONS_PLAN.md).
+- **New indexes in `firestore.indexes.json`:** attendance (orgId, batchId, date); expenses (orgId, date), (orgId, branchId, date), (orgId, period), (orgId, branchId, period); users (orgId, displayName). That makes 27 indexes in total, none deployed.
+- **Admin credentials:** the same service account as §22. Admissions and staff onboarding create logins, so it needs Firebase Authentication Admin.
+- **Release:** deploy together with the code (routes and indexes). No data migration is needed; the new collections start empty.
+- **Course pricing:** before the first admission, the Super Admin must set a price per course (Finance → Course pricing).
+- **Known limits:**
+  - no file uploads (Storage isn't configured): attachments are https links;
+  - PDFs come from the browser's print dialog ("Save as PDF");
+  - no QR code on certificates: they carry a verification link and code;
+  - YouTube viewing progress isn't tracked;
+  - reports read the scope's records on the server for each request, which is fine at academy scale; pre-computed snapshots would be needed for very large datasets.
+
+## 24. Super Admin Command Centre (Stage 8; local only, nothing deployed)
+
+- **Firestore rules:** unchanged. The new `announcements` collection relies on the existing default-deny rule, and all access goes through the server.
+- **New indexes:** 12, bringing the total to 39, none deployed:
+  - admissions (status, confirmedAt), (orgId, status, confirmedAt), (orgId, branchId, status, confirmedAt);
+  - attendance (orgId, date), (orgId, branchId, date);
+  - progress (orgId, lastAccessedAt);
+  - auditLog (orgId, branchId, at desc), (targetId, at desc), (orgId, targetId, at desc);
+  - feeTransactions (orgId, createdAt desc), (orgId, branchId, createdAt desc);
+  - announcements (status, publishAt desc).
+- **Before testing on staging:** deploy the indexes and wait for them to build. Without them, the dashboard's date-range queries and the audit history fail with "requires an index".
+- **Known limits:**
+  - The finance summary and academic intelligence read their scope's records on the server for each request. This is fine at current scale; very large datasets would need scheduled snapshots, with a reconciliation check against the ledger.
+  - Announcements are in-app only: no email or WhatsApp provider is configured.
+  - The global people search matches a name by its beginning only (no full-text search).
+
+## 25. Reporting snapshots and scheduled jobs (Stage 9; local only, nothing deployed)
+
+- **Schedule (needs your approval):** Vercel Cron, which is free on the Hobby plan at once a day.
+  1. Set a random `CRON_SECRET` environment variable in Vercel (Preview and Production).
+  2. Add this file at the repo root:
+
+     ```json
+     { "crons": [{ "path": "/api/jobs/snapshots", "schedule": "30 19 * * *" }] }
+     ```
+
+     That runs at 01:00 Asia/Kolkata, after the reporting day closes. Vercel sends `Authorization: Bearer $CRON_SECRET`; without the secret the route answers 503 and does nothing.
+  3. Until then, the Super Admin can use Command Centre → Reporting & reconciliation → "Run the scheduled job now".
+- **What a run does:**
+  1. applies pending invalidations;
+  2. creates snapshots for yesterday, last month and last year if they are missing;
+  3. recalculates up to 25 stale snapshots;
+  4. reconciles up to 50 unreconciled ones.
+
+  Runs are idempotent and locked.
+- **Runtime:** a run reads all fee accounts, ledger entries and expenses once, then splits them by scope in memory. Reconciliation reads each scope again. The routes set `maxDuration = 60`. At much larger scale, process scopes in batches or move the job to a queue.
+- **Firestore rules:** unchanged. The new collections (`reportSnapshots`, `snapshotJobs`, `snapshotLocks`, `snapshotInvalidations`, `reconciliationReviews`) are server-only under the default-deny rule, which the rules test covers.
+- **New indexes (6, none deployed, 45 in total):**
+  - reportSnapshots (level, periodType, status, periodKey desc), (status, generatedAt desc), (status, reconciliation.checkedAt desc);
+  - snapshotJobs (status, startedAt desc);
+  - reconciliationReviews (status, openedAt desc);
+  - snapshotInvalidations (status, createdAt desc).
+- **Decisions for you:**
+  - All academies report in Asia/Kolkata. Per-academy timezones would need per-academy snapshots.
+  - "Fees expected at period end" uses each account's current agreed fee. A later discount decision marks the affected periods stale for recalculation.
+  - Snapshots don't store "active students" or "pending evaluations": those can't be derived for a past date from the current records.
+
+## 26. Student engagement (Stage 10; local only, nothing deployed)
+
+- **New routes:** `/api/engagement`, `/api/feedback`, `/api/doubts`, `/api/activities`. `/api/career` gains project review.
+- **The scheduled job route** (`/api/jobs/snapshots`) now also sends reminders. It stays inactive until the cron is approved (§25); the Super Admin can call `run_reminders` manually.
+- **Firestore rules:** unchanged. The new collections (`achievements`, `achievementSettings`, `engagementSettings`, `notificationPreferences`, `feedback`, `doubts`, `activities`, `activityRegistrations`) are server-only, which the rules test covers.
+- **New indexes (5, none deployed, 50 in total):**
+  - achievements (orgId, awardedAt);
+  - activities (status, startsAt);
+  - assessments (status, closesAt);
+  - progress (orgId, completedAt);
+  - assessmentAttempts (orgId, submittedAt).
+- **No email, SMS or WhatsApp.** Notifications are in-app only.
+

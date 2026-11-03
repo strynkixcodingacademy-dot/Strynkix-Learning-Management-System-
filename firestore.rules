@@ -164,19 +164,6 @@ service cloud.firestore {
           isCourseDraft(k.courseId));
     }
 
-    function isValidAnswerKey(d, lessonId) {
-      let lesson = get(/databases/$(database)/documents/lessons/$(lessonId));
-      return d.keys().hasAll(['orgId', 'courseId', 'lessonId', 'keyVersion', 'release', 'items', 'updatedById', 'updatedAt']) &&
-        d.keys().hasOnly(['orgId', 'courseId', 'lessonId', 'keyVersion', 'release', 'items', 'updatedById', 'updatedAt']) &&
-        d.lessonId == lessonId &&
-        lesson != null && lesson.data.orgId == d.orgId && lesson.data.courseId == d.courseId &&
-        d.keyVersion is int && d.keyVersion >= 1 &&
-        d.release == 'after_pass' &&
-        d.items is list && d.items.size() <= 20 &&
-        d.updatedById == request.auth.uid &&
-        isIsoTimestamp(d.updatedAt);
-    }
-
     // -------------------------------------------------------------------------
     // Stage C2: content review. Publication `status` and the `review` cycle
     // change only through the audited server route (Admin SDK), never from a
@@ -258,6 +245,15 @@ service cloud.firestore {
     // never with a client write — not even the Super Admin's.
     function courseDesignUnchanged() {
       return request.resource.data.get('courseDesign', null) == resource.data.get('courseDesign', null);
+    }
+
+    // Milestone G40/G50: role, branch, sign-in email and academy change only
+    // through the audited POST /api/admin/account-profile.
+    function accountIdentityUnchanged() {
+      return request.resource.data.get('role', null) == resource.data.get('role', null) &&
+        request.resource.data.get('branchId', null) == resource.data.get('branchId', null) &&
+        request.resource.data.get('email', null) == resource.data.get('email', null) &&
+        request.resource.data.get('orgId', null) == resource.data.get('orgId', null);
     }
 
     function accountStatusUnchanged() {
@@ -620,10 +616,10 @@ service cloud.firestore {
         (isAccountActive() && isScopedBranchAdminRole() && getUserOrgId() == resource.data.orgId && getUserBranchId() == resource.data.get('branchId', ''))
       );
 
-      // Self signup OR administrative provisioning. No client creates a profile
-      // carrying Course Design membership; it is granted afterwards by the server.
+      // Self sign-up only. Every administrator-created account (staff, students,
+      // University Admins) is created by the audited server route
+      // POST /api/admin/accounts (milestone G37/G50), never by a client write.
       allow create: if isAuthenticated() && (
-        (isSuperAdmin() && !('courseDesign' in request.resource.data)) ||
         (
           // SELF REGISTRATION: User can only create their own record (userId == auth.uid)
           // SECURITY INVARIANT: Role MUST be 'student' and status MUST be
@@ -638,27 +634,11 @@ service cloud.firestore {
           request.resource.data.orgId is string &&
           request.resource.data.orgId.size() <= 128 &&
           !('courseDesign' in request.resource.data)
-        ) ||
-        (
-          // University admin creating branch admin / instructor / student in their org
-          isAccountActive() && getUserRole() == 'university_admin' &&
-          getUserOrgId() == request.resource.data.orgId &&
-          request.resource.data.role in ['branch_admin', 'instructor', 'student'] &&
-          isValidBranchAssignment(request.resource.data) &&
-          !('courseDesign' in request.resource.data)
-        ) ||
-        (
-          // Branch admin creating instructor / student in their branch
-          isAccountActive() && isScopedBranchAdminRole() &&
-          getUserOrgId() == request.resource.data.orgId &&
-          getUserBranchId() == request.resource.data.branchId &&
-          request.resource.data.role in ['instructor', 'student'] &&
-          !('courseDesign' in request.resource.data)
         )
       );
 
       // Updates
-      allow update: if isAuthenticated() && courseDesignUnchanged() && accountStatusUnchanged() && membershipStillEligible() && (
+      allow update: if isAuthenticated() && courseDesignUnchanged() && accountStatusUnchanged() && accountIdentityUnchanged() && membershipStillEligible() && (
         isSuperAdmin() ||
         (
           // Self update: presentation fields only. role, status, orgId, branchId and
@@ -883,35 +863,11 @@ service cloud.firestore {
         allow read: if keyId in ['current', 'working'] && isAuthenticated() && isAccountActive() && (
           resource == null ? canReadLessonAsStaff(lessonId) : canReadAnswerKey(resource.data)
         );
-        allow create: if keyId == 'current' && isAuthenticated() && isAccountActive() &&
-          canManageAnswerKey(request.resource.data) &&
-          isValidAnswerKey(request.resource.data, lessonId) &&
-          !isContentFrozen(getLessonDoc(lessonId).data) &&
-          isLessonStatus(lessonId, 'draft') &&
-          request.resource.data.keyVersion == 1;
-        // Every change bumps keyVersion, so each graded attempt names the key it used.
-        allow update: if keyId == 'current' && isAuthenticated() && isAccountActive() &&
-          canManageAnswerKey(resource.data) &&
-          isValidAnswerKey(request.resource.data, lessonId) &&
-          !isContentFrozen(getLessonDoc(lessonId).data) &&
-          isLessonStatus(lessonId, 'draft') &&
-          request.resource.data.orgId == resource.data.orgId &&
-          request.resource.data.courseId == resource.data.courseId &&
-          request.resource.data.keyVersion == resource.data.keyVersion + 1;
-        // Stage C3: the live key of a published lesson never changes from a client;
-        // its revision's answers are edited in 'working' and go live on publish.
-        allow create: if keyId == 'working' && isAuthenticated() && isAccountActive() &&
-          canManageAnswerKey(request.resource.data) &&
-          isValidAnswerKey(request.resource.data, lessonId) &&
-          isLessonStatus(lessonId, 'published') &&
-          !isRevisionFrozen(lessonId);
-        allow update: if keyId == 'working' && isAuthenticated() && isAccountActive() &&
-          canManageAnswerKey(resource.data) &&
-          isValidAnswerKey(request.resource.data, lessonId) &&
-          isLessonStatus(lessonId, 'published') &&
-          !isRevisionFrozen(lessonId) &&
-          request.resource.data.orgId == resource.data.orgId &&
-          request.resource.data.courseId == resource.data.courseId;
+        // Milestone G50: every answer-key change (full Block Studio, assessment-only
+        // editing, migration, publishing) is made by an audited server route; no
+        // client creates or changes a key. The routes validate keys with
+        // lessonAnswerKeySchema (src/types/validation.ts).
+        allow create, update: if false;
         allow delete: if isSuperAdmin() || (keyId == 'working' && isAuthenticated() && isAccountActive() &&
           canManageAnswerKey(resource.data) && !isRevisionFrozen(lessonId));
       }
@@ -952,15 +908,60 @@ service cloud.firestore {
     // status changes) have courseId null and are visible only to the Super Admin
     // and the University Admin of that org.
     match /auditLog/{auditId} {
+      // University Admins see every entry of their academy (the audit log viewer,
+      // milestone G44); other authors see content entries only.
       allow read: if isAuthenticated() && isAccountActive() && (
         isSuperAdmin() ||
+        isUniversityAdmin(resource.data.orgId) ||
         (resource.data.courseId is string && (
           canAuthorInOrg(resource.data.orgId) ||
           hasCourseDesignAuthority(resource.data.orgId, resource.data.courseId, ['lead', 'curriculum_architect', 'content_developer', 'assessment_designer', 'reviewer'])
-        )) ||
-        (resource.data.courseId == null && isUniversityAdmin(resource.data.orgId))
+        ))
       );
       allow write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Milestone G46: /notifications/{id} — in-app notifications. Trusted server
+    // routes create most of them (Admin SDK). The one client-created kind is a
+    // grading notice, allowed only in the same write that grades or returns
+    // that student's submission, by someone who teaches its batch. Recipients
+    // read their own and may only mark them read; nobody deletes them.
+    // -------------------------------------------------------------------------
+    function isGradedInThisWrite(n) {
+      let after = getAfter(/databases/$(database)/documents/submissions/$(n.sourceId));
+      return after != null &&
+        after.data.studentId == n.userId &&
+        after.data.orgId == n.orgId &&
+        after.data.get('gradedByUserId', '') == request.auth.uid &&
+        after.data.get('gradedAt', null) == request.time &&
+        after.data.status == (n.type == 'submission_graded' ? 'graded' : 'resubmit_requested') &&
+        canTeachBatch(after.data.batchId);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && isAccountActive() &&
+        resource.data.userId == request.auth.uid && resource.data.orgId == getUserOrgId();
+
+      allow create: if isAuthenticated() && isAccountActive() &&
+        request.resource.data.keys().hasAll(['orgId', 'userId', 'type', 'title', 'body', 'sourceId', 'read', 'createdAt']) &&
+        request.resource.data.keys().hasOnly(['orgId', 'userId', 'type', 'title', 'body', 'link', 'sourceId', 'read', 'createdAt']) &&
+        request.resource.data.type in ['submission_graded', 'correction_requested'] &&
+        request.resource.data.read == false &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.title is string && request.resource.data.title.size() <= 120 &&
+        request.resource.data.body is string && request.resource.data.body.size() <= 500 &&
+        request.resource.data.get('link', '/') is string && request.resource.data.get('link', '/').matches('^/[^/].*|^/$') &&
+        request.resource.data.sourceId is string &&
+        isGradedInThisWrite(request.resource.data);
+
+      allow update: if isAuthenticated() && isAccountActive() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']) &&
+        request.resource.data.read == true &&
+        request.resource.data.readAt == request.time;
+
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------

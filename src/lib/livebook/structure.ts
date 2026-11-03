@@ -72,6 +72,7 @@ export function revisionNotes(lesson: Pick<Lesson, 'blocks'>): RevisionNotes {
     else if (b.type === 'practice_task') notes.keyPoints.push({ kind: 'practice', title: b.title, text: b.expectedOutcome });
     else if (b.type === 'video') notes.videos.push({ title: b.title, url: b.url });
     else if (b.type === 'references') notes.links.push(...b.links);
+    else if (b.type === 'document') notes.links.push({ label: b.title, url: b.url, description: b.description });
   }
   return notes;
 }

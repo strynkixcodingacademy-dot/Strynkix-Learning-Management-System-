@@ -119,6 +119,10 @@ describe('review lifecycle through the route', () => {
     }
     expect(entries.find((e) => e.action === 'approve')).toMatchObject({ actorId: 'cr_reviewer', actorRole: 'content_designer', comment: 'Clear and accurate.', fromReview: 'in_review', toReview: 'approved' });
     expect(entries.find((e) => e.action === 'archive')).toMatchObject({ actorId: 'cr_super', reason: 'Replaced by a newer lesson', fromStatus: 'published', toStatus: 'archived' });
+    // Milestone G46: the submitter was told about each decision, in the same transactions.
+    const notes = (await db.collection('notifications').where('userId', '==', 'cr_author').get()).docs.map((d) => d.data());
+    expect(notes.map((n) => n.type).sort()).toEqual(['content_published', 'review_approved']);
+    expect(notes.every((n) => n.read === false && n.orgId && n.link)).toBe(true);
   });
 
   it('changes requested carries the comment back to the author, who fixes and resubmits', async () => {

@@ -11,10 +11,20 @@ jobs:
     name: Trigger Vercel Deployment
     runs-on: ubuntu-latest
     steps:
+      # The deploy-hook URL is a credential (anyone holding it can trigger a
+      # deployment), so it lives in the repository secret VERCEL_DEPLOY_HOOK_URL
+      # and is never written to the log. See docs/STAGING_READINESS.md §22.
       - name: Call Vercel Deploy Hook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
-          echo "Triggering Vercel Deploy Hook..."
-          curl -s -X POST "https://api.vercel.com/v1/integrations/deploy/prj_tSdp4Zjh6GiWbibDnabn4kQyoFH8/xSgWOJaORw"
-          echo "Deployment triggered successfully!"
-
-
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "::error::The VERCEL_DEPLOY_HOOK_URL repository secret is not set; no deployment was triggered."
+            exit 1
+          fi
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$VERCEL_DEPLOY_HOOK_URL")
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "::error::The Vercel deploy hook answered HTTP $status; check the secret."
+            exit 1
+          fi
+          echo "Vercel deployment triggered (HTTP $status)."

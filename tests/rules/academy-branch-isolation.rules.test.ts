@@ -164,7 +164,9 @@ describe('Phase 8.1 — branch admin A cannot modify branch B', () => {
     await assertFails(updateDoc(doc(as('ba_a'), 'users/inst_b'), { status: 'suspended' }));
     await assertFails(setDoc(doc(as('ba_a'), 'users/new_b'), { role: 'student', orgId: ORG, branchId: 'branch_b', status: 'active', email: 'n@example.test', displayName: 'N' }));
     await assertSucceeds(updateDoc(doc(as('ba_b'), 'users/stu_b'), { displayName: 'Renamed' }));
-    await assertSucceeds(setDoc(doc(as('ba_b'), 'users/new_b'), { role: 'student', orgId: ORG, branchId: 'branch_b', status: 'active', email: 'n@example.test', displayName: 'N' }));
+    // Milestone G37/G50: accounts are created only by the audited POST /api/admin/accounts
+    // (tests/emulator/milestone-admin.emulator.test.ts); even branch B's own manager can't create one with a client write.
+    await assertFails(setDoc(doc(as('ba_b'), 'users/new_b'), { role: 'student', orgId: ORG, branchId: 'branch_b', status: 'active', email: 'n@example.test', displayName: 'N' }));
   });
 
   it('branch documents: admin A cannot edit branch B', async () => {

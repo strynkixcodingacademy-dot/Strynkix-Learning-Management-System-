@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { RequireAuth } from '@/components/auth/RouteGuards';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BrandMark } from '@/components/ui/Illustrations';
 import { Avatar } from '@/components/ui/DataViz';
 import { cx } from '@/components/ui/tones';
@@ -33,9 +34,27 @@ import {
   UsersRound,
   X,
   type LucideIcon,
+  ScrollText,
+  LayoutDashboard,
+  Library,
+  ClipboardList,
+  Trophy,
+  CalendarCheck,
+  Award,
+  Briefcase,
+  FileText,
+  UserPlus,
+  IndianRupee,
+  Receipt,
+  FileBarChart,
+  Gauge,
+  Sparkles,
+  HelpCircle,
+  CalendarDays,
+  MessageSquareText,
 } from 'lucide-react';
 
-type NavGroup = 'Overview' | 'Learn' | 'Teach' | 'Manage' | 'Support';
+type NavGroup = 'Overview' | 'Learn' | 'Teach' | 'Manage' | 'Finance' | 'Support';
 
 interface NavItem {
   name: string;
@@ -48,25 +67,55 @@ interface NavItem {
 const CONTENT: UserRole[] = ['content_lead', 'content_designer'];
 const ALL: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'student', ...CONTENT];
 const STAFF: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor'];
+const MANAGERS: UserRole[] = ['super_admin', 'university_admin', 'branch_admin'];
 // Staff author drafts; Course Design members author in-scope drafts (rules enforce scope).
 const AUTHORS: UserRole[] = [...STAFF, ...CONTENT];
 
+// Navigation only shows the way; every route and API call authorizes on its own.
 const NAV_ITEMS: NavItem[] = [
   { name: 'Home', href: '/dashboard', icon: Home, roles: ALL, group: 'Overview' },
+  { name: 'Command Centre', href: '/dashboard/command', icon: Gauge, roles: ['super_admin'], group: 'Overview' },
+  { name: 'Dashboard', href: '/dashboard/overview', icon: LayoutDashboard, roles: ['student'], group: 'Overview' },
   { name: 'My Progress', href: '/dashboard/analytics', icon: BarChart3, roles: ['student'], group: 'Overview' },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: STAFF, group: 'Overview' },
-  { name: 'My Courses', href: '/courses', icon: BookOpen, roles: ['student'], group: 'Learn' },
+  { name: 'My Courses', href: '/dashboard/my-courses', icon: BookOpen, roles: ['student'], group: 'Learn' },
+  { name: 'Live Books', href: '/courses', icon: Library, roles: ['student'], group: 'Learn' },
+  { name: 'Assignments & Exams', href: '/dashboard/assessments', icon: ClipboardList, roles: ['student'], group: 'Learn' },
+  { name: 'My Scores', href: '/dashboard/scores', icon: Trophy, roles: ['student'], group: 'Learn' },
+  { name: 'Attendance', href: '/dashboard/attendance', icon: CalendarCheck, roles: ['student'], group: 'Learn' },
+  { name: 'Certificates', href: '/dashboard/certificates', icon: Award, roles: ['student'], group: 'Learn' },
+  { name: 'My Fees', href: '/dashboard/fees', icon: IndianRupee, roles: ['student'], group: 'Learn' },
+  { name: 'Achievements', href: '/dashboard/achievements', icon: Sparkles, roles: ['student'], group: 'Learn' },
+  { name: 'Doubts', href: '/dashboard/doubts', icon: HelpCircle, roles: ['student'], group: 'Learn' },
+  { name: 'Activities', href: '/dashboard/activities', icon: CalendarDays, roles: ['student'], group: 'Learn' },
+  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquareText, roles: ['student'], group: 'Learn' },
+  { name: 'Projects & Portfolio', href: '/dashboard/portfolio', icon: Briefcase, roles: ['student'], group: 'Learn' },
+  { name: 'Resume', href: '/dashboard/resume', icon: FileText, roles: ['student'], group: 'Learn' },
+  { name: 'My Teaching', href: '/dashboard/teaching', icon: Gauge, roles: ['instructor'], group: 'Teach' },
   { name: 'My Batches', href: '/dashboard/batches', icon: Users, roles: ['instructor'], group: 'Teach' },
-  { name: 'Batches & Enrollment', href: '/dashboard/batches', icon: Users, roles: ['super_admin', 'university_admin', 'branch_admin'], group: 'Teach' },
+  { name: 'Batches & Enrollment', href: '/dashboard/batches', icon: Users, roles: MANAGERS, group: 'Teach' },
   { name: 'Course Authoring', href: '/dashboard/courses', icon: PenTool, roles: AUTHORS, group: 'Teach' },
   { name: 'Live Books', href: '/courses', icon: BookOpen, roles: [...STAFF, ...CONTENT], group: 'Teach' },
-  { name: 'People', href: '/dashboard/people', icon: UsersRound, roles: ['super_admin', 'branch_admin'], group: 'Manage' },
+  { name: 'Attendance', href: '/dashboard/attendance', icon: CalendarCheck, roles: STAFF, group: 'Teach' },
+  { name: 'Evaluate', href: '/dashboard/assessments', icon: ClipboardList, roles: STAFF, group: 'Teach' },
+  { name: 'Certificates', href: '/dashboard/certificates', icon: Award, roles: STAFF, group: 'Teach' },
+  { name: 'Doubts', href: '/dashboard/doubts', icon: HelpCircle, roles: STAFF, group: 'Teach' },
+  { name: 'Project reviews', href: '/dashboard/projects/review', icon: Briefcase, roles: STAFF, group: 'Teach' },
+  { name: 'Activities', href: '/dashboard/activities', icon: CalendarDays, roles: STAFF, group: 'Teach' },
+  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquareText, roles: STAFF, group: 'Teach' },
+  { name: 'Engagement', href: '/dashboard/engagement', icon: Sparkles, roles: MANAGERS, group: 'Manage' },
+  { name: 'Admissions', href: '/dashboard/admissions', icon: UserPlus, roles: MANAGERS, group: 'Manage' },
+  { name: 'People', href: '/dashboard/people', icon: UsersRound, roles: MANAGERS, group: 'Manage' },
   { name: 'Branches', href: '/dashboard/branches', icon: GitBranch, roles: ['super_admin', 'university_admin'], group: 'Manage' },
   { name: 'Organizations', href: '/dashboard/organizations', icon: Building2, roles: ['super_admin'], group: 'Manage' },
+  { name: 'Audit log', href: '/dashboard/audit', icon: ScrollText, roles: ['super_admin', 'university_admin'], group: 'Manage' },
+  { name: 'Finance', href: '/dashboard/finance', icon: IndianRupee, roles: MANAGERS, group: 'Finance' },
+  { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt, roles: MANAGERS, group: 'Finance' },
+  { name: 'Reports', href: '/dashboard/reports', icon: FileBarChart, roles: MANAGERS, group: 'Finance' },
   { name: 'User Guide', href: '/dashboard/guide', icon: LifeBuoy, roles: ALL, group: 'Support' },
 ];
 
-const GROUPS: NavGroup[] = ['Overview', 'Learn', 'Teach', 'Manage', 'Support'];
+const GROUPS: NavGroup[] = ['Overview', 'Learn', 'Teach', 'Manage', 'Finance', 'Support'];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: 'Super Admin',
@@ -159,13 +208,13 @@ function Rail({ items, pathname, onSignOut }: { items: NavItem[]; pathname: stri
     active ? 'bg-brand-soft text-brand' : 'text-ink-3 hover:bg-surface-muted hover:text-ink'
   );
   return (
-    <aside className="sticky top-0 z-40 hidden h-screen w-[76px] shrink-0 flex-col items-center border-r border-line bg-surface py-4 lg:flex">
+    <aside className="sticky top-0 z-40 hidden h-screen w-[76px] shrink-0 flex-col items-center border-r border-line bg-surface py-4 lg:flex print:!hidden">
       <Link href="/dashboard" className="group relative mb-3 rounded-xl" aria-label="Strynkix Live Books home">
         <BrandMark size={38} />
         <span className={tip}>Live Books home</span>
       </Link>
       <span aria-hidden="true" className="mb-3 h-px w-8 bg-line" />
-      <nav aria-label="Main" className="flex flex-1 flex-col items-center gap-1">
+      <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col items-center gap-1 [@media(max-height:960px)]:overflow-y-auto [@media(max-height:960px)]:[scrollbar-width:none]">
         {groups.map((group, gi) => (
           <React.Fragment key={group}>
             {gi > 0 && <span aria-hidden="true" className="my-2 h-px w-6 bg-line" />}
@@ -184,6 +233,7 @@ function Rail({ items, pathname, onSignOut }: { items: NavItem[]; pathname: stri
         ))}
       </nav>
       <div className="flex flex-col items-center gap-2 pt-3">
+        <NotificationBell align="rail" />
         <Link href="/dashboard/guide" aria-label="User Guide" aria-current={isActive(pathname, '/dashboard/guide') ? 'page' : undefined} className={railLink(isActive(pathname, '/dashboard/guide'))}>
           <LifeBuoy className="h-[20px] w-[20px]" />
           <span className={tip}>User Guide</span>
@@ -269,7 +319,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar: mobile always; desktop shows section + help */}
-          <header className={cx('sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md', !bare && 'lg:hidden')}>
+          <header className={cx('sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md print:hidden', !bare && 'lg:hidden')}>
             <div className={cx('flex h-14 items-center gap-3 px-4 sm:px-6', bare ? 'mx-auto max-w-7xl' : 'lg:px-10')}>
               {!bare && (
                 <button
@@ -292,6 +342,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
               )}
               <div className="ml-auto flex min-w-0 items-center gap-2">
                 {topBar}
+                {!bare && <div className="lg:hidden"><NotificationBell /></div>}
                 {helpButton}
                 {!bare && (
                   <Link href="/dashboard/profile" className="hidden rounded-full ring-offset-2 hover:ring-2 hover:ring-brand-line sm:block lg:hidden" aria-label="My Profile">
@@ -302,7 +353,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
             </div>
           </header>
 
-          <main id="main" className={cx('flex-1', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-12')}>
+          <main id="main" className={cx('flex-1', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-12 print:max-w-none print:p-0')}>
             {pageTitle && (
               <h1 className="mb-6 text-[26px] font-extrabold tracking-tight text-ink sm:text-[30px]">{pageTitle}</h1>
             )}
@@ -329,7 +380,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
           </div>
         )}
       </div>
-      <HelpAssistant showLauncher={!fit} />
+      <div className="print:hidden"><HelpAssistant showLauncher={!fit} /></div>
     </RequireAuth>
   );
 }

@@ -452,7 +452,9 @@ export async function gradeSubmission(
     throw new Error(`Score cannot exceed ${assignment.totalPoints} marks.`);
   }
   if (!canReviewerGrade(submission.status)) throw new Error('This submission cannot be graded in its current state.');
-  await updateDoc(doc(fs, 'submissions', submission.id), {
+  // The grade and the student's notification (milestone G46) commit together.
+  const batch = writeBatch(fs);
+  batch.update(doc(fs, 'submissions', submission.id), {
     status: 'graded',
     score: parsed.data.score,
     feedback: parsed.data.feedback,
@@ -460,6 +462,18 @@ export async function gradeSubmission(
     gradedAt: serverTimestamp(),
     updatedAt: new Date().toISOString(),
   });
+  batch.set(doc(collection(fs, 'notifications')), gradingNotification(submission, 'submission_graded',
+    `“${assignment.title}” was marked`, `You scored ${parsed.data.score} / ${assignment.totalPoints}.`));
+  await batch.commit();
+}
+
+/** Notification for the student about a grading decision; firestore.rules check it matches the write. */
+function gradingNotification(submission: Submission, type: 'submission_graded' | 'correction_requested', title: string, body: string) {
+  return {
+    orgId: submission.orgId, userId: submission.studentId, type, title: title.slice(0, 120), body: body.slice(0, 500),
+    ...(submission.courseId ? { link: `/courses/${submission.courseId}/assignments/${submission.assignmentId}` } : {}),
+    sourceId: submission.id, read: false, createdAt: serverTimestamp(),
+  };
 }
 
 export async function requestCorrection(
@@ -473,13 +487,17 @@ export async function requestCorrection(
   if (!canReviewerRequestCorrection(submission.status)) {
     throw new Error('A correction cannot be requested in the current state.');
   }
-  await updateDoc(doc(fs, 'submissions', submission.id), {
+  const batch = writeBatch(fs);
+  batch.update(doc(fs, 'submissions', submission.id), {
     status: 'resubmit_requested',
     feedback: parsed.data.feedback,
     gradedByUserId: uid,
     gradedAt: serverTimestamp(),
     updatedAt: new Date().toISOString(),
   });
+  batch.set(doc(collection(fs, 'notifications')), gradingNotification(submission, 'correction_requested',
+    'Your instructor asked for corrections', parsed.data.feedback));
+  await batch.commit();
 }
 
 // -----------------------------------------------------------------------------

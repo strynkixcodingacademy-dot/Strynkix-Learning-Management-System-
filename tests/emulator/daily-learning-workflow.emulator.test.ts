@@ -5,7 +5,7 @@
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, Firestore } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, where, Firestore } from 'firebase/firestore';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -171,6 +171,29 @@ describe('Stage 7 — end-to-end daily learning workflow (emulator)', () => {
     const stu = as('wf7_stu_1');
     expect(await getOwnSubmission('strynkix', 'wf7_stu_1', lab1.id, stu)).toMatchObject({ status: 'graded', score: 7, feedback: 'Good fix' });
     await expect(submitAssignment({ assignment: lab1, studentId: 'wf7_stu_1', textAnswer: 'x', codeContent: 'y' }, stu)).rejects.toThrow(/graded/);
+  });
+
+  it('5b. grading notified the student (milestone G46); notices can’t be forged or edited', async () => {
+    const stu = as('wf7_stu_1');
+    const mine = await getDocs(query(collection(stu, 'notifications'), where('orgId', '==', 'strynkix'), where('userId', '==', 'wf7_stu_1'), orderBy('createdAt', 'desc')));
+    expect(mine.docs.map((d) => d.data().type)).toEqual(['submission_graded', 'correction_requested']);
+    expect(mine.docs[0].data()).toMatchObject({ read: false, title: expect.stringContaining('was marked'), body: 'You scored 7 / 10.' });
+    // The student marks it read, and can change nothing else.
+    await updateDoc(mine.docs[0].ref, { read: true, readAt: serverTimestamp() });
+    await expect(updateDoc(mine.docs[1].ref, { title: 'You passed everything', read: true, readAt: serverTimestamp() })).rejects.toThrow();
+    await expect(deleteDoc(mine.docs[1].ref)).rejects.toThrow();
+
+    const inst = as('wf7_inst');
+    const lab1 = (await getAssignment(pastPlan.id, inst))!;
+    const [sub] = await getAssignmentSubmissions(lab1, inst);
+    const forged = { orgId: 'strynkix', userId: 'wf7_stu_1', type: 'submission_graded', title: 'Fake', body: 'Fake', sourceId: sub.id, read: false, createdAt: serverTimestamp() };
+    // Not in the same write as a grade: refused, even for the batch's instructor.
+    await expect(addDoc(collection(inst, 'notifications'), forged)).rejects.toThrow();
+    // Another student, or someone who doesn't teach the batch: refused.
+    await expect(addDoc(collection(stu, 'notifications'), forged)).rejects.toThrow();
+    await expect(addDoc(collection(as('wf7_other_inst'), 'notifications'), { ...forged, userId: 'wf7_stu_2' })).rejects.toThrow();
+    // Others never read a student's notifications.
+    await expect(getDocs(query(collection(as('wf7_stu_2'), 'notifications'), where('orgId', '==', 'strynkix'), where('userId', '==', 'wf7_stu_1')))).rejects.toThrow();
   });
 
   it('6. metrics reflect learning, submission and assessment separately', async () => {

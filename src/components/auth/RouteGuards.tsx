@@ -20,7 +20,7 @@ import { BrandMark, Illustration, IllustrationName } from '@/components/ui/Illus
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/States';
 
-function StateScreen({
+export function StateScreen({
   illustration,
   title,
   children,

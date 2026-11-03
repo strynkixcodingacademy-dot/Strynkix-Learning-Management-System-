@@ -14,17 +14,21 @@ import {
   setDoc,
   updateDoc,
   writeBatch,
+  orderBy,
+  limit,
+  startAfter,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { postWithIdToken } from '@/lib/api/authed';
+import type { StructureRequest } from '@/lib/server/content-structure';
 import { db } from '@/lib/firebase/client';
 import { AuditEntry, ContentAction, ContentReview, Course, Module, Lesson, LessonAnswerKey, LessonBlock, LessonRevision, LessonVersion, CourseLevel, LessonType, EntityStatus, QuizBlock, UserProfile } from '@/types/domain';
 import {
   courseSchema,
   moduleSchema,
   lessonSchema,
-  lessonAnswerKeySchema,
 } from '@/types/validation';
-import { splitQuizAnswers } from '@/lib/livebook/quiz';
 
 export interface CreateCourseInput {
   id?: string;
@@ -75,6 +79,29 @@ export async function getAdminCourses(orgId?: string): Promise<Course[]> {
   const q = orgId ? query(coll, where('orgId', '==', orgId)) : coll;
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Course));
+}
+
+export const COURSE_PAGE_SIZE = 24;
+
+export interface CoursePage { courses: Course[]; cursor: QueryDocumentSnapshot | null; hasMore: boolean }
+
+/**
+ * One page of the authoring catalogue, title order (milestone G14). Filters
+ * run in Firestore, so only one page is ever read. Without orgId (Super
+ * Admin) it spans every academy.
+ */
+export async function getCoursesPage(params: { orgId?: string; status?: EntityStatus; after?: QueryDocumentSnapshot | null; pageSize?: number }): Promise<CoursePage> {
+  const size = params.pageSize ?? COURSE_PAGE_SIZE;
+  const constraints: QueryConstraint[] = [
+    ...(params.orgId ? [where('orgId', '==', params.orgId)] : []),
+    ...(params.status ? [where('status', '==', params.status)] : []),
+    orderBy('title'),
+    ...(params.after ? [startAfter(params.after)] : []),
+    limit(size + 1),
+  ];
+  const snap = await getDocs(query(collection(db, 'courses'), ...constraints));
+  const docs = snap.docs.slice(0, size);
+  return { courses: docs.map((d) => ({ id: d.id, ...d.data() } as Course)), cursor: docs.length ? docs[docs.length - 1] : null, hasMore: snap.docs.length > size };
 }
 
 /**
@@ -291,38 +318,17 @@ export async function getLessonAnswerKey(lessonId: string): Promise<LessonAnswer
 }
 
 /**
- * Saves authored lesson content (Stage C1). Quiz answers and explanations are
- * split off into lessons/{id}/answerKey/current and written in the same batch
- * as the stripped blocks, so a student-readable lesson never carries answers.
- * Each save that touches the key bumps keyVersion.
+ * Saves Block Studio content of a draft lesson (Stage C1, audited since
+ * milestone G50). The server strips quiz answers into the confidential answer
+ * key and writes both, with an audit entry, in one transaction.
  */
 export async function saveLessonContent(
   lesson: Pick<Lesson, 'id' | 'orgId' | 'courseId'>,
   updates: { title: string; estimatedMinutes: number; blocks: LessonBlock[] },
-  authorId: string
+  _authorId?: string
 ): Promise<void> {
-  const { blocks, items } = splitQuizAnswers(updates.blocks);
-  const keyRef = doc(db, 'lessons', lesson.id, 'answerKey', 'current');
-  const existing = await getDoc(keyRef);
-  const now = new Date().toISOString();
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'lessons', lesson.id), {
-    title: updates.title, estimatedMinutes: updates.estimatedMinutes, blocks, lastEditedById: authorId, updatedAt: now,
-  });
-  if (items.length > 0 || existing.exists()) {
-    const key = lessonAnswerKeySchema.parse({
-      orgId: lesson.orgId,
-      courseId: lesson.courseId,
-      lessonId: lesson.id,
-      keyVersion: existing.exists() ? Number(existing.data().keyVersion) + 1 : 1,
-      release: 'after_pass',
-      items,
-      updatedById: authorId,
-      updatedAt: now,
-    });
-    batch.set(keyRef, key);
-  }
-  await batch.commit();
+  void _authorId; // identity comes from the ID token
+  await postWithIdToken('/api/content/lesson', { lessonId: lesson.id, ...updates });
 }
 
 export interface ContentActionInput {
@@ -374,36 +380,16 @@ export async function getLessonRevision(lessonId: string): Promise<{ revision: L
 /**
  * Saves changes to a published lesson as its working revision (Stage C3).
  * Students keep seeing the published version until the revision is reviewed
- * and the Super Admin publishes it. Answers go to answerKey/working.
+ * and the Super Admin publishes it. The server writes the revision and its
+ * answers (answerKey/working) with an audit entry (milestone G50).
  */
 export async function saveLessonRevision(
   lesson: Pick<Lesson, 'id' | 'orgId' | 'courseId' | 'publishedVersion'>,
   updates: { title: string; estimatedMinutes: number; blocks: LessonBlock[] },
-  authorId: string
+  _authorId?: string
 ): Promise<void> {
-  const { blocks, items } = splitQuizAnswers(updates.blocks);
-  const revRef = doc(db, 'lessons', lesson.id, 'revisions', 'working');
-  const workingRef = doc(db, 'lessons', lesson.id, 'answerKey', 'working');
-  const [rev, working, current] = await Promise.all([
-    getDoc(revRef), getDoc(workingRef), getDoc(doc(db, 'lessons', lesson.id, 'answerKey', 'current')),
-  ]);
-  const now = new Date().toISOString();
-  const batch = writeBatch(db);
-  // merge keeps the server-managed review state of an existing revision.
-  batch.set(revRef, {
-    title: updates.title, estimatedMinutes: updates.estimatedMinutes, blocks,
-    baseVersion: rev.exists() ? rev.data().baseVersion : lesson.publishedVersion ?? 0,
-    lastEditedById: authorId, createdAt: rev.exists() ? rev.data().createdAt : now, updatedAt: now,
-  }, { merge: true });
-  if (items.length > 0 || working.exists() || current.exists()) {
-    batch.set(workingRef, lessonAnswerKeySchema.parse({
-      orgId: lesson.orgId, courseId: lesson.courseId, lessonId: lesson.id,
-      // The version this key will have once published.
-      keyVersion: working.exists() ? Number(working.data().keyVersion) : (current.exists() ? Number(current.data().keyVersion) : 0) + 1,
-      release: 'after_pass', items, updatedById: authorId, updatedAt: now,
-    }));
-  }
-  await batch.commit();
+  void _authorId; // identity comes from the ID token
+  await postWithIdToken('/api/content/lesson', { lessonId: lesson.id, ...updates });
 }
 
 /** Throws away the working revision of a published lesson (not while in review or approved). */
@@ -435,4 +421,12 @@ export async function getContentHistory(target: { orgId: string; courseId: strin
   ));
   const at = (e: AuditEntry) => (e.at as { toMillis?: () => number } | null)?.toMillis?.() ?? 0;
   return snap.docs.map((d) => d.data() as AuditEntry).sort((a, b) => at(b) - at(a));
+}
+
+/**
+ * Course details and structure changes (milestone G28–G30): authorized,
+ * validated and audited on the server; throws ApiError with the reason if refused.
+ */
+export async function changeCourseStructure(req: StructureRequest): Promise<void> {
+  await postWithIdToken('/api/content/structure', req);
 }

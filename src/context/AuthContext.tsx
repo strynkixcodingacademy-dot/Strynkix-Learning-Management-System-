@@ -21,12 +21,13 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, type DocumentSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/client';
 import { AuthContextValue, AuthStatus, TenantContext } from '@/types/auth';
 import { UserProfile } from '@/types/domain';
 import { validateUserProfile, formatAuthError } from '@/lib/auth/profile';
 import { setAcademyTimeZone } from '@/lib/learning/metrics';
+import { syncOwnEmail } from '@/lib/account/service';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -43,6 +44,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Counter to prevent stale asynchronous profile reads from overwriting a newer auth state
   const activeSequenceRef = useRef<number>(0);
+  // Live listener on the signed-in user's own profile (milestone G08).
+  const profileListenerRef = useRef<(() => void) | null>(null);
+  const stopProfileListener = useCallback(() => {
+    profileListenerRef.current?.();
+    profileListenerRef.current = null;
+  }, []);
+
+  /**
+   * Applies a later change to the signed-in user's profile without a reload:
+   * suspension, reactivation, role, academy or branch changes, or deletion.
+   * Firestore rules and the server routes remain the actual enforcement; this
+   * only keeps the screen in step with them.
+   */
+  const applyLiveProfile = useCallback((firebaseUser: User, snap: DocumentSnapshot) => {
+    if (!snap.exists()) {
+      setProfile(null);
+      setTenant(null);
+      setStatus('no_profile');
+      setError('Your account is authenticated, but no Strynkix LMS profile has been assigned.');
+      return;
+    }
+    const validation = validateUserProfile(firebaseUser.uid, snap.data() as Record<string, unknown>);
+    if (!validation.isValid || !validation.profile) {
+      setProfile(null);
+      setTenant(null);
+      setStatus('error');
+      setError(validation.error || 'User profile data is invalid or malformed.');
+      return;
+    }
+    setProfile(validation.profile);
+    if (validation.isSuspended) {
+      setTenant(null);
+      setStatus('suspended');
+      setError(validation.error || 'Your account has been suspended. Please contact your academy administrator.');
+      return;
+    }
+    const next = validation.profile;
+    setTenant((t) => (t && t.orgId === next.orgId && t.branchId === next.branchId && t.role === next.role ? t : { orgId: next.orgId, branchId: next.branchId, role: next.role }));
+    setStatus('authenticated');
+    setError(null);
+  }, []);
+
+  const startProfileListener = useCallback((firebaseUser: User, sequenceId: number) => {
+    stopProfileListener();
+    profileListenerRef.current = onSnapshot(
+      doc(db, 'users', firebaseUser.uid),
+      (snap) => {
+        if (sequenceId === activeSequenceRef.current) applyLiveProfile(firebaseUser, snap);
+      },
+      (err) => console.warn('[AuthContext] Live profile updates stopped:', err.code ?? 'error')
+    );
+  }, [applyLiveProfile, stopProfileListener]);
 
   /**
    * Loads the Firestore profile for a given Firebase Auth user.
@@ -50,6 +103,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const loadUserProfile = useCallback(async (firebaseUser: User | null) => {
     const sequenceId = ++activeSequenceRef.current;
+    stopProfileListener();
 
     if (!firebaseUser) {
       setUser(null);
@@ -103,6 +157,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setTenant(null);
         setStatus('suspended');
         setError(validation.error || 'Your account has been suspended. Please contact your academy administrator.');
+        // Keep listening: a reactivation applies without signing in again.
+        startProfileListener(firebaseUser, sequenceId);
         return;
       }
 
@@ -126,6 +182,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
       setStatus('authenticated');
       setError(null);
+      startProfileListener(firebaseUser, sequenceId);
+      // A verified email change made from My Profile (G06) is copied to the profile by the server.
+      if (firebaseUser.email && firebaseUser.email.toLowerCase() !== validation.profile.email.toLowerCase()) {
+        syncOwnEmail().catch(() => { /* retried on the next sign-in */ });
+      }
     } catch (err: unknown) {
       if (sequenceId !== activeSequenceRef.current) {
         return;
@@ -137,7 +198,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setStatus('error');
       setError('Failed to load profile. Please verify your network connection.');
     }
-  }, []);
+  }, [startProfileListener, stopProfileListener]);
 
   // Listen to Firebase Auth state changes
   useEffect(() => {
@@ -156,8 +217,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     return () => {
       unsubscribe();
+      stopProfileListener();
     };
-  }, [loadUserProfile]);
+  }, [loadUserProfile, stopProfileListener]);
 
   /**
    * Signs in a user with email and password.
@@ -187,6 +249,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const signOut = useCallback(async (): Promise<void> => {
     try {
+      stopProfileListener();
       await firebaseSignOut(auth);
       activeSequenceRef.current++;
       setUser(null);
@@ -198,7 +261,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('[AuthContext] Sign out error:', err);
       throw new Error('Sign out failed. Please try again.');
     }
-  }, []);
+  }, [stopProfileListener]);
 
   /**
    * Refreshes the active user's profile from Firestore.

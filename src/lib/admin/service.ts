@@ -9,19 +9,17 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
-  arrayUnion,
   query,
   where,
 } from 'firebase/firestore';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase/client';
-import { getFirebaseConfig } from '@/lib/firebase/config';
 import { Organization, Branch, Course, CourseDesignProfile, UserProfile } from '@/types/domain';
 import { organizationSchema, branchSchema } from '@/types/validation';
 import { validateUserProfile } from '@/lib/auth/profile';
 import { postWithIdToken } from '@/lib/api/authed';
+import type { z } from 'zod';
+import type { academyRequestSchema } from '@/lib/server/academy-admin';
+import type { accountProfileRequestSchema } from '@/lib/server/account-profile-admin';
 import {
   ALL_COURSES,
   Actor,
@@ -232,15 +230,14 @@ export function validateProvisionInput(input: ProvisionInput): string | null {
   return null;
 }
 
-type ProvisionRole = 'branch_admin' | 'instructor' | 'student' | 'content_lead' | 'content_designer';
-const ACADEMY_WIDE: ProvisionRole[] = ['content_lead', 'content_designer'];
+type ProvisionRole = 'university_admin' | 'branch_admin' | 'instructor' | 'student' | 'content_lead' | 'content_designer';
+const ACADEMY_WIDE: ProvisionRole[] = ['university_admin', 'content_lead', 'content_designer'];
 
 /**
- * Creates the Firebase Auth login on a throwaway secondary app (so the admin
- * stays signed in), then writes the profile with the ADMIN's session, so the
- * Firestore rules decide whether this admin may create this role in this
- * branch. If the profile write fails, the new login is deleted again so a
- * retry doesn't hit "email already exists" for an account nobody can use.
+ * Creates an account through the trusted server route, which creates the
+ * login, the profile and an audit entry together and decides whether this
+ * administrator may create this role here (see src/lib/server/account-provisioning.ts).
+ * Inputs are checked here first only to give immediate, clear messages.
  */
 async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Promise<ProvisionedAccount> {
   const invalid = validateProvisionInput(params);
@@ -257,106 +254,22 @@ async function provisionAccount(role: ProvisionRole, params: ProvisionInput): Pr
     });
     if (membershipError) throw new Error(membershipError);
   }
-  const email = params.email.trim().toLowerCase();
-  const displayName = params.displayName.trim();
+  const academyWide = ACADEMY_WIDE.includes(role);
+  const res = await postWithIdToken<ProvisionedAccount & { existing: boolean }>('/api/admin/accounts', {
+    role,
+    email: params.email.trim().toLowerCase(),
+    password: params.password.trim(),
+    displayName: params.displayName.trim(),
+    orgId: params.orgId,
+    ...(academyWide ? {} : { branchId: params.branchId }),
+    ...(params.courseDesign ? { courseDesign: params.courseDesign } : {}),
+  });
+  return { uid: res.uid, email: res.email, displayName: res.displayName, role: res.role, branchId: res.branchId, orgId: res.orgId, ...(res.existing ? { existing: true } : {}) };
+}
 
-  const config = getFirebaseConfig();
-  const tempApp = initializeApp(
-    {
-      apiKey: config.apiKey,
-      authDomain: config.authDomain,
-      projectId: config.projectId,
-      storageBucket: config.storageBucket,
-      messagingSenderId: config.messagingSenderId,
-      appId: config.appId,
-      measurementId: config.measurementId,
-    },
-    `Provision_${role}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-  );
-  const tempAuth = getAuth(tempApp);
-
-  try {
-    let credential;
-    try {
-      credential = await createUserWithEmailAndPassword(tempAuth, email, params.password.trim());
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code;
-      if (code === 'auth/email-already-in-use') {
-        // Reuse only an account of the same role in the same branch; anything
-        // else (another branch, another role) must be handled by an administrator.
-        if (role !== 'branch_admin' && !ACADEMY_WIDE.includes(role)) {
-          const existing = await getDocs(
-            query(
-              collection(db, 'users'),
-              where('orgId', '==', params.orgId),
-              where('branchId', '==', params.branchId),
-              where('email', '==', email)
-            )
-          ).catch(() => null);
-          const match = existing?.docs.find((d) => d.data().role === role);
-          if (match) {
-            return {
-              uid: match.id,
-              email,
-              displayName: (match.data().displayName as string) || displayName,
-              role,
-              branchId: params.branchId,
-              orgId: params.orgId,
-              existing: true,
-            };
-          }
-        }
-        throw new Error('An account with this email address already exists. Use a different email, or ask the Super Admin to check it.');
-      }
-      if (code === 'auth/weak-password') throw new Error(`The password is too weak. Use at least ${MIN_PASSWORD_LENGTH} characters.`);
-      if (code === 'auth/invalid-email') throw new Error('Invalid email format.');
-      if (code === 'auth/operation-not-allowed') throw new Error('Email/password sign-in is not enabled for this Firebase project.');
-      throw new Error((err as Error).message || 'Failed to create the login.');
-    }
-
-    const uid = credential.user.uid;
-    const now = new Date().toISOString();
-    try {
-      await setDoc(doc(db, 'users', uid), {
-        id: uid,
-        email,
-        displayName,
-        role,
-        orgId: params.orgId,
-        ...(ACADEMY_WIDE.includes(role) ? {} : { branchId: params.branchId }),
-        status: 'active',
-        createdAt: now,
-        updatedAt: now,
-      });
-    } catch (err) {
-      // Roll back the login: the temp app is still signed in as the new user.
-      await credential.user.delete().catch((e) => console.error('Could not roll back new login', e));
-      const denied = (err as { code?: string }).code === 'permission-denied';
-      throw new Error(denied ? 'You are not allowed to create this account for that branch.' : (err as Error).message || 'Failed to save the profile.');
-    }
-
-    // Membership was validated before the login was created (see provisionAccount);
-    // it is granted through the audited server route once the profile exists.
-    if (params.courseDesign) {
-      try {
-        await postWithIdToken('/api/admin/course-design', { action: 'assign', userId: uid, membership: params.courseDesign });
-      } catch (err) {
-        throw new Error(`The account was created, but Course Design membership could not be granted: ${(err as Error).message}. Grant it from People.`);
-      }
-    }
-
-    if (role === 'branch_admin') {
-      try {
-        await updateDoc(doc(db, 'branches', params.branchId), { branchAdminUserIds: arrayUnion(uid), updatedAt: now });
-      } catch (err) {
-        console.warn('Could not link the manager on the branch document:', err);
-      }
-    }
-    return { uid, email, displayName, role, branchId: params.branchId, orgId: params.orgId };
-  } finally {
-    await signOut(tempAuth).catch(() => {});
-    await deleteApp(tempApp).catch(() => {});
-  }
+/** Creates a University Admin for an academy (Super Admin only; audited). */
+export function createUniversityAdmin(params: Omit<ProvisionInput, 'branchId' | 'courseDesign'>): Promise<ProvisionedAccount> {
+  return provisionAccount('university_admin', { ...params, branchId: '' });
 }
 
 /** Creates a Branch Manager account (Super Admin). */
@@ -472,4 +385,14 @@ export async function getManagersByBranch(orgId?: string): Promise<Record<string
     (out[branchId] ??= []).push({ id: d.id, displayName: (data.displayName as string) || 'Branch Manager', email: (data.email as string) || '' });
   }
   return out;
+}
+
+/** Edit or (de)activate an academy or branch (milestone G35); audited on the server. */
+export async function changeAcademy(req: z.infer<typeof academyRequestSchema>): Promise<void> {
+  await postWithIdToken('/api/admin/academy', req);
+}
+
+/** Change a user's role or branch, or correct their sign-in email (milestone G40); audited on the server. */
+export async function correctAccount(req: z.infer<typeof accountProfileRequestSchema>): Promise<void> {
+  await postWithIdToken('/api/admin/account-profile', req);
 }

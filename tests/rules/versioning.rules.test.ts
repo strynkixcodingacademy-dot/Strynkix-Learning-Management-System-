@@ -91,21 +91,21 @@ describe('C3 — published content is immutable', () => {
     for (const uid of ['super', 'inst']) await assertFails(updateDoc(doc(as(uid), 'courses/c_pub'), { title: 'Renamed', lastEditedById: uid }));
   });
 
-  it('positive control: drafts are still edited in place, keys included', async () => {
+  it('positive control: drafts are still edited in place (keys only through the server)', async () => {
     await assertSucceeds(updateDoc(doc(as('inst'), 'lessons/l_draft'), { title: 'Draft edit', lastEditedById: 'inst' }));
-    await assertSucceeds(setDoc(doc(as('inst'), 'lessons/l_draft/answerKey/current'), key('l_draft', 'c_pub', 2, 'inst')));
+    // Milestone G50: answer keys are written only by audited server routes (tests/emulator/lesson-content.emulator.test.ts).
+    await assertFails(setDoc(doc(as('inst'), 'lessons/l_draft/answerKey/current'), key('l_draft', 'c_pub', 2, 'inst')));
   });
 });
 
 describe('C3 — working revisions', () => {
-  it('authors start and update a revision of a published lesson, with its working key, in one batch', async () => {
+  it('authors start and update a revision of a published lesson; its working key is server-written only', async () => {
     const db = as('inst');
-    const b = writeBatch(db);
-    b.set(doc(db, 'lessons/l_live/revisions/working'), revision('inst'));
-    b.set(doc(db, 'lessons/l_live/answerKey/working'), key('l_live', 'c_pub', 2, 'inst', 'b'));
-    await assertSucceeds(b.commit());
+    await assertSucceeds(setDoc(doc(db, 'lessons/l_live/revisions/working'), revision('inst')));
     await assertSucceeds(setDoc(doc(db, 'lessons/l_live/revisions/working'), { title: 'Improved again', lastEditedById: 'inst', updatedAt: NOW }, { merge: true }));
-    await assertSucceeds(setDoc(doc(as('ba'), 'lessons/l_live/answerKey/working'), key('l_live', 'c_pub', 2, 'ba', 'a')));
+    // Milestone G50: answer keys are written only by audited server routes (tests/emulator/lesson-content.emulator.test.ts).
+    await assertFails(setDoc(doc(db, 'lessons/l_live/answerKey/working'), key('l_live', 'c_pub', 2, 'inst', 'b')));
+    await assertFails(setDoc(doc(as('ba'), 'lessons/l_live/answerKey/working'), key('l_live', 'c_pub', 2, 'ba', 'a')));
   });
 
   it('a revision must name its writer, have a valid shape and carry no review state', async () => {
@@ -135,7 +135,8 @@ describe('C3 — working revisions', () => {
   it('authors discard an unfrozen revision with its working key', async () => {
     const db = as('inst');
     await setDoc(doc(db, 'lessons/l_live/revisions/working'), revision('inst'));
-    await setDoc(doc(db, 'lessons/l_live/answerKey/working'), key('l_live', 'c_pub', 2, 'inst'));
+    // The working key is server-written (milestone G50); create it with a trusted write.
+    await testEnv.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'lessons/l_live/answerKey/working'), key('l_live', 'c_pub', 2, 'inst')));
     const b = writeBatch(db);
     b.delete(doc(db, 'lessons/l_live/revisions/working'));
     b.delete(doc(db, 'lessons/l_live/answerKey/working'));

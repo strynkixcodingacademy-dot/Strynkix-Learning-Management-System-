@@ -95,10 +95,11 @@ beforeEach(async () => {
 // Finding 1: University admin role authority
 // -----------------------------------------------------------------------------
 describe('6.1 — University admin role authority', () => {
-  it('positive control: university_admin CAN move a student to instructor (activation is the audited route, Stage C5)', async () => {
+  // Stage C5 / milestone G40: activation and role changes are audited server routes; clients can't make either.
+  it('university_admin makes neither status nor role changes with a client write', async () => {
     const db = as('uni_admin_1');
     await assertFails(updateDoc(doc(db, 'users/stu_pending'), { status: 'active' }));
-    await assertSucceeds(updateDoc(doc(db, 'users/stu_1'), { role: 'instructor' }));
+    await assertFails(updateDoc(doc(db, 'users/stu_1'), { role: 'instructor' }));
   });
 
   it('university_admin CANNOT promote a user to university_admin', async () => {
@@ -120,7 +121,8 @@ describe('6.1 — University admin role authority', () => {
       role: 'student', orgId: 'strynkix', branchId: 'branch_rival', status: 'active',
       email: 'n@example.test', displayName: 'New',
     }));
-    await assertSucceeds(setDoc(doc(db, 'users/new_student_ok'), {
+    // Milestone G37/G50: even an in-org create is refused for clients; the audited route creates accounts.
+    await assertFails(setDoc(doc(db, 'users/new_student_ok'), {
       role: 'student', orgId: 'strynkix', branchId: 'branch_pune', status: 'active',
       email: 'ok@example.test', displayName: 'New OK',
     }));

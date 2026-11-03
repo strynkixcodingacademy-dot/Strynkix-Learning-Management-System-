@@ -6,6 +6,7 @@
  * modular Live Book pedagogical blocks (text, code, callouts, quizzes, worked examples).
  */
 
+import { Breadcrumbs } from '@/components/ui/Page';
 import React, { useEffect, useState, use, Suspense } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -15,6 +16,7 @@ import { discardLessonRevision, getCourseById, getLessonAnswerKey, getLessonRevi
 import { ReviewControls, isFrozenForReview } from '@/components/review/ReviewControls';
 import { canAuthorTarget, canEditLessonContent, lessonReviewTarget } from '@/lib/review/workflow';
 import { ApiError } from '@/lib/api/authed';
+import { useUnsavedChangesGuard } from '@/lib/hooks/useUnsavedChangesGuard';
 import { getLesson } from '@/lib/livebook/service';
 import { LessonBlockRenderer } from '@/components/livebook/LessonBlockRenderer';
 import { lessonBlockSchema, quizAuthoringSchema } from '@/types/validation';
@@ -35,6 +37,7 @@ import {
   PracticeTaskBlock,
   ReferencesBlock,
   VideoBlock,
+  DocumentBlock,
 } from '@/types/domain';
 import {
   ArrowLeft,
@@ -96,6 +99,8 @@ function LessonBlockEditorView({
   const [course, setCourse] = useState<Course | null>(null);
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [blocks, setBlocks] = useState<LessonBlock[]>([]);
+  // What was last loaded or saved; anything else is unsaved work (G13).
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
   const [keyUpdatedById, setKeyUpdatedById] = useState<string | undefined>();
   const [revision, setRevision] = useState<LessonRevision | null>(null);
   const [versions, setVersions] = useState<LessonVersion[] | null>(null);
@@ -132,6 +137,7 @@ function LessonBlockEditorView({
       setVersions(null);
       setTitle(editable.title);
       setEstimatedMinutes(editable.estimatedMinutes);
+      setSavedSnapshot(JSON.stringify({ t: editable.title, m: editable.estimatedMinutes, b: editable.blocks }));
     } catch (err: unknown) {
       console.error('Failed to reload lesson editor data:', err);
       setError('Saved, but the lesson could not be reloaded. Refresh the page to see the latest version.');
@@ -169,6 +175,7 @@ function LessonBlockEditorView({
           setRevision(editable.revision);
           setTitle(editable.title);
           setEstimatedMinutes(editable.estimatedMinutes);
+          setSavedSnapshot(JSON.stringify({ t: editable.title, m: editable.estimatedMinutes, b: editable.blocks }));
           setLoadError(null);
           setIsLoading(false);
         }
@@ -186,6 +193,9 @@ function LessonBlockEditorView({
       isMounted = false;
     };
   }, [courseId, lessonId, tenant?.orgId]);
+
+  const dirty = savedSnapshot !== null && savedSnapshot !== JSON.stringify({ t: title, m: estimatedMinutes, b: blocks });
+  useUnsavedChangesGuard(dirty);
 
   const actor = profile && user ? { ...profile, id: user.uid } : null;
   // Full editors write the lesson; Assessment Designers edit only quiz questions
@@ -354,6 +364,18 @@ function LessonBlockEditorView({
     setBlocks([...blocks, newBlock]);
   };
 
+  const addDocumentBlock = () => {
+    const newBlock: DocumentBlock = {
+      id: `blk_doc_${Date.now().toString(36)}`,
+      type: 'document',
+      title: 'Document title',
+      url: 'https://',
+      kind: 'pdf',
+      allowDownload: true,
+    };
+    setBlocks([...blocks, newBlock]);
+  };
+
   const addReferencesBlock = () => {
     const newBlock: ReferencesBlock = {
       id: `blk_refs_${Date.now().toString(36)}`,
@@ -436,6 +458,7 @@ function LessonBlockEditorView({
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Course Authoring', href: '/dashboard/courses' }, { label: course.title, href: `/dashboard/courses/${course.id}` }, { label: lesson.title }]} />
       {/* Action Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
         <div className="flex items-center gap-3">
@@ -466,6 +489,12 @@ function LessonBlockEditorView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href={`/dashboard/courses/${course.id}/assessments/new?kind=quiz&lessonId=${lesson.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface border border-line text-ink text-xs font-semibold hover:bg-surface-muted"
+          >
+            <Plus className="w-3.5 h-3.5" /> Lesson activity
+          </Link>
           {/* Editor vs Live Preview Toggle */}
           <div className="flex items-center bg-surface p-1 rounded-xl border border-line">
             <button
@@ -684,6 +713,14 @@ function LessonBlockEditorView({
               >
                 <Link2 className="w-3.5 h-3.5 text-brand-ink" />
                 <span>References</span>
+              </button>
+              <button
+                type="button"
+                onClick={addDocumentBlock}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink text-xs font-semibold transition"
+              >
+                <FileText className="w-3.5 h-3.5 text-coral-ink" />
+                <span>PDF / Document</span>
               </button>
             </div>
           </div>}
@@ -938,6 +975,38 @@ function LessonBlockEditorView({
                           onChange={(e) => updateBlockField(idx, 'caption', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {block.type === 'document' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label htmlFor={`doc-${block.id}`} className="text-xs font-medium text-ink-3">Document link (https)</label>
+                      <input id={`doc-${block.id}`} type="url" value={block.url} maxLength={1000}
+                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                      <p className="text-[11px] text-ink-3">Paste a public link to the file (for example a shared Google Drive PDF or your website). PDFs are shown inside the lesson.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="space-y-1 sm:col-span-2">
+                        <label htmlFor={`dt-${block.id}`} className="text-xs font-medium text-ink-3">Title (required)</label>
+                        <input id={`dt-${block.id}`} type="text" value={block.title} maxLength={160}
+                          onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor={`dk-${block.id}`} className="text-xs font-medium text-ink-3">Type</label>
+                        <select id={`dk-${block.id}`} value={block.kind} onChange={(e) => updateBlockField(idx, 'kind', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink">
+                          <option value="pdf">PDF</option><option value="slides">Slides</option><option value="document">Document</option><option value="other">Other file</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label htmlFor={`dd-${block.id}`} className="text-xs font-medium text-ink-3">Short description</label>
+                      <input id={`dd-${block.id}`} type="text" value={block.description || ''} maxLength={400}
+                        onChange={(e) => updateBlockField(idx, 'description', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-ink-2">
+                      <input type="checkbox" checked={block.allowDownload} onChange={(e) => updateBlockField(idx, 'allowDownload', e.target.checked)} /> Show a Download button to students
+                    </label>
                   </div>
                 )}
 

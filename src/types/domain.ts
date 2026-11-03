@@ -367,7 +367,22 @@ export interface ReferencesBlock {
   links: ReferenceLink[];
 }
 
+/** A document (PDF, slides, worksheet) hosted at an https address, shown inline when possible. */
+export type DocumentKind = 'pdf' | 'slides' | 'document' | 'other';
+
+export interface DocumentBlock {
+  id: string;
+  type: 'document';
+  title: string;
+  url: string; // https only
+  kind: DocumentKind;
+  description?: string;
+  /** Show a Download button (the file is still reachable at its address). */
+  allowDownload: boolean;
+}
+
 export type LessonBlock =
+  | DocumentBlock
   | TextBlock
   | HeadingBlock
   | CodeExampleBlock
@@ -673,3 +688,34 @@ export interface AuthenticatedUserSession {
   } | null;
   isLoading: boolean;
 }
+
+// -----------------------------------------------------------------------------
+// In-app notifications (milestone G46): notifications/{id}
+// Created by trusted server routes (review, membership, account status) or by a
+// grader together with the grade (rules-checked). Recipients only mark them read.
+// -----------------------------------------------------------------------------
+export type NotificationType =
+  | 'review_approved' | 'review_changes_requested' | 'content_published'
+  | 'membership_granted' | 'membership_changed' | 'membership_revoked'
+  | 'account_activated'
+  | 'submission_graded' | 'correction_requested'
+  | 'assessment_evaluated' | 'assessment_returned' | 'certificate_issued'
+  | 'feedback_update' | 'doubt_reply' | 'doubt_status' | 'achievement_awarded' | 'activity_update' | 'activity_reminder'
+  | 'assessment_reminder' | 'attendance_alert' | 'project_review';
+
+export interface AppNotification {
+  id: string;
+  orgId: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  /** In-app path to open, if any. */
+  link?: string;
+  /** What it is about (lesson, course, submission or user id). */
+  sourceId?: string;
+  read: boolean;
+  createdAt: unknown;
+  readAt?: unknown;
+}
+
