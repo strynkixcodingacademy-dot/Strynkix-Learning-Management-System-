@@ -6,6 +6,7 @@
  * inspect block counts, and control publication states.
  */
 
+import { Breadcrumbs } from '@/components/ui/Page';
 import React, { useEffect, useState, use, Suspense } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -17,10 +18,13 @@ import {
   getLessonsForCourse,
   createModule,
   createLesson,
-  setCourseStatus,
-  setLessonStatus,
 } from '@/lib/courses/service';
-import { Course, Module, Lesson, LessonType, EntityStatus } from '@/types/domain';
+import { ReviewControls } from '@/components/review/ReviewControls';
+import { canAuthorTarget, canEditLessonContent, courseReviewTarget, isContentFrozen, lessonReviewTarget } from '@/lib/review/workflow';
+import { CourseDetailsDialog, ModuleDetailsDialog, RowControls, runStructureChange } from '@/components/courses/StructureControls';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import type { StructureRequest } from '@/lib/server/content-structure';
+import { Course, Module, Lesson, LessonType } from '@/types/domain';
 import {
   BookOpen,
   Plus,
@@ -30,11 +34,10 @@ import {
   CheckCircle2,
   ArrowLeft,
   Eye,
-  Check,
-  XCircle,
   FileCode,
   Layers,
   Edit3,
+  ClipboardList,
 } from 'lucide-react';
 
 interface CurriculumPageProps {
@@ -42,9 +45,12 @@ interface CurriculumPageProps {
 }
 
 function CurriculumBuilderView({ courseId }: { courseId: string }) {
-  const { tenant } = useAuth();
-  // Only the Super Admin publishes shared courses and lessons (owner decision D3).
-  const canPublish = tenant?.role === 'super_admin';
+  const { tenant, user, profile } = useAuth();
+  const { confirm, dialog } = useConfirm();
+  const [editingCourse, setEditingCourse] = useState(false);
+  const [editingModule, setEditingModule] = useState<Module | null>(null);
+  const [structureBusy, setStructureBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -140,31 +146,6 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
     };
   }, [courseId, tenant?.orgId]);
 
-  const handleToggleCoursePublish = async () => {
-    if (!course) return;
-    const nextStatus: EntityStatus = course.status === 'published' ? 'draft' : 'published';
-    try {
-      await setCourseStatus(course.id, nextStatus);
-      setSuccessMsg(`Course is now ${nextStatus.toUpperCase()}.`);
-      await reloadCurriculum();
-    } catch (err: unknown) {
-      const e = err as Error;
-      setError(`Failed to update course status: ${e.message}`);
-    }
-  };
-
-  const handleToggleLessonPublish = async (lesson: Lesson) => {
-    const nextStatus: EntityStatus = lesson.status === 'published' ? 'draft' : 'published';
-    try {
-      await setLessonStatus(lesson.id, nextStatus);
-      setSuccessMsg(`Lesson "${lesson.title}" is now ${nextStatus.toUpperCase()}.`);
-      await reloadCurriculum();
-    } catch (err: unknown) {
-      const e = err as Error;
-      setError(`Failed to update lesson status: ${e.message}`);
-    }
-  };
-
   const handleCreateModule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant?.orgId) return;
@@ -198,7 +179,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tenant?.orgId) return;
+    if (!tenant?.orgId || !user) return;
 
     setIsSubmittingLesson(true);
     setLessonError(null);
@@ -213,6 +194,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
         orderIndex: Number(lesOrder),
         estimatedMinutes: Number(lesMinutes),
         status: 'draft',
+        createdById: user.uid,
         blocks: [
           {
             id: `blk_intro_${Date.now().toString(36)}`,
@@ -262,9 +244,39 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
   }
 
   const isPub = course.status === 'published';
+  const actor = profile && user ? { ...profile, id: user.uid } : null;
+  const isSuper = tenant?.role === 'super_admin';
+  // Mirrors POST /api/content/structure, which re-checks every change.
+  const canRestructure = course.status === 'draft' && canAuthorTarget(actor, { type: 'course', orgId: course.orgId }, course);
+  const canEditDetails = canRestructure && !isContentFrozen(course);
+  const lessonMovable = (l: Lesson) => l.status === 'draft' && !isContentFrozen(l) && canEditLessonContent(actor, l, course);
+  const structure = async (req: StructureRequest, done: string) => {
+    setStructureBusy(true);
+    setActionError(null);
+    setSuccessMsg(null);
+    const err = await runStructureChange(req);
+    setStructureBusy(false);
+    if (err) return setActionError(err);
+    setSuccessMsg(done);
+    await reloadCurriculum();
+  };
+  const deleteModule = async (m: Module) => {
+    if (await confirm({ title: `Delete module “${m.title}”?`, body: 'The module is empty, so no lesson or progress is affected. This can’t be undone.', confirmLabel: 'Delete module', tone: 'danger' })) {
+      await structure({ action: 'delete_module', moduleId: m.id }, `Module “${m.title}” deleted.`);
+    }
+  };
+  const deleteLesson = async (l: Lesson) => {
+    if (await confirm({ title: `Delete draft lesson “${l.title}”?`, body: 'It was never published, so no student has seen it. Its blocks and answer key are deleted. This can’t be undone.', confirmLabel: 'Delete lesson', tone: 'danger' })) {
+      await structure({ action: 'delete_lesson', lessonId: l.id }, `Lesson “${l.title}” deleted.`);
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {dialog}
+      {editingCourse && <CourseDetailsDialog course={course} onClose={() => setEditingCourse(false)} onSaved={async () => { setEditingCourse(false); setSuccessMsg('Course details saved.'); await reloadCurriculum(); }} />}
+      {editingModule && <ModuleDetailsDialog module={editingModule} onClose={() => setEditingModule(null)} onSaved={async () => { setEditingModule(null); setSuccessMsg('Module saved.'); await reloadCurriculum(); }} />}
+      <Breadcrumbs items={[{ label: 'Course Authoring', href: '/dashboard/courses' }, { label: course.title }]} />
       {/* Top Navigation & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
         <div className="flex items-center gap-3">
@@ -295,23 +307,23 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
         </div>
 
         <div className="flex items-center gap-2.5">
-{canPublish ? (<>
-          {/* Publish / Unpublish Course */}
-          <button
-            type="button"
-            onClick={handleToggleCoursePublish}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
- isPub
- ? 'bg-warning-soft text-warning-ink border border-warning-line hover:bg-surface-muted'
- : 'bg-success-soft text-success-ink border border-success-line hover:bg-surface-muted'
- }`}
-          >
-            {isPub ? <XCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-            <span>{isPub ? 'Unpublish Course' : 'Publish Course'}</span>
-          </button>
-          </>) : (
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface-muted px-3 py-2 text-xs font-semibold text-ink-3" title="Only the Super Admin publishes shared courses">{isPub ? 'Published course' : 'Draft · Super Admin publishes'}</span>
+          <ReviewControls target={courseReviewTarget(course)} course={course} compact onChanged={reloadCurriculum} />
+
+          {canEditDetails && (
+            <button type="button" onClick={() => setEditingCourse(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-muted hover:bg-surface-sunken text-ink text-xs font-semibold transition">
+              <Edit3 className="w-4 h-4" />
+              <span>Edit details</span>
+            </button>
           )}
+
+          <Link
+            href={`/dashboard/courses/${course.id}/assessments`}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-muted hover:bg-surface-sunken text-ink text-xs font-semibold transition"
+          >
+            <ClipboardList className="w-4 h-4" />
+            <span>Activities &amp; exams</span>
+          </Link>
 
           {/* Preview Syllabus */}
           <Link
@@ -338,6 +350,11 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
       </div>
 
       {/* Alerts */}
+      {actionError && (
+        <div role="alert" className="p-4 rounded-xl bg-danger-soft border border-danger-line flex items-center gap-2.5 text-danger-ink text-xs">
+          <span>{actionError}</span>
+        </div>
+      )}
       {successMsg && (
         <div className="p-4 rounded-xl bg-success-soft border border-success-line flex items-center gap-2.5 text-success-ink text-xs">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-success-ink" />
@@ -374,6 +391,14 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                     {m.summary && <p className="text-xs text-ink-3">{m.summary}</p>}
                   </div>
 
+                  <div className="flex items-center gap-2 shrink-0">
+                  {canRestructure && (
+                    <RowControls label={`module ${m.title}`} busy={structureBusy}
+                      onUp={mIdx > 0 ? () => structure({ action: 'reorder_module', moduleId: m.id, direction: 'up' }, 'Module order saved.') : null}
+                      onDown={mIdx < modules.length - 1 ? () => structure({ action: 'reorder_module', moduleId: m.id, direction: 'down' }, 'Module order saved.') : null}
+                      onEdit={() => setEditingModule(m)}
+                      onDelete={isSuper && moduleLessons.length === 0 ? () => deleteModule(m) : undefined} />
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -386,6 +411,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add Lesson</span>
                   </button>
+                  </div>
                 </div>
 
                 {/* Lessons in Module */}
@@ -438,23 +464,23 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-{canPublish ? (<>
-                            {/* Toggle Publish */}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleLessonPublish(l)}
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
- isLesPub
- ? 'bg-warning-soft text-warning-ink border border-warning-line hover:bg-surface-muted'
- : 'bg-success-soft text-success-ink border border-success-line hover:bg-surface-muted'
- }`}
-                              title={isLesPub ? 'Revert to Draft' : 'Publish to Students'}
-                            >
-                              {isLesPub ? 'Unpublish' : 'Publish'}
-                            </button>
-                            </>) : (
-                              <span className="rounded-lg border border-line bg-surface-muted px-2 py-1 text-[11px] font-semibold text-ink-3">{isLesPub ? 'Published' : 'Draft'}</span>
+                            {lessonMovable(l) && (
+                              <>
+                                <RowControls label={`lesson ${l.title}`} busy={structureBusy}
+                                  onUp={lIdx > 0 && lessonMovable(moduleLessons[lIdx - 1]) ? () => structure({ action: 'reorder_lesson', lessonId: l.id, direction: 'up' }, 'Lesson order saved.') : null}
+                                  onDown={lIdx < moduleLessons.length - 1 && lessonMovable(moduleLessons[lIdx + 1]) ? () => structure({ action: 'reorder_lesson', lessonId: l.id, direction: 'down' }, 'Lesson order saved.') : null}
+                                  onDelete={isSuper && !l.publishedVersion ? () => deleteLesson(l) : undefined} />
+                                {modules.length > 1 && (
+                                  <select aria-label={`Move lesson ${l.title} to another module`} value="" disabled={structureBusy}
+                                    onChange={(e) => e.target.value && structure({ action: 'move_lesson', lessonId: l.id, toModuleId: e.target.value }, `Lesson “${l.title}” moved.`)}
+                                    className="h-7 rounded-lg border border-line bg-surface px-1.5 text-[11px] text-ink-2">
+                                    <option value="">Move to…</option>
+                                    {modules.filter((x) => x.id !== m.id).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
+                                  </select>
+                                )}
+                              </>
                             )}
+                            <ReviewControls target={lessonReviewTarget(l)} course={course} compact onChanged={reloadCurriculum} />
 
                             {/* Preview Lesson */}
                             <Link
@@ -731,7 +757,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 function CurriculumBuilderContent({ params }: CurriculumPageProps) {
   const resolved = use(params);
   return (
-    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor']}>
+    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer']}>
       <AppShell pageTitle="Curriculum Builder">
         <CurriculumBuilderView courseId={resolved.courseId} />
       </AppShell>

@@ -14,7 +14,7 @@ export interface GuideTopic {
   title: string;
   /** Roles this task is for. Empty = everyone. */
   roles: GuideRole[];
-  category: 'Getting started' | 'Learning' | 'Teaching' | 'Branch operations' | 'Academy administration' | 'Troubleshooting';
+  category: 'Getting started' | 'Learning' | 'Teaching' | 'Course design' | 'Branch operations' | 'Academy administration' | 'Troubleshooting';
   summary: string;
   steps: string[];
   tips?: string[];
@@ -29,6 +29,8 @@ export const ROLE_NAMES: Record<GuideRole, string> = {
   branch_admin: 'Branch Manager',
   instructor: 'Instructor',
   student: 'Student',
+  content_lead: 'Content Lead',
+  content_designer: 'Content Designer',
 };
 
 export const GUIDE: GuideTopic[] = [
@@ -230,6 +232,8 @@ export const GUIDE: GuideTopic[] = [
     link: { href: '/dashboard/batches', label: 'Batches' },
     keywords: ['roster', 'students list', 'class list', 'progress', 'attendance', 'who', 'batch students'],
   },
+
+  // ---------------------------------------------------------------- Course design
   {
     id: 'course-authoring',
     title: 'Write courses, modules and Live Book lessons',
@@ -239,16 +243,65 @@ export const GUIDE: GuideTopic[] = [
     steps: [
       'Open Course Authoring and select “Create Course”, or open an existing course.',
       'In the Curriculum Builder, use “Add Module”, then “Add Lesson” inside a module.',
-      'Select “Edit Blocks” to open the Live Book Block Studio. Add text, headings, code, images, callouts, worked examples, quizzes and practice tasks.',
+      'Select “Edit Blocks” to open the Live Book Block Studio. Add text, headings, code, images, videos, references, callouts, worked examples, quizzes and practice tasks.',
       'Select “Save Blocks”. Invalid blocks aren’t saved, and the studio tells you exactly what to fix.',
-      'Use “Student View” to preview what learners see, then ask the Super Admin to publish it.',
+      'Use “Student View” to preview what learners see, then select “Submit for review”. A reviewer approves it or requests changes; the Super Admin then publishes it.',
     ],
     tips: [
-      'Courses are shared by every branch, so only the Super Admin publishes, unpublishes or archives courses and lessons. You can edit lesson content at any time, and course details while the course is a draft.',
+      'Courses are shared by every branch, so only the Super Admin publishes, unpublishes or archives courses and lessons. You can edit drafts in place, except while they are in review or approved (select “Reopen for editing” first). Editing a published lesson saves a revision: students keep the published version until the revision is reviewed and the Super Admin publishes it as a new version. Published course details can’t be changed.',
       'Images must be an https:// address or a site path; file upload isn’t available yet.',
     ],
     link: { href: '/dashboard/courses', label: 'Course Authoring' },
     keywords: ['course', 'author', 'create course', 'module', 'lesson', 'content', 'block', 'studio', 'write', 'edit lesson', 'publish course', 'quiz create'],
+  },
+  {
+    id: 'course-design-authoring',
+    title: 'Work on courses as a Course Design member',
+    roles: ['content_lead', 'content_designer'],
+    category: 'Course design',
+    summary: 'You can open the courses the Super Admin assigned to you. What you can change depends on your responsibilities.',
+    steps: [
+      'Open Course Authoring: it lists only the courses in your scope.',
+      'Lead or Curriculum architect: edit draft course details and add or edit modules and lessons.',
+      'Content developer: write and edit lessons in draft courses.',
+      'Assessment designer: in the Block Studio, add, edit and remove quiz questions and their answers (other blocks are read-only).',
+      'Reviewer: approve submitted drafts or request changes with a note. You can’t review anything you submitted or last edited.',
+      'When a draft is ready, select “Submit for review”. After approval, the Super Admin publishes it.',
+    ],
+    tips: ['Published courses are read-only for Course Design members. Your role label alone gives no access: ask the Super Admin to assign responsibilities and courses.'],
+    link: { href: '/dashboard/courses', label: 'Course Authoring' },
+    keywords: ['course design', 'designer', 'content lead', 'responsibility', 'scope', 'assigned courses', 'curriculum architect', 'content developer', 'reviewer'],
+  },
+  {
+    id: 'lesson-quiz',
+    title: 'Write the end-of-lesson quiz',
+    roles: ['instructor', 'branch_admin', 'content_lead', 'content_designer', 'super_admin'],
+    category: 'Course design',
+    summary: 'Every “Quiz Checkpoint” block in a lesson becomes a question in “It’s Quiz Time” at the end of the lesson. Scoring 60% or more completes the lesson.',
+    steps: [
+      'In the Block Studio select “Quiz Checkpoint” once per question.',
+      'Write the question, at least two options, mark the correct one, and add an explanation (students see it after answering).',
+      'Add 3–5 questions per lesson so one mistake doesn’t fail a student.',
+      'Lessons without any quiz question keep a “Mark lesson complete” button instead.',
+    ],
+    tips: ['Quiz questions are moved out of the reading flow, so place them anywhere in the lesson.'],
+    link: { href: '/dashboard/courses', label: 'Course Authoring' },
+    keywords: ['quiz', 'question', 'mcq', 'quiz create', 'assessment', 'test', 'pass mark', 'checkpoint', 'questions'],
+  },
+  {
+    id: 'lesson-media',
+    title: 'Add YouTube videos and reference links',
+    roles: ['instructor', 'branch_admin', 'content_lead', 'content_designer', 'super_admin'],
+    category: 'Course design',
+    summary: 'Use the Video block for YouTube videos and the References block for further reading.',
+    steps: [
+      'In the Block Studio select “Video”, paste a youtube.com or youtu.be link and give it a title. Add ?t=90 to the link to start at 1:30.',
+      'Select “References”, give the section a title (e.g. “Bonus content”) and add links — each needs a title and an https:// address, with an optional note.',
+      'Save, then check the lesson in “Live Preview”.',
+    ],
+    tips: ['Only YouTube links are accepted. Videos play in YouTube’s privacy-enhanced player, and links open in a new tab.'],
+    link: { href: '/dashboard/courses', label: 'Course Authoring' },
+    keywords: ['video', 'youtube', 'embed', 'link', 'reference', 'references', 'reading', 'resource', 'bonus content', 'url'],
   },
 
   // ---------------------------------------------------------------- Branch operations
@@ -358,6 +411,26 @@ export const GUIDE: GuideTopic[] = [
     keywords: ['branch', 'franchise', 'campus', 'centre', 'center', 'location', 'new branch', 'manager', 'branch manager', 'branch admin'],
   },
   {
+    id: 'content-team',
+    title: 'Set up the Course Design team',
+    roles: ['super_admin'],
+    category: 'Academy administration',
+    summary: 'Course Design members work on the draft courses you assign them, within the responsibilities you choose. Only you publish.',
+    steps: [
+      'New member: open People and select “Add content team member”. Choose Content Designer or Content Lead, their responsibilities and their courses, and generate a password.',
+      'Existing Content Designer, Content Lead or Instructor: open People and select “Course Design” on their row.',
+      'Pick specific courses, or tick “Every course in this organization” only when they really need it.',
+      'Change or remove membership the same way; it takes effect immediately.',
+      'Copy new credentials and share them privately; ask them to set their own password with the reset link.',
+    ],
+    tips: [
+      'The role label gives no access by itself: responsibilities and course scope decide what someone can change.',
+      'Course Design members never see batches, students or marks, and cannot publish.',
+    ],
+    link: { href: '/dashboard/people', label: 'People' },
+    keywords: ['content team', 'course design', 'designer', 'content lead', 'curriculum team', 'add designer', 'department', 'responsibility', 'scope', 'membership'],
+  },
+  {
     id: 'publish-courses',
     title: 'Govern the course catalogue',
     roles: ['super_admin'],
@@ -365,8 +438,9 @@ export const GUIDE: GuideTopic[] = [
     summary: 'Courses are shared by every branch, so only the Super Admin publishes, unpublishes, archives or deletes them and their lessons.',
     steps: [
       'Open Course Authoring to see every course with its status.',
-      'Use the status filter to review Drafts written by instructors and branch managers.',
-      'Open a course and select “Publish Course”, then publish its lessons in the Curriculum Builder.',
+      'Use the status filter to find drafts. Each course and lesson shows its review state: Draft, In review, Changes requested or Approved.',
+      'Select “Publish” on approved courses and lessons. Publishing without an approval needs a written reason and is recorded in the audit log.',
+      'Select “History” in the Block Studio to see every review, publication and assessment change.',
       'Prefer Archive over deletion: archiving keeps student history intact.',
     ],
     link: { href: '/dashboard/courses', label: 'Course Authoring' },

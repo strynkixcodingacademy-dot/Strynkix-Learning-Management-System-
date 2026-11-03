@@ -103,6 +103,8 @@ export function suggestionsFor(role?: UserRole): string[] {
     case 'student': return ['How do I submit an assignment?', 'Where do I see my marks?', 'How do I mark a lesson complete?', 'I forgot my password'];
     case 'instructor': return ['How do I plan a day?', 'How do I grade a submission?', 'How do I request a correction?', 'Where are my batch analytics?'];
     case 'branch_admin': return ['How do I add a new student?', 'How do I create a batch?', 'How do I approve a pending student?', 'How do I add an instructor?'];
+    case 'content_lead': return ['Which courses can I work on?', 'How do I write the lesson quiz?', 'How do I add a YouTube video?', 'How do I add reference links?'];
+    case 'content_designer': return ['Which courses can I work on?', 'How do I write the lesson quiz?', 'How do I add a YouTube video?', 'How do I add reference links?'];
     case 'super_admin': return ['How do I open a new branch?', 'How do I add a branch manager?', 'How do I see branch performance?', 'How do I publish a course?'];
     default: return ['How do I sign in?', 'I forgot my password', 'Where is the User Guide?'];
   }

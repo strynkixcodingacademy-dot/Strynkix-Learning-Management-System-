@@ -2,7 +2,9 @@
 
 /**
  * Strynkix Live Books — Knowledge check (self-assessed multiple choice).
- * Feedback is local to the page; nothing is recorded or graded.
+ * Feedback is local to the page; nothing is recorded or graded. Keyed
+ * questions (Stage C1) carry no answer, so they are shown without checking —
+ * the server grades them in the end-of-lesson quiz.
  */
 
 import React, { useState } from 'react';
@@ -16,6 +18,7 @@ export function QuizBlockView({ block }: { block: QuizBlock }) {
   const [checked, setChecked] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const isCorrect = selected === block.correctOptionId;
+  const canCheck = block.correctOptionId !== undefined;
 
   return (
     <section className="my-8 rounded-xl border border-lavender-line bg-surface" aria-labelledby={`quiz-${block.id}-q`}>
@@ -69,7 +72,9 @@ export function QuizBlockView({ block }: { block: QuizBlock }) {
           })}
         </fieldset>
 
-        {checked ? (
+        {!canCheck ? (
+          <p className="text-sm text-ink-3">This question is graded in the end-of-lesson quiz.</p>
+        ) : checked ? (
           <div role="status" className={cx('rounded-xl p-4 animate-rise', isCorrect ? 'bg-success-soft' : 'bg-danger-soft')}>
             <p className={cx('text-sm font-bold', isCorrect ? 'text-success-ink' : 'text-danger-ink')}>
               {isCorrect ? 'That’s right.' : 'Not quite — the correct answer is highlighted.'}

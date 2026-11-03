@@ -187,8 +187,8 @@ describe('Phase 8 — branch scope and archived plans', () => {
 
 describe('Course governance (owner decision D3, approved)', () => {
   it('instructors and branch managers cannot publish, unpublish or archive a shared course', async () => {
-    await assertFails(updateDoc(doc(as('inst_other'), 'courses/course_x'), { status: 'draft' }));
-    await assertFails(updateDoc(doc(as('ba_a'), 'courses/course_x'), { status: 'archived' }));
+    await assertFails(updateDoc(doc(as('inst_other'), 'courses/course_x'), { lastEditedById: 'inst_other', status: 'draft' }));
+    await assertFails(updateDoc(doc(as('ba_a'), 'courses/course_x'), { lastEditedById: 'ba_a', status: 'archived' }));
   });
 
   it('only the Super Admin deletes courses; branch managers and instructors cannot', async () => {
@@ -198,24 +198,31 @@ describe('Course governance (owner decision D3, approved)', () => {
   });
 
   it('staff cannot edit a published course, but can create and edit drafts', async () => {
-    await assertFails(updateDoc(doc(as('inst_a'), 'courses/course_x'), { title: 'Renamed' }));
-    await assertFails(setDoc(doc(as('inst_a'), 'courses/course_new'), { orgId: 'strynkix', title: 'New', status: 'published' }));
-    await assertSucceeds(setDoc(doc(as('inst_a'), 'courses/course_new'), { orgId: 'strynkix', title: 'New', status: 'draft' }));
-    await assertSucceeds(updateDoc(doc(as('inst_a'), 'courses/course_new'), { title: 'New, edited' }));
-    await assertFails(updateDoc(doc(as('inst_a'), 'courses/course_new'), { status: 'published' }));
+    await assertFails(updateDoc(doc(as('inst_a'), 'courses/course_x'), { lastEditedById: 'inst_a', title: 'Renamed' }));
+    await assertFails(setDoc(doc(as('inst_a'), 'courses/course_new'), { lastEditedById: 'inst_a', orgId: 'strynkix', title: 'New', status: 'published' }));
+    await assertSucceeds(setDoc(doc(as('inst_a'), 'courses/course_new'), { lastEditedById: 'inst_a', orgId: 'strynkix', title: 'New', status: 'draft' }));
+    await assertSucceeds(updateDoc(doc(as('inst_a'), 'courses/course_new'), { lastEditedById: 'inst_a', title: 'New, edited' }));
+    await assertFails(updateDoc(doc(as('inst_a'), 'courses/course_new'), { lastEditedById: 'inst_a', status: 'published' }));
   });
 
-  it('staff edit lesson content but cannot change lesson status', async () => {
-    await assertSucceeds(updateDoc(doc(as('inst_a'), 'lessons/les_1'), { title: 'Edited lesson' }));
-    await assertFails(updateDoc(doc(as('inst_a'), 'lessons/les_1'), { status: 'draft' }));
-    await assertFails(setDoc(doc(as('inst_a'), 'lessons/les_new'), { orgId: 'strynkix', courseId: 'course_x', moduleId: 'm1', status: 'published' }));
-    await assertSucceeds(setDoc(doc(as('inst_a'), 'lessons/les_new'), { orgId: 'strynkix', courseId: 'course_x', moduleId: 'm1', status: 'draft' }));
+  it('staff edit draft lesson content but cannot change lesson status', async () => {
+    // Stage C3: les_1 is published, so it is immutable; drafts are edited in place.
+    await assertFails(updateDoc(doc(as('inst_a'), 'lessons/les_1'), { lastEditedById: 'inst_a', title: 'Edited lesson' }));
+    await assertFails(updateDoc(doc(as('inst_a'), 'lessons/les_1'), { lastEditedById: 'inst_a', status: 'draft' }));
+    await assertFails(setDoc(doc(as('inst_a'), 'lessons/les_new'), { lastEditedById: 'inst_a', orgId: 'strynkix', courseId: 'course_x', moduleId: 'm1', status: 'published' }));
+    await assertSucceeds(setDoc(doc(as('inst_a'), 'lessons/les_new'), { lastEditedById: 'inst_a', orgId: 'strynkix', courseId: 'course_x', moduleId: 'm1', status: 'draft' }));
+    await assertSucceeds(updateDoc(doc(as('inst_a'), 'lessons/les_new'), { lastEditedById: 'inst_a', title: 'Edited lesson' }));
   });
 
-  it('the Super Admin publishes, unpublishes and deletes', async () => {
+  // Stage C2: the Super Admin publishes, unpublishes and archives only through
+  // the audited review route (tests/emulator/content-review.emulator.test.ts);
+  // a direct client status write is refused even for the Super Admin.
+  it('the Super Admin changes status only through the audited route, and still deletes', async () => {
     await trusted((db) => setDoc(doc(db, 'users/super'), { role: 'super_admin', orgId: 'strynkix', status: 'active', email: 's@example.test', displayName: 'S' }));
-    await assertSucceeds(updateDoc(doc(as('super'), 'lessons/les_1'), { status: 'draft' }));
-    await assertSucceeds(updateDoc(doc(as('super'), 'courses/course_x'), { status: 'archived' }));
+    await assertFails(updateDoc(doc(as('super'), 'lessons/les_1'), { lastEditedById: 'super', status: 'draft' }));
+    await assertFails(updateDoc(doc(as('super'), 'courses/course_x'), { lastEditedById: 'super', status: 'archived' }));
+    // Stage C3: published lessons are immutable for the Super Admin too.
+    await assertFails(updateDoc(doc(as('super'), 'lessons/les_1'), { lastEditedById: 'super', title: 'Edited by the Super Admin' }));
     await assertSucceeds(deleteDoc(doc(as('super'), 'courses/course_x')));
   });
 });
@@ -225,7 +232,7 @@ describe('Phase 8 — batch capacity (was a known gap; fixed by owner decision D
     await trusted(async (db) => {
       await setDoc(doc(db, 'users/stu_3'), { role: 'student', orgId: 'strynkix', branchId: 'branch_a', status: 'active', email: 'stu_3@example.test', displayName: 'stu_3' });
       await setDoc(doc(db, 'users/stu_4'), { role: 'student', orgId: 'strynkix', branchId: 'branch_a', status: 'active', email: 'stu_4@example.test', displayName: 'stu_4' });
-      await setDoc(doc(db, 'courses/course_y'), { orgId: 'strynkix', title: 'Y', status: 'published' });
+      await setDoc(doc(db, 'courses/course_y'), { lastEditedById: 'pending', orgId: 'strynkix', title: 'Y', status: 'published' });
       await setDoc(doc(db, 'batches/batch_cap'), {
         orgId: 'strynkix', branchId: 'branch_a', courseId: 'course_y', name: 'Cap', code: 'CAP',
         instructorUserIds: [], startDate: NOW, status: 'upcoming', maxStudents: 1, activeEnrollmentCount: 0,

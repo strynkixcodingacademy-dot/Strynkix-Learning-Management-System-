@@ -48,9 +48,7 @@ export function PageHeader({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1 min-w-0">
           {eyebrow && <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">{eyebrow}</div>}
-          <h1 className="font-display text-[28px] sm:text-[34px] leading-[1.12] font-semibold tracking-[-0.01em] text-ink">
-            <span className="marker">{title}</span>
-          </h1>
+          <h1 className="text-[26px] sm:text-[30px] leading-[1.15] font-extrabold tracking-tight text-ink">{title}</h1>
           {description && <p className="text-[15px] text-ink-3 max-w-2xl">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}

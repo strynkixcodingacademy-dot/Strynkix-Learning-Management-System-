@@ -43,17 +43,17 @@ beforeEach(async () => {
 describe('hotfix — closes the cross-tenant overwrite', () => {
   it('a foreign-org instructor cannot overwrite a module, lesson or assignment by relabelling orgId', async () => {
     const db = as('inst_rival');
-    await assertFails(setDoc(doc(db, 'lessons/l1'), { orgId: 'org_b', courseId: 'c1', moduleId: 'm1', title: 'Defaced', status: 'published' }));
+    await assertFails(setDoc(doc(db, 'lessons/l1'), { lastEditedById: 'inst_rival', orgId: 'org_b', courseId: 'c1', moduleId: 'm1', title: 'Defaced', status: 'published' }));
     await assertFails(setDoc(doc(db, 'modules/m1'), { orgId: 'org_b', courseId: 'c1', title: 'Defaced', status: 'published' }));
     await assertFails(setDoc(doc(db, 'assignments/a1'), { orgId: 'org_b', courseId: 'c1', title: 'Defaced', status: 'published' }));
   });
 
   it('existing behaviour preserved: an instructor still creates and edits content in their own org', async () => {
     const db = as('inst_a');
-    await assertSucceeds(updateDoc(doc(db, 'lessons/l1'), { title: 'L1 edited' }));
-    await assertSucceeds(setDoc(doc(db, 'lessons/l2'), { orgId: 'org_a', courseId: 'c1', moduleId: 'm1', title: 'L2', status: 'draft' }));
+    await assertSucceeds(updateDoc(doc(db, 'lessons/l1'), { lastEditedById: 'inst_a', title: 'L1 edited' }));
+    await assertSucceeds(setDoc(doc(db, 'lessons/l2'), { lastEditedById: 'inst_a', orgId: 'org_a', courseId: 'c1', moduleId: 'm1', title: 'L2', status: 'draft' }));
     await assertSucceeds(updateDoc(doc(db, 'modules/m1'), { title: 'M1 edited' }));
-    await assertFails(updateDoc(doc(db, 'lessons/l1'), { orgId: 'org_b' }));
+    await assertFails(updateDoc(doc(db, 'lessons/l1'), { lastEditedById: 'inst_a', orgId: 'org_b' }));
   });
 });
 

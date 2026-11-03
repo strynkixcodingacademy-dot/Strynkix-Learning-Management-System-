@@ -13,9 +13,11 @@
  * 4. Idempotent: can be executed safely multiple times.
  */
 
-import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import { initializeTestEnvironment, type RulesTestContext } from '@firebase/rules-unit-testing';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { enrollmentIdFor } from '../src/lib/batches/scope';
+import { splitQuizAnswers } from '../src/lib/livebook/quiz';
+import type { LessonBlock } from '../src/types/domain';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -159,6 +161,24 @@ async function ensureAuthUser(user: SeedUser): Promise<string> {
   }
 }
 
+/**
+ * Stage C1: lessons are stored without quiz answers; the answers go to the
+ * confidential lessons/{id}/answerKey/current document, as the Block Studio does.
+ */
+async function seedLesson(db: ReturnType<RulesTestContext['firestore']>, lesson: { id: string; orgId: string; courseId: string; blocks: LessonBlock[] } & Record<string, unknown>) {
+  const { blocks, items } = splitQuizAnswers(lesson.blocks);
+  await setDoc(doc(db, 'lessons', lesson.id), { ...lesson, blocks });
+  if (items.length) {
+    const keyRef = doc(db, 'lessons', lesson.id, 'answerKey', 'current');
+    const existing = await getDoc(keyRef);
+    await setDoc(keyRef, {
+      orgId: lesson.orgId, courseId: lesson.courseId, lessonId: lesson.id,
+      keyVersion: existing.exists() ? Number(existing.data().keyVersion) : 1,
+      release: 'after_pass', items, updatedById: 'system_seed', updatedAt: new Date().toISOString(),
+    });
+  }
+}
+
 async function main() {
   console.log('================================================================');
   console.log('  Strynkix LMS — Local Emulator Trusted Bootstrap Execution');
@@ -285,8 +305,7 @@ async function main() {
       console.log('✓ Provisioned Modules: mod_ts_foundations & mod_cloud_data');
 
       // Lesson 1.1: Type Safety & Zero-Trust Domain Models
-      const lesson11Ref = doc(db, 'lessons/lesson_ts_architecture');
-      await setDoc(lesson11Ref, {
+      await seedLesson(db, {
         id: 'lesson_ts_architecture',
         orgId: 'strynkix',
         courseId: 'course_fullstack_2026',
@@ -359,6 +378,23 @@ export type UserProfile = z.infer<typeof userProfileSchema>;`,
               'Using `safeParse` returns an object with a boolean `success` flag rather than throwing an uncaught exception, allowing the application to gracefully set status to "error" or "no_profile".',
           },
           {
+            id: 'b_video_1',
+            type: 'video',
+            url: 'https://www.youtube.com/watch?v=zQnBQ4tB3ZA',
+            title: 'TypeScript in 100 Seconds',
+            caption: 'A quick refresher on what TypeScript adds — and what disappears at runtime.',
+          },
+          {
+            id: 'b_refs_1',
+            type: 'references',
+            title: 'Bonus content',
+            links: [
+              { label: 'TypeScript Handbook', url: 'https://www.typescriptlang.org/docs/handbook/intro.html', description: 'The official guide to the type system.' },
+              { label: 'Zod documentation', url: 'https://zod.dev', description: 'Runtime schemas that also give you TypeScript types.' },
+              { label: 'MDN: Working with JSON', url: 'https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/JSON', description: 'Why data from the network arrives untyped.' },
+            ],
+          },
+          {
             id: 'b_quiz_1',
             type: 'quiz',
             question:
@@ -392,8 +428,7 @@ export const batchSchema = z.object({
       });
 
       // Lesson 1.2: Asynchronous Observers & Race Condition Defense
-      const lesson12Ref = doc(db, 'lessons/lesson_state_observers');
-      await setDoc(lesson12Ref, {
+      await seedLesson(db, {
         id: 'lesson_state_observers',
         orgId: 'strynkix',
         courseId: 'course_fullstack_2026',
@@ -466,8 +501,7 @@ const loadUserProfile = async (user: User | null) => {
       });
 
       // Lesson 2.1: Multi-Tenant Isolation & Least Privilege Rules
-      const lesson21Ref = doc(db, 'lessons/lesson_firestore_security');
-      await setDoc(lesson21Ref, {
+      await seedLesson(db, {
         id: 'lesson_firestore_security',
         orgId: 'strynkix',
         courseId: 'course_fullstack_2026',
@@ -545,6 +579,55 @@ const loadUserProfile = async (user: User | null) => {
 
         console.log(`✓ [${seed.role.toUpperCase()}] ${seed.email} -> UID: ${uid}`);
       }
+
+      // 4b. Demo subjects for the Live Books catalog (local emulator only).
+      const SUBJECTS = [
+        { id: 'course_cpp', title: 'C++ Programming', tagline: 'Memory, pointers, the STL and problem solving in modern C++.', level: 'intermediate', tags: ['cpp'], docs: { label: 'cppreference.com', url: 'https://en.cppreference.com/w/' },
+          modules: [['Getting Started with C++', ['Your first C++ program', 'Variables, types and operators']], ['Pointers and Memory', ['Pointers and references', 'Dynamic memory and RAII']]] },
+        { id: 'course_java', title: 'Java Programming', tagline: 'Object-oriented programming, collections and clean Java code.', level: 'intermediate', tags: ['java'], docs: { label: 'The Java Tutorials', url: 'https://docs.oracle.com/javase/tutorial/' },
+          modules: [['Java Basics', ['Classes and objects', 'Control flow']], ['Collections', ['Lists and maps', 'Generics in practice']]] },
+        { id: 'course_python', title: 'Python Programming', tagline: 'Write clear Python: data structures, functions and files.', level: 'beginner', tags: ['python'], docs: { label: 'The Python Tutorial', url: 'https://docs.python.org/3/tutorial/' },
+          modules: [['Python Fundamentals', ['Values, variables and expressions', 'Functions']], ['Working with Data', ['Lists and dictionaries', 'Reading and writing files']]] },
+        { id: 'course_webdev_basic', title: 'Basic Web Development', tagline: 'HTML, CSS and JavaScript — build and style your first pages.', level: 'beginner', tags: ['html', 'css'], docs: { label: 'MDN: Learn web development', url: 'https://developer.mozilla.org/en-US/docs/Learn_web_development' },
+          modules: [['HTML & CSS', ['Structuring a page with HTML', 'Styling with CSS']], ['JavaScript Basics', ['Variables and functions', 'The DOM and events']]] },
+        { id: 'course_webdev_advanced', title: 'Advanced Web Development', tagline: 'React, APIs, state management and production deployment.', level: 'advanced', tags: ['react', 'node'], docs: { label: 'React: Learn', url: 'https://react.dev/learn' },
+          modules: [['React in Depth', ['Components and props', 'State and effects']], ['Full-Stack Apps', ['Building an API', 'Deploying to production']]] },
+        { id: 'course_sql', title: 'SQL & Databases', tagline: 'Query, join and design relational databases with confidence.', level: 'intermediate', tags: ['sql', 'database'], docs: { label: 'PostgreSQL tutorial', url: 'https://www.postgresql.org/docs/current/tutorial.html' },
+          modules: [['Querying Data', ['SELECT and filtering', 'Sorting and aggregates']], ['Joins and Design', ['Joining tables', 'Designing a schema']]] },
+      ];
+      const superUid = seededUids.get('admin@strynkix.com')!;
+      for (const subject of SUBJECTS) {
+        await setDoc(doc(db, 'courses', subject.id), {
+          id: subject.id, orgId: 'strynkix', title: subject.title, slug: subject.id.replace(/_/g, '-'), tagline: subject.tagline,
+          description: `${subject.tagline} Daily lessons, practice and a quiz at the end of every lesson.`, level: subject.level,
+          tags: subject.tags, prerequisites: [], estimatedWeeks: 8, status: 'published', createdById: superUid, createdAt: now, updatedAt: now,
+        });
+        for (const [mi, [moduleTitle, lessonTitles]] of (subject.modules as Array<[string, string[]]>).entries()) {
+          const moduleId = `${subject.id}_m${mi + 1}`;
+          await setDoc(doc(db, 'modules', moduleId), {
+            id: moduleId, orgId: 'strynkix', courseId: subject.id, title: moduleTitle, slug: `m${mi + 1}`,
+            summary: `In this module you will learn ${moduleTitle.toLowerCase()} step by step, with short exercises after each lesson.`,
+            orderIndex: mi + 1, status: 'published', createdAt: now, updatedAt: now,
+          });
+          for (const [li, lessonTitle] of lessonTitles.entries()) {
+            const lessonId = `${moduleId}_l${li + 1}`;
+            await seedLesson(db, {
+              id: lessonId, orgId: 'strynkix', courseId: subject.id, moduleId, title: lessonTitle, slug: `l${li + 1}`, type: 'concept',
+              orderIndex: li + 1, estimatedMinutes: 20, status: 'published', createdAt: now, updatedAt: now,
+              blocks: [
+                { id: 'h1', type: 'heading', level: 1, text: lessonTitle },
+                { id: 't1', type: 'text', content: `Describe and practise ${lessonTitle.toLowerCase()} in ${subject.title}. Read the explanation, try the examples, then check your understanding with the quiz at the end.` },
+                { id: 'c1', type: 'callout', variant: 'tip', title: 'Key idea', content: `Focus on why ${lessonTitle.toLowerCase()} matters before memorising syntax.` },
+                { id: 'r1', type: 'references', title: 'Bonus content', links: [{ label: subject.docs.label, url: subject.docs.url, description: 'Official documentation to read alongside this lesson.' }] },
+                { id: 'q1', type: 'quiz', question: `What is the best way to learn ${lessonTitle.toLowerCase()}?`,
+                  options: [{ id: 'a', text: 'Practise with small examples and check your understanding' }, { id: 'b', text: 'Memorise the syntax without trying it' }],
+                  correctOptionId: 'a', explanation: 'Small, deliberate practice builds understanding that lasts.' },
+              ],
+            });
+          }
+        }
+      }
+      console.log(`✓ Provisioned Live Books catalog: ${SUBJECTS.length} demo subjects`);
 
       // 5. Stage 6: Pune batch taught by the seeded instructor, with both seeded
       // students enrolled, so the enrollment-gated student journey works locally.

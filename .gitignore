@@ -48,3 +48,7 @@ firebase-debug.log
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright (Stage C6)
+/test-results/
+/playwright-report/

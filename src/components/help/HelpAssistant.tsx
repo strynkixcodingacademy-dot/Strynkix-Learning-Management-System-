@@ -58,7 +58,8 @@ function TopicAnswer({ topic, onNavigate }: { topic: GuideTopic; onNavigate: () 
   );
 }
 
-export function HelpAssistant() {
+/** `showLauncher` false hides the floating button (pages that offer their own Help tile). */
+export function HelpAssistant({ showLauncher = true }: { showLauncher?: boolean }) {
   const { tenant } = useAuth();
   const role = tenant?.role;
   const [open, setOpen] = useState(false);
@@ -107,7 +108,7 @@ export function HelpAssistant() {
 
   return (
     <>
-      {!open && (
+      {!open && showLauncher && (
         <button
           type="button"
           onClick={() => setOpen(true)}

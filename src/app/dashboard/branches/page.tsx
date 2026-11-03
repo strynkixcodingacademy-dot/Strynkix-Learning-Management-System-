@@ -22,6 +22,7 @@ import {
   generateTempPassword,
 } from '@/lib/admin/service';
 import { Branch, Organization } from '@/types/domain';
+import { BranchEditDialog } from '@/components/admin/AcademyDialogs';
 import {
   GitBranch,
   Plus,
@@ -38,6 +39,7 @@ import {
   EyeOff,
   Sparkles,
   ArrowRight,
+  Pencil,
 } from 'lucide-react';
 
 export default function BranchesPage() {
@@ -87,6 +89,7 @@ export default function BranchesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
 
   const isSuperAdmin = tenant?.role === 'super_admin';
 
@@ -408,11 +411,25 @@ Please sign in and set up your batches and instructors!`;
                         <UserPlus className="w-4 h-4 text-brand-ink" />
                         Add Branch Manager
                       </button>
+                      <button type="button" onClick={() => setEditingBranch(b)}
+                        className="relative z-10 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-line px-3 py-2 text-[13px] font-bold text-ink-2 transition hover:border-line-strong hover:bg-surface-muted">
+                        <Pencil className="w-4 h-4" /> Edit or deactivate
+                      </button>
                     </div>
                   </article>
                 );
               })}
             </div>
+          )}
+
+          {editingBranch && (
+            <BranchEditDialog branch={editingBranch} onClose={() => setEditingBranch(null)}
+              onSaved={async (msg) => {
+                setEditingBranch(null);
+                setSuccessMsg(msg);
+                const orgFilter = isSuperAdmin ? (selectedOrgFilter === 'all' ? undefined : selectedOrgFilter) : tenant?.orgId;
+                setBranches(await getBranches(orgFilter));
+              }} />
           )}
 
           {/* Create Branch Modal */}

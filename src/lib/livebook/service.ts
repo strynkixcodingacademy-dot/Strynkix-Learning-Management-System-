@@ -14,7 +14,8 @@ import {
   Firestore,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { Course, Module, Lesson, Progress, ProgressStatus } from '@/types/domain';
+import { ApiError, postWithIdToken } from '@/lib/api/authed';
+import { Course, Module, Lesson, Progress, ProgressStatus, QuizAttempt, QuizAttemptResult } from '@/types/domain';
 import { lessonBlockSchema } from '@/types/validation';
 
 export interface CourseWithCurriculum {
@@ -220,4 +221,36 @@ export async function recordLessonProgress(
 
     await setDoc(progressDocRef, updatedRecord, { merge: true });
   }
+}
+
+/** A quiz submission the server refused (cooldown, daily limit, access…). */
+export { ApiError as QuizSubmitError };
+
+/**
+ * Submits a keyed lesson quiz for server grading (Stage C1). Only the lesson
+ * and the chosen options are sent; identity comes from the ID token and the
+ * score, completion and limits are decided by the server.
+ */
+export async function submitQuizAttempt(
+  courseId: string, lessonId: string, answers: Record<string, string>, lessonVersion: number | null
+): Promise<QuizAttemptResult> {
+  return postWithIdToken<QuizAttemptResult>('/api/quiz/attempt', { courseId, lessonId, answers, lessonVersion });
+}
+
+/**
+ * Immutable attempt history of one lesson's quiz (milestone G22/G23), newest
+ * first. The filters are the ones firestore.rules need to authorize the list:
+ * a student passes their own studentId; staff pass the batch they oversee.
+ * Attempts hold the student's chosen options and scores, never the answer key.
+ */
+export async function getQuizAttempts(
+  progressId: string,
+  scope: { orgId: string; studentId?: string; batchId?: string },
+  fs: Firestore = db
+): Promise<QuizAttempt[]> {
+  const filters = [where('orgId', '==', scope.orgId)];
+  if (scope.studentId) filters.push(where('studentId', '==', scope.studentId));
+  if (scope.batchId) filters.push(where('batchId', '==', scope.batchId));
+  const snap = await getDocs(query(collection(fs, 'progress', progressId, 'quizAttempts'), ...filters));
+  return snap.docs.map((d) => d.data() as QuizAttempt).sort((a, b) => b.attemptNumber - a.attemptNumber);
 }

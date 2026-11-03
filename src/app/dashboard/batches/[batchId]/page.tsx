@@ -8,6 +8,7 @@
  * intended home (see docs/ARCHITECTURE.md, Stage 6).
  */
 
+import { Breadcrumbs } from '@/components/ui/Page';
 import React, { use, useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -27,6 +28,7 @@ import {
 } from '@/lib/batches/service';
 import { canManageBatchScope, grantsContentAccess, isBatchOpenForEnrollment } from '@/lib/batches/scope';
 import { buildRosterProgress, RosterRow } from '@/lib/batches/roster';
+import { QuizResultsTable } from '@/components/livebook/QuizResults';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/DataViz';
 import { Batch, Course, Enrollment, EnrollmentStatus, Progress, UserProfile } from '@/types/domain';
@@ -100,6 +102,7 @@ function BatchDetailView({ batchId }: { batchId: string }) {
   const [progress, setProgress] = useState<Progress[] | null>(null);
   const [progressError, setProgressError] = useState<string | null>(null);
   const [publishedLessonIds, setPublishedLessonIds] = useState<string[]>([]);
+  const [lessonTitles, setLessonTitles] = useState<Record<string, string>>({});
 
   const [students, setStudents] = useState<UserProfile[]>([]);
   const [studentsError, setStudentsError] = useState<string | null>(null);
@@ -172,6 +175,7 @@ function BatchDetailView({ batchId }: { batchId: string }) {
 
     if (lessonsResult.status === 'fulfilled' && progressResult.status === 'fulfilled') {
       setPublishedLessonIds(lessonsResult.value.filter((l) => l.status === 'published').map((l) => l.id));
+      setLessonTitles(Object.fromEntries(lessonsResult.value.map((l) => [l.id, l.title])));
       setProgress(progressResult.value);
     } else {
       console.error(
@@ -482,6 +486,7 @@ Please log in to start learning!`;
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Batches', href: '/dashboard/batches' }, { label: batch.name }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/dashboard/batches" className="inline-flex items-center gap-2 text-xs text-ink-3 hover:text-ink">
           <ArrowLeft className="w-4 h-4" />
@@ -500,7 +505,7 @@ Please log in to start learning!`;
       <section className="p-5 sm:p-6 rounded-2xl bg-surface border border-line space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="font-display text-[28px] sm:text-[34px] font-semibold leading-tight tracking-tight text-ink"><span className="marker">{batch.name}</span></h1>
+            <h1 className="font-display text-[28px] sm:text-[34px] font-extrabold leading-tight tracking-tight text-ink">{batch.name}</h1>
             <div className="text-xs text-brand-ink mt-1">
               {batch.code} • {course?.title || batch.courseId}
             </div>
@@ -663,6 +668,28 @@ Please log in to start learning!`;
             Only active students of this batch&apos;s branch are listed. A student can hold one active enrollment per
             course; withdraw it before moving them to another batch.
           </p>
+        </section>
+      )}
+
+      {/* Quiz results (milestone G23): server-written summaries for this batch's students */}
+      {batch && progress && (
+        <section aria-labelledby="quiz-results-heading" className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
+          <div className="border-b border-line p-4 sm:p-5">
+            <h3 id="quiz-results-heading" className="text-base font-bold text-ink">Quiz results</h3>
+            <p className="text-xs text-ink-3">Every graded quiz attempt by students of this batch. Expand a row for the attempt history.</p>
+          </div>
+          <QuizResultsTable
+            showFilters
+            contextLabel="Student"
+            emptyText="When students in this batch take a lesson quiz, their scores appear here."
+            rows={progress
+              .filter((p) => p.batchId === batch.id && p.quiz && p.quiz.attemptCount > 0)
+              .map((p) => {
+                const e = enrollments.find((x) => x.studentId === p.studentId);
+                return { key: p.id, progress: p, lessonTitle: lessonTitles[p.lessonId] ?? 'Lesson', context: e?.studentDisplayName || e?.studentEmail || p.studentId };
+              })}
+            scopeFor={() => ({ orgId: batch.orgId, batchId: batch.id })}
+          />
         </section>
       )}
 

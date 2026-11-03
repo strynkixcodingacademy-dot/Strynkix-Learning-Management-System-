@@ -6,15 +6,18 @@
  * and publish courses within their permitted organization scope.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { ReviewControls } from '@/components/review/ReviewControls';
+import { courseReviewTarget } from '@/lib/review/workflow';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
 import {
-  getAdminCourses,
+  getCoursesPage,
+  getCourseDesignCourses,
   createCourse,
-  setCourseStatus,
 } from '@/lib/courses/service';
 import { Course, CourseLevel, EntityStatus } from '@/types/domain';
 import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
@@ -28,14 +31,12 @@ import {
   CheckCircle2,
   ArrowRight,
   Eye,
-  Check,
-  XCircle,
 } from 'lucide-react';
 
 export default function CourseAuthoringPage() {
-  const { user, tenant } = useAuth();
+  const { user, profile, tenant } = useAuth();
+  const isContentRole = (r: string) => r === 'content_lead' || r === 'content_designer';
   // Only the Super Admin publishes shared courses and lessons (owner decision D3).
-  const canPublish = tenant?.role === 'super_admin';
   const [courses, setCourses] = useState<Course[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -54,15 +55,46 @@ export default function CourseAuthoringPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Pagination (milestone G14): one Firestore page at a time, status filter in the query.
+  const [cursor, setCursor] = useState<QueryDocumentSnapshot | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Course Design members with an explicit course list read just those courses (bounded, unpaged).
+  const explicitScope = tenant ? isContentRole(tenant.role) && profile?.courseDesign?.assignedCourseIds?.[0] !== '*' : false;
+
+  const loadCourses = useCallback(async (after: QueryDocumentSnapshot | null) => {
+    if (!tenant?.orgId) return { courses: [] as Course[], cursor: null, hasMore: false };
+    if (explicitScope) return { courses: await getCourseDesignCourses(profile ?? { orgId: tenant.orgId }), cursor: null, hasMore: false };
+    return getCoursesPage({
+      orgId: tenant.role === 'super_admin' ? undefined : tenant.orgId,
+      status: statusFilter === 'all' ? undefined : (statusFilter as EntityStatus),
+      after,
+    });
+  }, [tenant, profile, explicitScope, statusFilter]);
+
   const refreshCourses = async () => {
-    if (!tenant?.orgId) return;
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const isSuper = tenant.role === 'super_admin';
-      const loaded = await getAdminCourses(isSuper ? undefined : tenant.orgId);
-      setCourses(loaded);
+      const page = await loadCourses(null);
+      setCourses(page.courses);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const page = await loadCourses(cursor);
+      setCourses((list) => [...list, ...page.courses]);
+      setCursor(page.cursor);
+      setHasMore(page.hasMore);
+    } catch {
+      setError('More courses couldn’t be loaded. Try again.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -76,10 +108,11 @@ export default function CourseAuthoringPage() {
         return;
       }
       try {
-        const isSuper = tenant.role === 'super_admin';
-        const loaded = await getAdminCourses(isSuper ? undefined : tenant.orgId);
+        const page = await loadCourses(null);
         if (isMounted) {
-          setCourses(loaded);
+          setCourses(page.courses);
+          setCursor(page.cursor);
+          setHasMore(page.hasMore);
           setError(null);
           setIsLoading(false);
         }
@@ -96,7 +129,7 @@ export default function CourseAuthoringPage() {
     return () => {
       isMounted = false;
     };
-  }, [tenant?.orgId, tenant?.role]);
+  }, [tenant?.orgId, tenant?.role, loadCourses]);
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
@@ -151,27 +184,13 @@ export default function CourseAuthoringPage() {
     }
   };
 
-  const handleTogglePublish = async (course: Course) => {
-    const nextStatus: EntityStatus = course.status === 'published' ? 'draft' : 'published';
-    try {
-      await setCourseStatus(course.id, nextStatus);
-      setSuccessMsg(
-        `Course "${course.title}" status changed to ${nextStatus.toUpperCase()}.`
-      );
-      await refreshCourses();
-    } catch (err: unknown) {
-      const e = err as Error;
-      setError(`Failed to update status: ${e.message}`);
-    }
-  };
-
   const filteredCourses = courses.filter((c) => {
     if (statusFilter === 'all') return true;
     return c.status === statusFilter;
   });
 
   return (
-    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor']}>
+    <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer']}>
       <AppShell pageTitle="Course Authoring">
         <div className="space-y-6">
           {/* Action Header */}
@@ -298,24 +317,7 @@ export default function CourseAuthoringPage() {
                     {/* Actions Toolbar */}
                     <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        {canPublish ? (<>
-                        {/* Publish / Unpublish Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePublish(c)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
- isPub
- ? 'bg-warning-soft hover:bg-surface-muted text-warning-ink border border-warning-line'
- : 'bg-success-soft hover:bg-surface-muted text-success-ink border border-success-line'
- }`}
-                          title={isPub ? 'Revert to Draft' : 'Publish to Students'}
-                        >
-                          {isPub ? <XCircle className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
-                          <span>{isPub ? 'Unpublish' : 'Publish'}</span>
-                        </button>
-                        </>) : (
-                          <span className="inline-flex items-center rounded-lg border border-line bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-ink-3" title="Only the Super Admin publishes shared courses">{isPub ? 'Published' : 'Draft'}</span>
-                        )}
+                        <ReviewControls target={courseReviewTarget(c)} course={c} compact onChanged={refreshCourses} />
 
                         {/* Preview Student Syllabus */}
                         <Link
@@ -340,6 +342,15 @@ export default function CourseAuthoringPage() {
                 </div>
               );
             })}
+            </div>
+          )}
+
+          {!isLoading && hasMore && (
+            <div className="flex justify-center">
+              <button type="button" onClick={loadMore} disabled={loadingMore}
+                className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-surface px-4 py-2 text-sm font-semibold text-ink hover:bg-surface-muted disabled:opacity-60">
+                {loadingMore ? 'Loading…' : 'Load more courses'}
+              </button>
             </div>
           )}
 

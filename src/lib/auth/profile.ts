@@ -5,6 +5,7 @@
  */
 
 import { UserProfile, UserRole } from '@/types/domain';
+import { courseDesignProfileSchema } from '@/types/validation';
 
 const VALID_ROLES: UserRole[] = [
   'super_admin',
@@ -12,6 +13,8 @@ const VALID_ROLES: UserRole[] = [
   'branch_admin',
   'instructor',
   'student',
+  'content_lead',
+  'content_designer',
 ];
 
 export interface ProfileValidationResult {
@@ -92,6 +95,10 @@ export function validateUserProfile(
     createdAt: typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString(),
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
   };
+  // Course Design membership is kept only when well-formed; a malformed map is
+  // dropped (no authority), matching isValidCourseDesignShape in firestore.rules.
+  const membership = data.courseDesign === undefined ? null : courseDesignProfileSchema.safeParse(data.courseDesign);
+  if (membership?.success) profile.courseDesign = membership.data;
 
   let error: string | undefined;
   if (isAwaitingActivation) {

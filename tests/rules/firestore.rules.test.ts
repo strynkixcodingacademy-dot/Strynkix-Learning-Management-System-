@@ -1183,7 +1183,7 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
   it('instructor CAN create a draft course in their own org', async () => {
     const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
     await assertSucceeds(
-      setDoc(doc(instructorDb, 'courses/course_new_arch'), {
+      setDoc(doc(instructorDb, 'courses/course_new_arch'), { lastEditedById: 'inst_priya',
         orgId: 'strynkix',
         title: 'Microservices & Distributed Systems',
         slug: 'microservices-distributed',
@@ -1196,7 +1196,7 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
   it('instructor CANNOT create a course for another org (cross-tenant rejection)', async () => {
     const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
     await assertFails(
-      setDoc(doc(instructorDb, 'courses/course_foreign_theft'), {
+      setDoc(doc(instructorDb, 'courses/course_foreign_theft'), { lastEditedById: 'inst_priya',
         orgId: 'foreign_org',
         title: 'Hijacked Foreign Course',
         status: 'draft',
@@ -1207,8 +1207,8 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
   // Owner decision D3: shared courses are published by the Super Admin only.
   it('instructor CAN edit their draft course but CANNOT publish it', async () => {
     const instructorDb = testEnv.authenticatedContext('inst_priya').firestore();
-    await assertSucceeds(updateDoc(doc(instructorDb, 'courses/draft_course_1'), { title: 'Draft course, edited' }));
-    await assertFails(updateDoc(doc(instructorDb, 'courses/draft_course_1'), { status: 'published' }));
+    await assertSucceeds(updateDoc(doc(instructorDb, 'courses/draft_course_1'), { lastEditedById: 'inst_priya', title: 'Draft course, edited' }));
+    await assertFails(updateDoc(doc(instructorDb, 'courses/draft_course_1'), { lastEditedById: 'inst_priya', status: 'published' }));
   });
 
   it('instructor CAN create modules and lessons for a course in their org', async () => {
@@ -1223,7 +1223,7 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
     );
 
     await assertSucceeds(
-      setDoc(doc(instructorDb, 'lessons/les_new_1'), {
+      setDoc(doc(instructorDb, 'lessons/les_new_1'), { lastEditedById: 'inst_priya',
         orgId: 'strynkix',
         courseId: 'draft_course_1',
         moduleId: 'mod_new_1',
@@ -1237,7 +1237,7 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
   it('student CANNOT create a course, module, or lesson', async () => {
     const studentDb = testEnv.authenticatedContext('stud_arjun').firestore();
     await assertFails(
-      setDoc(doc(studentDb, 'courses/student_course'), {
+      setDoc(doc(studentDb, 'courses/student_course'), { lastEditedById: 'stud_arjun',
         orgId: 'strynkix',
         title: 'Student Course',
         status: 'draft',
@@ -1251,7 +1251,7 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
       })
     );
     await assertFails(
-      setDoc(doc(studentDb, 'lessons/student_lesson'), {
+      setDoc(doc(studentDb, 'lessons/student_lesson'), { lastEditedById: 'stud_arjun',
         orgId: 'strynkix',
         courseId: 'draft_course_1',
         moduleId: 'mod_1',
@@ -1263,7 +1263,7 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
   it('student CANNOT update or publish a course', async () => {
     const studentDb = testEnv.authenticatedContext('stud_arjun').firestore();
     await assertFails(
-      updateDoc(doc(studentDb, 'courses/draft_course_1'), {
+      updateDoc(doc(studentDb, 'courses/draft_course_1'), { lastEditedById: 'stud_arjun',
         status: 'published',
       })
     );
@@ -1300,7 +1300,7 @@ describe('9. Stage 5 Course Authoring and Publishing Governance', () => {
   it('suspended instructor is strictly DENIED course creation', async () => {
     const suspendedDb = testEnv.authenticatedContext('inst_suspended').firestore();
     await assertFails(
-      setDoc(doc(suspendedDb, 'courses/suspended_course'), {
+      setDoc(doc(suspendedDb, 'courses/suspended_course'), { lastEditedById: 'inst_suspended',
         orgId: 'strynkix',
         title: 'Suspended Instructor Course',
         status: 'draft',

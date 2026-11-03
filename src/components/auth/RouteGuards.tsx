@@ -20,7 +20,7 @@ import { BrandMark, Illustration, IllustrationName } from '@/components/ui/Illus
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/States';
 
-function StateScreen({
+export function StateScreen({
   illustration,
   title,
   children,
@@ -129,6 +129,11 @@ export function RequireRole({ allowedRoles, children, fallback }: RequireRolePro
 
   if (status === 'loading') {
     return null;
+  }
+
+  // Not signed in, paused or unprovisioned: show that state, not "wrong role".
+  if (status !== 'authenticated') {
+    return <RequireAuth>{children}</RequireAuth>;
   }
 
   const userRole = tenant?.role;

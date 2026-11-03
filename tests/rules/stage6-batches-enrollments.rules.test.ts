@@ -633,7 +633,7 @@ describe('Stage 6 — Submission scoping', () => {
 describe('Stage 6 — Audit regressions', () => {
   it('foreign-org instructor CANNOT overwrite a lesson, module, or assignment by relabelling orgId', async () => {
     const db = as('inst_rival');
-    await assertFails(setDoc(doc(db, 'lessons/les_fs_1'), {
+    await assertFails(setDoc(doc(db, 'lessons/les_fs_1'), { lastEditedById: 'inst_rival',
       orgId: 'rival_org', courseId: 'course_fs', moduleId: 'mod_fs_1', title: 'Defaced', status: 'published', blocks: [],
     }));
     await assertFails(setDoc(doc(db, 'modules/mod_fs_1'), {
@@ -645,7 +645,7 @@ describe('Stage 6 — Audit regressions', () => {
   });
 
   it('instructor CANNOT move a lesson to another course', async () => {
-    await assertFails(updateDoc(doc(as('inst_pune'), 'lessons/les_fs_1'), { courseId: 'course_other' }));
+    await assertFails(updateDoc(doc(as('inst_pune'), 'lessons/les_fs_1'), { lastEditedById: 'inst_pune', courseId: 'course_other' }));
   });
 
   it('public self-signup CANNOT create an active student profile', async () => {
