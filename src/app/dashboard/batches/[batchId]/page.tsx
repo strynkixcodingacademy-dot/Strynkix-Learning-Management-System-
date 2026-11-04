@@ -33,22 +33,17 @@ import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/DataViz';
 import { buttonClasses } from '@/components/ui/Button';
 import { Batch, Course, Enrollment, EnrollmentStatus, Progress, UserProfile } from '@/types/domain';
-import { createInstructor, createStudent, generateTempPassword, getBranchManagers } from '@/lib/admin/service';
+import { createInstructor, createStudent, getBranchManagers } from '@/lib/admin/service';
+import { CreateAccountDialog, CredentialsDialog, type AccountKind, type IssuedCredentials, type NewAccountInput } from '@/components/batches/AccountDialogs';
 import {
   AlertCircle,
   ArrowLeft,
   CalendarDays,
-  Check,
   CheckCircle2,
-  Copy,
-  Eye,
-  EyeOff,
   GraduationCap,
   Loader2,
-  Sparkles,
   UserPlus,
   Users,
-  X,
 } from 'lucide-react';
 import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
@@ -117,43 +112,9 @@ function BatchDetailView({ batchId }: { batchId: string }) {
   // Assigned Instructors State
   const [assignedInstructors, setAssignedInstructors] = useState<{ id: string; displayName: string; email: string }[]>([]);
 
-  // Instructor Provisioning State
-  const [showCreateInstructorModal, setShowCreateInstructorModal] = useState(false);
-  const [instructorName, setInstructorName] = useState('');
-  const [instructorEmail, setInstructorEmail] = useState('');
-  const [instructorPassword, setInstructorPassword] = useState('');
-  const [showInstructorPassword, setShowInstructorPassword] = useState(false);
-  const [isSubmittingInstructor, setIsSubmittingInstructor] = useState(false);
-  const [instructorFormError, setInstructorFormError] = useState<string | null>(null);
-
-  // Instructor Credentials Modal State
-  const [createdInstructorCreds, setCreatedInstructorCreds] = useState<{
-    name: string;
-    email: string;
-    password?: string;
-    batchName: string;
-    loginUrl: string;
-  } | null>(null);
-  const [copiedInstructorCreds, setCopiedInstructorCreds] = useState(false);
-
-  // Student Provisioning Modal State
-  const [showCreateStudentModal, setShowCreateStudentModal] = useState(false);
-  const [studentName, setStudentName] = useState('');
-  const [studentEmail, setStudentEmail] = useState('');
-  const [studentPassword, setStudentPassword] = useState('');
-  const [showStudentPassword, setShowStudentPassword] = useState(false);
-  const [isSubmittingStudent, setIsSubmittingStudent] = useState(false);
-  const [studentFormError, setStudentFormError] = useState<string | null>(null);
-
-  // Student Credentials Modal State
-  const [createdStudentCreds, setCreatedStudentCreds] = useState<{
-    name: string;
-    email: string;
-    password?: string;
-    batchName: string;
-    loginUrl: string;
-  } | null>(null);
-  const [copiedStudentCreds, setCopiedStudentCreds] = useState(false);
+  // Account creation: which dialog is open, then the login to share once it's done
+  const [creating, setCreating] = useState<AccountKind | null>(null);
+  const [issued, setIssued] = useState<{ kind: AccountKind; creds: IssuedCredentials } | null>(null);
 
   const canManage = Boolean(batch && canManageBatchScope(tenant, batch));
 
@@ -270,134 +231,42 @@ function BatchDetailView({ batchId }: { batchId: string }) {
     };
   }, [batch, canManage]);
 
-  const handleGenerateInstructorPassword = () => {
-    setInstructorPassword(generateTempPassword());
+  const issue = (kind: AccountKind, account: { displayName: string; email: string }, password: string, target: Batch) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    setIssued({ kind, creds: { name: account.displayName, email: account.email, password, batchName: target.name, loginUrl: `${origin}/login` } });
+    setCreating(null);
   };
 
-  const handleCreateAndAssignInstructor = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const createInstructorAccount = async ({ name, email, password }: NewAccountInput) => {
     if (!batch || !user) return;
-    setIsSubmittingInstructor(true);
-    setInstructorFormError(null);
-    try {
-      const newInst = await createInstructor({
-        email: instructorEmail,
-        password: instructorPassword,
-        displayName: instructorName,
-        orgId: batch.orgId,
-        branchId: batch.branchId,
-      });
+    const newInst = await createInstructor({ email, password, displayName: name, orgId: batch.orgId, branchId: batch.branchId });
 
-      // Update batch document with new instructor UID
-      const currentIds = batch.instructorUserIds || [];
-      const updatedInstructorIds = Array.from(new Set([...currentIds, newInst.uid]));
-      await updateBatch(batch, { instructorUserIds: updatedInstructorIds }, tenant);
+    // Update batch document with new instructor UID
+    const currentIds = batch.instructorUserIds || [];
+    const updatedInstructorIds = Array.from(new Set([...currentIds, newInst.uid]));
+    await updateBatch(batch, { instructorUserIds: updatedInstructorIds }, tenant);
 
-      // Update local state
-      setBatch((prev) => (prev ? { ...prev, instructorUserIds: updatedInstructorIds } : null));
-      setAssignedInstructors((prev) => [
-        ...prev.filter((i) => i.id !== newInst.uid),
-        { id: newInst.uid, displayName: newInst.displayName, email: newInst.email },
-      ]);
-
-      // Open Credentials Modal
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      setCreatedInstructorCreds({
-        name: newInst.displayName,
-        email: newInst.email,
-        password: instructorPassword,
-        batchName: batch.name,
-        loginUrl: `${origin}/login`,
-      });
-
-      setShowCreateInstructorModal(false);
-      setInstructorName('');
-      setInstructorEmail('');
-      setInstructorPassword('');
-      setSuccessMsg(`Instructor "${newInst.displayName}" created and assigned to ${batch.name}!`);
-    } catch (err: unknown) {
-      setInstructorFormError(firestoreErrorMessage(err, 'Failed to create instructor.'));
-    } finally {
-      setIsSubmittingInstructor(false);
-    }
+    // Update local state
+    setBatch((prev) => (prev ? { ...prev, instructorUserIds: updatedInstructorIds } : null));
+    setAssignedInstructors((prev) => [
+      ...prev.filter((i) => i.id !== newInst.uid),
+      { id: newInst.uid, displayName: newInst.displayName, email: newInst.email },
+    ]);
+    issue('instructor', newInst, password, batch);
+    setSuccessMsg(`Instructor "${newInst.displayName}" created and assigned to ${batch.name}!`);
   };
 
-  const handleCopyInstructorCreds = () => {
-    if (!createdInstructorCreds) return;
-    const shareText = `🎓 Welcome to Strynkix Coding Academy!
-
-You have been assigned as Instructor for: ${createdInstructorCreds.batchName}
-Role: Instructor
-Login URL: ${createdInstructorCreds.loginUrl}
-Email: ${createdInstructorCreds.email}
-Password: ${createdInstructorCreds.password}
-
-Please log in to manage daily plans, post assignments, and review student code!`;
-    navigator.clipboard.writeText(shareText);
-    setCopiedInstructorCreds(true);
-    setTimeout(() => setCopiedInstructorCreds(false), 3000);
-  };
-
-  const handleGenerateStudentPassword = () => {
-    setStudentPassword(generateTempPassword());
-  };
-
-  const handleCreateAndEnrollStudent = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const createStudentAccount = async ({ name, email, password }: NewAccountInput) => {
     if (!batch || !user) return;
-    setIsSubmittingStudent(true);
-    setStudentFormError(null);
-    try {
-      const newStudent = await createStudent({
-        email: studentEmail,
-        password: studentPassword,
-        displayName: studentName,
-        orgId: batch.orgId,
-        branchId: batch.branchId,
-      });
+    const newStudent = await createStudent({ email, password, displayName: name, orgId: batch.orgId, branchId: batch.branchId });
 
-      // Automatically enroll into this batch
-      await enrollStudent(batch, newStudent.uid, tenant, user.uid);
+    // Automatically enroll into this batch
+    await enrollStudent(batch, newStudent.uid, tenant, user.uid);
+    issue('student', newStudent, password, batch);
+    setSuccessMsg(`Student "${newStudent.displayName}" created and enrolled successfully!`);
 
-      // Open Credentials Modal
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      setCreatedStudentCreds({
-        name: newStudent.displayName,
-        email: newStudent.email,
-        password: studentPassword,
-        batchName: batch.name,
-        loginUrl: `${origin}/login`,
-      });
-
-      setShowCreateStudentModal(false);
-      setStudentName('');
-      setStudentEmail('');
-      setStudentPassword('');
-      setSuccessMsg(`Student "${newStudent.displayName}" created and enrolled successfully!`);
-
-      // Refresh roster & candidates
-      await Promise.all([loadRoster(batch), loadStudents(batch)]);
-    } catch (err: unknown) {
-      setStudentFormError(firestoreErrorMessage(err, 'Failed to create student.'));
-    } finally {
-      setIsSubmittingStudent(false);
-    }
-  };
-
-  const handleCopyStudentCreds = () => {
-    if (!createdStudentCreds) return;
-    const shareText = `🎓 Welcome to Strynkix Coding Academy!
-
-You have been enrolled in: ${createdStudentCreds.batchName}
-Role: Student
-Login URL: ${createdStudentCreds.loginUrl}
-Email: ${createdStudentCreds.email}
-Password: ${createdStudentCreds.password}
-
-Please log in to start learning!`;
-    navigator.clipboard.writeText(shareText);
-    setCopiedStudentCreds(true);
-    setTimeout(() => setCopiedStudentCreds(false), 3000);
+    // Refresh roster & candidates
+    await Promise.all([loadRoster(batch), loadStudents(batch)]);
   };
 
   const rosterRows = useMemo(
@@ -560,14 +429,7 @@ Please log in to start learning!`;
           {canManage && (
             <button
               type="button"
-              onClick={() => {
-                setInstructorName('');
-                setInstructorEmail('');
-                setInstructorPassword('');
-                setInstructorFormError(null);
-                handleGenerateInstructorPassword();
-                setShowCreateInstructorModal(true);
-              }}
+              onClick={() => setCreating('instructor')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-xs font-semibold text-brand-ink border border-line transition-colors"
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -620,14 +482,7 @@ Please log in to start learning!`;
             {enrollmentOpen && (
               <button
                 type="button"
-                onClick={() => {
-                  setStudentName('');
-                  setStudentEmail('');
-                  setStudentPassword('');
-                  setStudentFormError(null);
-                  handleGenerateStudentPassword();
-                  setShowCreateStudentModal(true);
-                }}
+                onClick={() => setCreating('student')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-xs font-semibold text-brand-ink border border-line transition-colors"
               >
                 <UserPlus className="w-3.5 h-3.5" />
@@ -796,385 +651,15 @@ Please log in to start learning!`;
         )}
       </section>
 
-      {/* Modal: Create & Assign Instructor */}
-      {showCreateInstructorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-line pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand-ink">
-                  <GraduationCap className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-ink">Add Lead Instructor</h3>
-                  <p className="text-xs text-ink-3">Set up an instructor account and assign them to this batch</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCreateInstructorModal(false)}
-                className="p-1 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl bg-surface-muted border border-line text-xs space-y-1">
-              <div className="font-semibold text-ink">Assigning to Batch:</div>
-              <div className="text-brand-ink">{batch.name} ({batch.code})</div>
-            </div>
-
-            {instructorFormError && (
-              <div className="p-3 rounded-xl bg-danger-soft border border-danger-line flex items-center gap-2 text-danger-ink text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{instructorFormError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateAndAssignInstructor} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-ink">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Prof. Priya Nair"
-                  value={instructorName}
-                  onChange={(e) => setInstructorName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-canvas border border-line text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-ink">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="e.g. priya@strynkix.com"
-                  value={instructorEmail}
-                  onChange={(e) => setInstructorEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-canvas border border-line text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-ink">Initial Password</label>
-                  <button
-                    type="button"
-                    onClick={handleGenerateInstructorPassword}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-ink hover:underline"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Generate Strong
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showInstructorPassword ? 'text' : 'password'}
-                    required
-                    minLength={8}
-                    placeholder="Enter password"
-                    value={instructorPassword}
-                    onChange={(e) => setInstructorPassword(e.target.value)}
-                    className="w-full pl-3.5 pr-10 py-2 rounded-xl bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowInstructorPassword(!showInstructorPassword)}
-                    className="absolute right-3 top-2.5 text-ink-3 hover:text-ink"
-                  >
-                    {showInstructorPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3 border-t border-line">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateInstructorModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-ink hover:bg-surface-muted transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingInstructor || !instructorName || !instructorEmail || !instructorPassword}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-brand/20 transition-all"
-                >
-                  {isSubmittingInstructor && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{isSubmittingInstructor ? 'Creating & Assigning...' : 'Create & Assign Instructor'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {creating && (
+        <CreateAccountDialog
+          kind={creating}
+          batch={batch}
+          onCreate={creating === 'instructor' ? createInstructorAccount : createStudentAccount}
+          onClose={() => setCreating(null)}
+        />
       )}
-
-      {/* Modal: Share Instructor Credentials */}
-      {createdInstructorCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-line pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-success/15 border border-success/30 flex items-center justify-center text-success-ink">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-ink">Instructor Assigned Successfully!</h3>
-                  <p className="text-xs text-ink-3">Share these login credentials with the instructor</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setCreatedInstructorCreds(null)}
-                className="p-1 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 p-4 rounded-xl bg-surface-muted border border-line text-xs font-mono">
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Cohort / Batch:</span>
-                <span className="font-bold text-ink">{createdInstructorCreds.batchName}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Full Name:</span>
-                <span className="font-bold text-ink">{createdInstructorCreds.name}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Role:</span>
-                <span className="font-bold text-brand-ink">Lead Instructor</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Email:</span>
-                <span className="font-bold text-brand-ink">{createdInstructorCreds.email}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Password:</span>
-                <span className="font-bold text-ink">{createdInstructorCreds.password}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-ink-3">Login URL:</span>
-                <span className="text-ink underline">{createdInstructorCreds.loginUrl}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2 border-t border-line">
-              <button
-                type="button"
-                onClick={handleCopyInstructorCreds}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface border border-line hover:bg-surface-sunken text-xs font-semibold text-ink transition-colors"
-              >
-                {copiedInstructorCreds ? (
-                  <>
-                    <Check className="w-4 h-4 text-success-ink" />
-                    <span className="text-success-ink">Copied to Clipboard!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    <span>Copy Credentials to Share</span>
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreatedInstructorCreds(null)}
-                className="w-full sm:w-auto px-5 py-2 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold transition-all"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Create & Enroll Student */}
-      {showCreateStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-line pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand-ink">
-                  <UserPlus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-ink">Create & Enroll Student</h3>
-                  <p className="text-xs text-ink-3">Set up a student account and enroll them into this cohort</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCreateStudentModal(false)}
-                className="p-1 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl bg-surface-muted border border-line text-xs space-y-1">
-              <div className="font-semibold text-ink">Enrolling into Batch:</div>
-              <div className="text-brand-ink">{batch.name} ({batch.code})</div>
-            </div>
-
-            {studentFormError && (
-              <div className="p-3 rounded-xl bg-danger-soft border border-danger-line flex items-center gap-2 text-danger-ink text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{studentFormError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateAndEnrollStudent} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-ink">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Rahul Sharma"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-canvas border border-line text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-ink">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="e.g. rahul@strynkix.com"
-                  value={studentEmail}
-                  onChange={(e) => setStudentEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-canvas border border-line text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-ink">Initial Password</label>
-                  <button
-                    type="button"
-                    onClick={handleGenerateStudentPassword}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-ink hover:underline"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Generate Strong
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showStudentPassword ? 'text' : 'password'}
-                    required
-                    minLength={8}
-                    placeholder="Enter password"
-                    value={studentPassword}
-                    onChange={(e) => setStudentPassword(e.target.value)}
-                    className="w-full pl-3.5 pr-10 py-2 rounded-xl bg-canvas border border-line text-xs font-mono text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowStudentPassword(!showStudentPassword)}
-                    className="absolute right-3 top-2.5 text-ink-3 hover:text-ink"
-                  >
-                    {showStudentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3 border-t border-line">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateStudentModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-ink hover:bg-surface-muted transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingStudent || !studentName || !studentEmail || !studentPassword}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-brand/20 transition-all"
-                >
-                  {isSubmittingStudent && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{isSubmittingStudent ? 'Creating & Enrolling...' : 'Create & Enroll Student'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Share Student Credentials */}
-      {createdStudentCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-line pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-success/15 border border-success/30 flex items-center justify-center text-success-ink">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-ink">Student Enrolled Successfully!</h3>
-                  <p className="text-xs text-ink-3">Share these login credentials with the student</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setCreatedStudentCreds(null)}
-                className="p-1 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-muted transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 p-4 rounded-xl bg-surface-muted border border-line text-xs font-mono">
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Cohort / Batch:</span>
-                <span className="font-bold text-ink">{createdStudentCreds.batchName}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Full Name:</span>
-                <span className="font-bold text-ink">{createdStudentCreds.name}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Email:</span>
-                <span className="font-bold text-brand-ink">{createdStudentCreds.email}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-line">
-                <span className="text-ink-3">Password:</span>
-                <span className="font-bold text-ink">{createdStudentCreds.password}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-ink-3">Login URL:</span>
-                <span className="text-ink underline">{createdStudentCreds.loginUrl}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-2 border-t border-line">
-              <button
-                type="button"
-                onClick={handleCopyStudentCreds}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-surface border border-line hover:bg-surface-sunken text-xs font-semibold text-ink transition-colors"
-              >
-                {copiedStudentCreds ? (
-                  <>
-                    <Check className="w-4 h-4 text-success-ink" />
-                    <span className="text-success-ink">Copied to Clipboard!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    <span>Copy Credentials to Share</span>
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreatedStudentCreds(null)}
-                className="w-full sm:w-auto px-5 py-2 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold transition-all"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {issued && <CredentialsDialog kind={issued.kind} creds={issued.creds} onClose={() => setIssued(null)} />}
 
       {dialog}
     </div>
