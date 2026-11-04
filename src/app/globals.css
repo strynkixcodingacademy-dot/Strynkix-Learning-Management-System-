@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* `dark:` follows the app theme switch, not only the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /*
  * Strynkix Live Books — design tokens
  * "Paper, ink and colour with meaning" (docs/UI_UX_AUDIT.md §3).
@@ -129,75 +132,90 @@
 }
 
 /*
- * Dark theme ("midnight"). The <html data-theme> attribute is set before
- * first paint by the script in layout.tsx (Light / Dark / System).
+ * Dark theme. Built on the Radix Colors dark scales (Slate neutrals with
+ * Iris, Green, Amber, Red, Orange, Teal and Violet accents), the same system
+ * behind many product dark modes: near-black neutral greys rather than a
+ * tinted navy, steps 3/6/11 for tinted fills, borders and text on tints.
+ * <html data-theme> is set before first paint by the script in layout.tsx.
  */
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --color-canvas: #0b0d1a;
-  --color-surface: #13162a;
-  --color-surface-muted: #1a1e36;
-  --color-surface-sunken: #232845;
-  --color-scrim: rgb(0 0 0 / 0.55);
+  /* Slate */
+  --color-canvas: #111113;
+  --color-surface: #18191b;
+  --color-surface-muted: #212225;
+  --color-surface-sunken: #272a2d;
+  --color-scrim: rgb(0 0 0 / 0.6);
 
-  --color-ink: #eef0fb;
-  --color-ink-2: #c9cce0;
-  --color-ink-3: #9a9fbd;
-  --color-ink-4: #646a8a;
+  --color-ink: #edeef0;
+  --color-ink-2: #d3d5d9;
+  --color-ink-3: #b0b4ba;
+  --color-ink-4: #777b84;
 
-  --color-line: #262b47;
-  --color-line-strong: #343a5c;
-  --color-silver: #3d4366;
-  --color-silver-soft: #1d2140;
+  --color-line: #2e3135;
+  --color-line-strong: #363a3f;
+  --color-silver: #43484e;
+  --color-silver-soft: #212225;
 
-  --color-brand: #5b5ff0;
-  --color-brand-strong: #6f73ff;
-  --color-brand-soft: #1e2150;
-  --color-brand-line: #363c8c;
-  --color-brand-ink: #a9abff;
+  /* Iris */
+  --color-brand: #5b5bd6;
+  --color-brand-strong: #6e6ade;
+  --color-brand-soft: #202248;
+  --color-brand-line: #3d3e82;
+  --color-brand-ink: #b1a9ff;
 
-  --color-spark: #ffb020;
-  --color-spark-soft: #2e2410;
-  --color-spark-line: #5a4618;
-  --color-spark-ink: #ffc857;
+  /* Amber */
+  --color-spark: #ffc53d;
+  --color-spark-soft: #302008;
+  --color-spark-line: #5c3d05;
+  --color-spark-ink: #ffca16;
+  --color-highlight: #4d3000;
+  --color-highlight-soft: #302008;
+  --color-warning: #ffc53d;
+  --color-warning-soft: #302008;
+  --color-warning-line: #5c3d05;
+  --color-warning-ink: #ffca16;
 
-  --color-highlight: #5c4a10;
-  --color-highlight-soft: #2a2410;
+  /* Green, Red, Orange, Teal, Violet */
+  --color-success: #30a46c;
+  --color-success-strong: #33b074;
+  --color-success-soft: #132d21;
+  --color-success-line: #20573e;
+  --color-success-ink: #3dd68c;
+  --color-danger: #e5484d;
+  --color-danger-soft: #3b1219;
+  --color-danger-line: #72232d;
+  --color-danger-ink: #ff9592;
+  --color-coral: #f76b15;
+  --color-coral-soft: #331e0b;
+  --color-coral-line: #66350c;
+  --color-coral-ink: #ffa057;
+  --color-teal: #12a594;
+  --color-teal-soft: #0d2d2a;
+  --color-teal-line: #145750;
+  --color-teal-ink: #0bd8b6;
+  --color-lavender: #6e56cf;
+  --color-lavender-soft: #291f43;
+  --color-lavender-line: #473876;
+  --color-lavender-ink: #baa7ff;
 
-  --color-success-soft: #0f2a1d;
-  --color-success-line: #1d4d33;
-  --color-success-ink: #6ee7a0;
-  --color-warning-soft: #2e2410;
-  --color-warning-line: #5a4618;
-  --color-warning-ink: #ffd166;
-  --color-danger-soft: #33141a;
-  --color-danger-line: #5c2129;
-  --color-danger-ink: #ff8a8a;
-  --color-coral-soft: #331a14;
-  --color-coral-line: #5c2d22;
-  --color-coral-ink: #ff9f85;
-  --color-teal-soft: #0d2a28;
-  --color-teal-line: #1a4d48;
-  --color-teal-ink: #5eead4;
-  --color-lavender-soft: #221b40;
-  --color-lavender-line: #3d3270;
-  --color-lavender-ink: #c4b5fd;
+  /* Code panel */
+  --color-code: #111113;
+  --color-code-line: #2e3135;
+  --color-code-ink: #edeef0;
+  --color-code-muted: #b0b4ba;
+  --color-syn-keyword: #baa7ff;
+  --color-syn-string: #3dd68c;
+  --color-syn-number: #ffa057;
+  --color-syn-comment: #777b84;
+  --color-syn-fn: #9eb1ff;
+  --color-syn-highlight: #302008;
 
-  --color-code: #0f1224;
-  --color-code-line: #262b47;
-  --color-code-ink: #e5e7f5;
-  --color-code-muted: #8b90ad;
-  --color-syn-keyword: #c792ea;
-  --color-syn-string: #7fd8a8;
-  --color-syn-number: #f5a97f;
-  --color-syn-comment: #7a809e;
-  --color-syn-fn: #82aaff;
-  --color-syn-highlight: #2e2a10;
-
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-lift: 0 16px 34px -14px rgb(0 0 0 / 0.6), 0 3px 8px -2px rgb(0 0 0 / 0.3);
-  --shadow-float: 0 24px 60px -20px rgb(0 0 0 / 0.7), 0 6px 16px -6px rgb(0 0 0 / 0.4);
+  /* Dark UIs separate with borders, not big shadows. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 8px 24px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-float: 0 20px 48px -12px rgb(0 0 0 / 0.75), 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 @layer base {
@@ -224,6 +242,11 @@
   ::selection {
     background: var(--color-highlight);
     color: var(--color-ink);
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-brand);
   }
 
   :focus-visible {

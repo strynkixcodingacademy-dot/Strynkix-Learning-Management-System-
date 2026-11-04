@@ -20,7 +20,6 @@ import { Avatar } from '@/components/ui/DataViz';
 import { cx } from '@/components/ui/tones';
 import { HelpAssistant, openHelpAssistant } from '@/components/help/HelpAssistant';
 import { GlobalSearch, openGlobalSearch, SearchTrigger } from '@/components/search/GlobalSearch';
-import { ThemeSwitch } from '@/components/ui/ThemeSwitch';
 import {
   activeCategory,
   categoriesFor,
@@ -84,7 +83,6 @@ function NavList({ groups, role, pathname, onNavigate }: { groups: CategoryGroup
       <div className="space-y-0.5">
         <div className="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-4">Account</div>
         {account.map((f) => link(`acct-${f.href}`, f.href, f.name, f.icon))}
-        <ThemeSwitch className="mx-3 mt-2" />
       </div>
     </div>
   );
@@ -158,11 +156,8 @@ function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
               <span className="block truncate text-[11.5px] font-semibold text-ink-3">{tenant ? ROLE_LABELS[tenant.role] : ''}</span>
             </span>
           </div>
-          <div className="border-b border-line px-1 py-2.5">
-            <ThemeSwitch />
-          </div>
           <div className="pt-2">
-            <Link role="menuitem" href="/dashboard/profile" onClick={() => setOpen(false)} className={item}><UserRound className="h-4 w-4" /> My Profile</Link>
+            <Link role="menuitem" href="/dashboard/profile" onClick={() => setOpen(false)} className={item}><UserRound className="h-4 w-4" /> Profile & settings</Link>
             <Link role="menuitem" href="/dashboard/guide" onClick={() => setOpen(false)} className={item}><LifeBuoy className="h-4 w-4" /> User Guide</Link>
             <button role="menuitem" type="button" onClick={() => { setOpen(false); openHelpAssistant(); }} className={item}><CircleHelp className="h-4 w-4" /> Ask for help</button>
             <button role="menuitem" type="button" onClick={onSignOut} className={cx(item, 'hover:bg-danger-soft hover:text-danger-ink')}><LogOut className="h-4 w-4" /> Sign out</button>
