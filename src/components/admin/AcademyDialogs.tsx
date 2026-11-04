@@ -14,8 +14,9 @@ import { Button } from '@/components/ui/Button';
 import { Field, fieldClasses } from '@/components/ui/Page';
 import { Notice } from '@/components/ui/States';
 import { X } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
-const message = (err: unknown) => (err instanceof ApiError ? err.message : (err as Error).message || 'The change couldn’t be saved.');
+const message = (err: unknown) => (err instanceof ApiError ? err.message : firestoreErrorMessage(err, 'The change couldn’t be saved.'));
 
 function Shell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (

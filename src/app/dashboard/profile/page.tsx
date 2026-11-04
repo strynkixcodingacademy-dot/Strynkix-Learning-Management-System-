@@ -22,6 +22,7 @@ import { ChangeEmailForm, ChangePasswordForm } from '@/components/account/Securi
 import { NotificationPreferences } from '@/components/account/NotificationPreferences';
 import { AppearanceSettings } from '@/components/account/AppearanceSettings';
 import { BadgeCheck, Bell, Building2, KeyRound, Mail, MapPin, Palette, Save, ShieldCheck, UserRound } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 const SECTIONS = [
   { id: 'details', label: 'Personal details', icon: UserRound },
@@ -99,7 +100,7 @@ export default function ProfilePage() {
       await refreshProfile();
       setMessage({ kind: 'success', text: 'Profile saved.' });
     } catch (err) {
-      setMessage({ kind: 'error', text: (err as Error).message || 'Your profile couldn’t be saved. Try again.' });
+      setMessage({ kind: 'error', text: firestoreErrorMessage(err, 'Your profile couldn’t be saved. Try again.') });
     } finally {
       setSaving(false);
     }

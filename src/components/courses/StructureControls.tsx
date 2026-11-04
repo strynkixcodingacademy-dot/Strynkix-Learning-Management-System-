@@ -17,13 +17,14 @@ import { Field, fieldClasses } from '@/components/ui/Page';
 import { Notice } from '@/components/ui/States';
 import { ArrowDown, ArrowUp, Pencil, Trash2, X } from 'lucide-react';
 import type { StructureRequest } from '@/lib/server/content-structure';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 export async function runStructureChange(req: StructureRequest): Promise<string | null> {
   try {
     await changeCourseStructure(req);
     return null;
   } catch (err) {
-    return err instanceof ApiError ? err.message : (err as Error).message || 'The change couldn’t be saved.';
+    return err instanceof ApiError ? err.message : firestoreErrorMessage(err, 'The change couldn’t be saved.');
   }
 }
 

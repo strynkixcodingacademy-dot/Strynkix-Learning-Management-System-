@@ -14,6 +14,7 @@ import { Field, fieldClasses } from '@/components/ui/Page';
 import { Notice } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
 import { Check, Copy, KeyRound, ShieldCheck, X } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 export function UniversityAdminDialog({ orgId, orgName, onClose }: { orgId: string; orgName: string; onClose: () => void }) {
   const [displayName, setDisplayName] = useState('');
@@ -34,7 +35,7 @@ export function UniversityAdminDialog({ orgId, orgName, onClose }: { orgId: stri
       const account = await createUniversityAdmin({ email, password, displayName, orgId });
       setCreated({ name: account.displayName, email: account.email });
     } catch (err) {
-      setError((err as Error).message || 'The account couldn’t be created.');
+      setError(firestoreErrorMessage(err, 'The account couldn’t be created.'));
     } finally {
       setBusy(false);
     }

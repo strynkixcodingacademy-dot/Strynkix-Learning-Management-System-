@@ -18,6 +18,7 @@ import { Field, fieldClasses } from '@/components/ui/Page';
 import { Notice } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
 import { Check, Copy, KeyRound, PenTool, X } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 type ContentRole = 'content_designer' | 'content_lead';
 
@@ -52,7 +53,7 @@ export function ContentMemberDialog({ orgId, onClose, onCreated }: { orgId: stri
       onCreated(account.profile);
       setCreated({ name: account.displayName, email: account.email, role });
     } catch (err) {
-      setError((err as Error).message || 'The account couldn’t be created.');
+      setError(firestoreErrorMessage(err, 'The account couldn’t be created.'));
     } finally {
       setBusy(false);
     }
