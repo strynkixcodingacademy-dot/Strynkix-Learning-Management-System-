@@ -45,6 +45,8 @@ export const personalSchema = z.object({
   dateOfBirth: planDateSchema.optional(), gender: optional(30),
   email: z.string().trim().toLowerCase().email('Enter a valid email address.').max(254), mobile: phone,
   emergencyName: optional(100), emergencyRelation: optional(40), emergencyPhone: phone.optional(),
+  guardianName: optional(100), guardianRelation: optional(40), guardianPhone: phone.optional(),
+  guardianEmail: z.string().trim().toLowerCase().email('Enter a valid guardian email.').max(254).optional(),
   address: optional(300), city: optional(80), state: optional(80), pinCode: z.string().trim().regex(/^\d{6}$/, 'PIN code is 6 digits.').optional(),
 }).strict();
 const draftPersonalSchema = personalSchema.partial().strict();

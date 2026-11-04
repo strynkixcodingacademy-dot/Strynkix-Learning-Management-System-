@@ -10,6 +10,7 @@ export const studentApi = <T>(body: Record<string, unknown>) => postWithIdToken<
 export const attendanceApi = <T>(body: Record<string, unknown>) => postWithIdToken<T>('/api/attendance', body);
 export const certificatesApi = <T>(body: Record<string, unknown>) => postWithIdToken<T>('/api/certificates', body);
 export const admissionsApi = <T>(body: Record<string, unknown>) => postWithIdToken<T>('/api/admissions', body);
+export const studentsApi = <T>(body: Record<string, unknown>) => postWithIdToken<T>('/api/students', body);
 export const financeApi = <T>(body: Record<string, unknown>) => postWithIdToken<T>('/api/finance', body);
 export const expensesApi = <T>(body: Record<string, unknown>) => postWithIdToken<T>('/api/expenses', body);
 export const reportsApi = <T>(body: Record<string, unknown>) => postWithIdToken<T>('/api/reports', body);

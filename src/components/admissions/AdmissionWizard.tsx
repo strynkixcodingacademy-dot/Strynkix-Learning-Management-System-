@@ -186,6 +186,8 @@ export function AdmissionWizard({ initial }: { initial?: Admission }) {
               </Field>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">{P('email', 'Email address', { type: 'email', required: true, hint: 'The student signs in with this email.' })}{P('mobile', 'Mobile number', { type: 'tel', required: true })}</div>
+            <div className="grid gap-4 sm:grid-cols-2">{P('guardianName', 'Parent or guardian name')}{P('guardianRelation', 'Relationship (e.g. Father, Mother)')}</div>
+            <div className="grid gap-4 sm:grid-cols-2">{P('guardianPhone', 'Guardian phone', { type: 'tel' })}{P('guardianEmail', 'Guardian email', { type: 'email' })}</div>
             <div className="grid gap-4 sm:grid-cols-3">{P('emergencyName', 'Emergency contact name')}{P('emergencyRelation', 'Relationship')}{P('emergencyPhone', 'Emergency contact number', { type: 'tel' })}</div>
             {P('address', 'Address')}
             <div className="grid gap-4 sm:grid-cols-3">{P('city', 'City')}{P('state', 'State')}{P('pinCode', 'PIN code')}</div>

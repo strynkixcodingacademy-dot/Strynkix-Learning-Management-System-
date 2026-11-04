@@ -122,6 +122,7 @@ export const FEATURES: Feature[] = [
   { name: 'Certificates', href: '/dashboard/certificates', icon: Award, roles: STAFF, category: 'content', description: 'Issue and verify course certificates', keywords: ['certificate', 'issue', 'verify'] },
 
   // People
+  { name: 'Students', href: '/dashboard/students', icon: GraduationCap, roles: MANAGERS, category: 'people', description: 'Every student with contacts, guardian, batches, attendance, results and fees; export to Excel', keywords: ['students', 'student list', 'student register', 'roster', 'learners', 'guardian', 'parent', 'export', 'excel', 'csv', 'student data'] },
   { name: 'Admissions', href: '/dashboard/admissions', icon: UserPlus, roles: MANAGERS, category: 'people', description: 'Enquiries, admissions and new students', keywords: ['admission', 'enquiry', 'lead', 'new student', 'onboard'] },
   { name: 'People', href: '/dashboard/people', icon: UsersRound, roles: MANAGERS, category: 'people', description: 'Accounts, roles and approvals', keywords: ['users', 'accounts', 'students', 'staff', 'instructors', 'roles', 'approve'] },
   { name: 'Branches', href: '/dashboard/branches', icon: GitBranch, roles: ['super_admin', 'university_admin'], category: 'people', description: 'The academy’s branches and their managers', keywords: ['branch', 'centre', 'campus', 'location'] },

@@ -29,6 +29,7 @@ function Form({ id }: { id: string }) {
         <Row label="Name" value={[p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ')} />
         <Row label="Date of birth" value={formatDate(p.dateOfBirth)} /><Row label="Gender" value={p.gender} />
         <Row label="Email" value={p.email} /><Row label="Mobile" value={p.mobile} />
+        <Row label="Parent / guardian" value={[p.guardianName, p.guardianRelation, p.guardianPhone, p.guardianEmail].filter(Boolean).join(' · ')} />
         <Row label="Emergency contact" value={[p.emergencyName, p.emergencyRelation, p.emergencyPhone].filter(Boolean).join(' · ')} />
         <Row label="Address" value={[p.address, p.city, p.state, p.pinCode].filter(Boolean).join(', ')} />
       </dl>
