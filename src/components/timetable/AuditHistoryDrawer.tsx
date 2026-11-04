@@ -28,7 +28,7 @@ export function AuditHistoryDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex justify-end bg-scrim backdrop-blur-[3px] animate-fade"
       role="dialog"
       aria-modal="true"
       aria-labelledby="audit-title"

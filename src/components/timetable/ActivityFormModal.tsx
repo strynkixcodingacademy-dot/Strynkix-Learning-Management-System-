@@ -191,7 +191,7 @@ export function ActivityFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade"
       role="dialog"
       aria-modal="true"
       aria-labelledby="activity-modal-title"

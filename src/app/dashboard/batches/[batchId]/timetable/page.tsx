@@ -421,7 +421,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
 
       {/* Super Admin Approve Modal */}
       {showApproveConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
           <div className="max-w-md w-full bg-surface rounded-2xl border border-line p-6 space-y-4 shadow-2xl animate-pop">
             <h3 className="text-base font-bold text-ink">Approve and Activate Weekly Timetable?</h3>
             <p className="text-xs text-ink-2 leading-relaxed">
@@ -450,7 +450,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
 
       {/* Super Admin Reject / Changes Requested Modal */}
       {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
           <div className="max-w-md w-full bg-surface rounded-2xl border border-line p-6 space-y-4 shadow-2xl animate-pop">
             <h3 className="text-base font-bold text-ink">Request Corrections</h3>
             <p className="text-xs text-ink-2">

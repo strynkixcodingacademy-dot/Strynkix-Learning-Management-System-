@@ -249,7 +249,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
   };
 
   const brand = (
-    <Link href="/dashboard" className="flex items-center gap-2.5 rounded-lg" aria-label="Strynkix Live Books home">
+    <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg" aria-label="Strynkix Live Books home">
       <BrandMark size={34} />
       <span className="leading-tight">
         <span className="block text-[16px] font-extrabold tracking-tight text-ink">Live Books</span>
@@ -262,10 +262,10 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
     <button
       type="button"
       onClick={openHelpAssistant}
-      className="inline-flex h-9 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-[13px] font-semibold text-ink-2 shadow-card transition-colors hover:border-silver hover:text-ink"
+      className="inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-line bg-surface px-3 text-[13px] font-semibold text-ink-2 shadow-card transition-colors hover:border-silver hover:text-ink"
     >
       <CircleHelp className="w-4 h-4 text-brand" />
-      <span className="hidden sm:inline">Ask for help</span>
+      <span className="sr-only lg:not-sr-only">Ask for help</span>
     </button>
   );
 
@@ -310,11 +310,11 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
               <div className={bare ? '' : 'lg:hidden'}>{brand}</div>
               {trail}
               {!bare && (
-                <div className="mx-auto hidden w-full max-w-[520px] md:block">
+                <div className="mx-auto hidden w-full min-w-0 max-w-[520px] md:block">
                   <SearchTrigger />
                 </div>
               )}
-              <div className="ml-auto flex min-w-0 items-center gap-2 md:ml-0">
+              <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
                 {topBar}
                 {!bare && (
                   <button type="button" onClick={openGlobalSearch} className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-muted md:hidden" aria-label="Open search">

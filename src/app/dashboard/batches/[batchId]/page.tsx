@@ -31,6 +31,7 @@ import { buildRosterProgress, RosterRow } from '@/lib/batches/roster';
 import { QuizResultsTable } from '@/components/livebook/QuizResults';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Avatar } from '@/components/ui/DataViz';
+import { buttonClasses } from '@/components/ui/Button';
 import { Batch, Course, Enrollment, EnrollmentStatus, Progress, UserProfile } from '@/types/domain';
 import { createInstructor, createStudent, generateTempPassword, getBranchManagers } from '@/lib/admin/service';
 import {
@@ -492,20 +493,16 @@ Please log in to start learning!`;
           <ArrowLeft className="w-4 h-4" />
           <span>All batches</span>
         </Link>
-        <Link
-          href={`/dashboard/batches/${batch.id}/plans`}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
-        >
-          <CalendarDays className="w-4 h-4" />
-          <span>Daily Plans</span>
-        </Link>
-        <Link
-          href={`/dashboard/batches/${batch.id}/timetable`}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-sm"
-        >
-          <CalendarDays className="w-4 h-4" />
-          <span>Weekly Timetable</span>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/dashboard/batches/${batch.id}/plans`} className={buttonClasses('secondary', 'sm')}>
+            <CalendarDays className="w-4 h-4" />
+            <span>Daily Plans</span>
+          </Link>
+          <Link href={`/dashboard/batches/${batch.id}/timetable`} className={buttonClasses('primary', 'sm')}>
+            <CalendarDays className="w-4 h-4" />
+            <span>Weekly Timetable</span>
+          </Link>
+        </div>
       </div>
 
       {/* Batch summary */}
