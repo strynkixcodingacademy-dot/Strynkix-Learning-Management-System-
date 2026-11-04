@@ -434,7 +434,7 @@ Please sign in and set up your batches and instructors!`;
 
           {/* Create Branch Modal */}
           {showCreateModal && (
-            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-scrim backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -605,7 +605,7 @@ Please sign in and set up your batches and instructors!`;
 
           {/* Add Manager Modal */}
           {showAddManagerModal && selectedBranchForManager && (
-            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-scrim backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
                   <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -726,7 +726,7 @@ Please sign in and set up your batches and instructors!`;
 
           {/* Credentials Share Modal */}
           {createdCredentials && (
-            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-scrim backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
               <div className="max-w-md w-full rounded-2xl bg-surface border border-success-line shadow-lift p-6 space-y-5 animate-in fade-in-50 zoom-in-95">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-success-soft border border-success-line flex items-center justify-center text-success-ink">

@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist_Mono, Manrope } from 'next/font/google';
+import { Bricolage_Grotesque, Geist_Mono, Manrope } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { Toaster } from '@/components/ui/Toaster';
+import { MotionProvider } from '@/components/ui/Motion';
+import { THEME_SCRIPT } from '@/lib/theme';
 
 const manrope = Manrope({
   variable: '--font-manrope',
@@ -9,6 +12,11 @@ const manrope = Manrope({
   display: 'swap',
 });
 
+const bricolage = Bricolage_Grotesque({
+  variable: '--font-bricolage',
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
@@ -17,8 +25,8 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  colorScheme: 'light',
-  themeColor: '#f7f7f4',
+  colorScheme: 'light dark',
+  themeColor: '#f5f6fb',
 };
 
 export const metadata: Metadata = {
@@ -32,9 +40,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" data-theme="light" suppressHydrationWarning className={`${manrope.variable} ${bricolage.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-canvas text-ink">
-        <AuthProvider>{children}</AuthProvider>
+        <MotionProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </MotionProvider>
+        <Toaster />
       </body>
     </html>
   );

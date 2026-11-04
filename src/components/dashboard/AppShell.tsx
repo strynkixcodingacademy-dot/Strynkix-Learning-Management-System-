@@ -20,6 +20,7 @@ import { Avatar } from '@/components/ui/DataViz';
 import { cx } from '@/components/ui/tones';
 import { HelpAssistant, openHelpAssistant } from '@/components/help/HelpAssistant';
 import { GlobalSearch, openGlobalSearch, SearchTrigger } from '@/components/search/GlobalSearch';
+import { ThemeSwitch } from '@/components/ui/ThemeSwitch';
 import {
   activeCategory,
   categoriesFor,
@@ -83,6 +84,7 @@ function NavList({ groups, role, pathname, onNavigate }: { groups: CategoryGroup
       <div className="space-y-0.5">
         <div className="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-4">Account</div>
         {account.map((f) => link(`acct-${f.href}`, f.href, f.name, f.icon))}
+        <ThemeSwitch className="mx-3 mt-2" />
       </div>
     </div>
   );
@@ -155,6 +157,9 @@ function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
               <span className="block truncate text-[13.5px] font-bold text-ink">{name}</span>
               <span className="block truncate text-[11.5px] font-semibold text-ink-3">{tenant ? ROLE_LABELS[tenant.role] : ''}</span>
             </span>
+          </div>
+          <div className="border-b border-line px-1 py-2.5">
+            <ThemeSwitch />
           </div>
           <div className="pt-2">
             <Link role="menuitem" href="/dashboard/profile" onClick={() => setOpen(false)} className={item}><UserRound className="h-4 w-4" /> My Profile</Link>
@@ -332,7 +337,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
             </div>
           </header>
 
-          <main id="main" className={cx('flex-1', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-[calc(100vh-57px)] lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-10 print:max-w-none print:p-0')}>
+          <main id="main" className={cx('flex-1 animate-fade', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-[calc(100vh-57px)] lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-10 print:max-w-none print:p-0')}>
             {pageTitle && (
               <h1 className="mb-6 text-[26px] font-extrabold tracking-tight text-ink sm:text-[30px]">{pageTitle}</h1>
             )}
@@ -343,7 +348,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
         {/* Mobile drawer */}
         {!bare && drawerOpen && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
-            <button type="button" className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" aria-label="Close navigation" onClick={() => setDrawerOpen(false)} />
+            <button type="button" className="absolute inset-0 bg-scrim backdrop-blur-[3px] animate-fade" aria-label="Close navigation" onClick={() => setDrawerOpen(false)} />
             <div id="mobile-nav" className="relative flex h-full w-[290px] max-w-[85vw] flex-col gap-5 bg-gradient-to-b from-silver-soft via-canvas to-silver-soft px-4 py-5 shadow-float animate-rise">
               <div className="flex items-center justify-between">
                 {brand}

@@ -18,7 +18,7 @@ import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types/domain';
 import { BrandMark, Illustration, IllustrationName } from '@/components/ui/Illustrations';
 import { Button, buttonClasses } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/States';
+import { StudyLoader } from '@/components/ui/StudyLoader';
 
 export function StateScreen({
   illustration,
@@ -60,17 +60,8 @@ export function RequireAuth({ children, fallback }: RequireAuthProps) {
   if (status === 'loading') {
     return (
       fallback || (
-        <div className="min-h-screen bg-canvas px-4 py-10 sm:px-10" role="status" aria-live="polite">
-          <span className="sr-only">Checking your account…</span>
-          <div className="mx-auto max-w-5xl space-y-4">
-            <Skeleton className="h-9 w-56" />
-            <Skeleton className="h-28" />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Skeleton className="h-32" />
-              <Skeleton className="h-32" />
-              <Skeleton className="h-32" />
-            </div>
-          </div>
+        <div className="flex min-h-screen items-center justify-center bg-canvas paper-dots">
+          <StudyLoader label="Checking your account…" />
         </div>
       )
     );

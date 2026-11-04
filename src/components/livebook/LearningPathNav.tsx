@@ -17,7 +17,7 @@ export function NumberBadge({ number, status, active }: { number: string; status
     <span className={cx(
       'flex h-10 w-10 shrink-0 items-center justify-center text-[12px] font-semibold tabular-nums',
       status === 'completed' ? 'rounded-md bg-success-ink text-white'
-        : status === 'in_progress' ? 'rounded-md bg-ink-2 text-white'
+        : status === 'in_progress' ? 'rounded-md bg-ink-2 text-surface'
           : active ? 'rounded-full border-2 border-brand bg-surface text-brand-ink' : 'rounded-full border border-line bg-surface text-ink-2'
     )}>
       {number}

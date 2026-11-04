@@ -17,6 +17,7 @@ import { QuizSubmitError } from '@/lib/livebook/service';
 import { Button } from '@/components/ui/Button';
 import { Notice } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
+import { celebrate } from '@/lib/celebrate';
 import { ArrowRight, Check, Flag, RotateCcw, Timer, Trophy, X } from 'lucide-react';
 
 type Phase = 'intro' | 'question' | 'result';
@@ -101,7 +102,7 @@ function QuizIntro({ count, canTrackProgress, isCompleted, best, onStart, note }
           <li className="flex items-center gap-3"><Check className="h-5 w-5 text-ink-3" aria-hidden="true" /> Get {QUIZ_PASS_PERCENT}% or more</li>
           <li className="flex items-center gap-3"><Timer className="h-5 w-5 text-ink-3" aria-hidden="true" /> About {minutes} min · {count} question{count === 1 ? '' : 's'}</li>
         </ul>
-        <button type="button" onClick={onStart} className="inline-flex h-11 items-center gap-2 rounded-lg bg-ink px-6 text-sm font-bold text-white hover:bg-ink-2">
+        <button type="button" onClick={onStart} className="inline-flex h-11 items-center gap-2 rounded-lg bg-brand px-6 text-sm font-bold text-white shadow-lift transition-colors hover:bg-brand-strong">
           {best === null ? 'Start Quiz' : 'Retake Quiz'} <ArrowRight className="h-4 w-4" />
         </button>
         {isCompleted && <p className="text-sm font-semibold text-success-ink">You&apos;ve completed this lesson.</p>}
@@ -162,7 +163,9 @@ function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent, 
     setSubmitError(null);
     setCompletedBefore(isCompleted);
     try {
-      setResult(await onSubmit(answers));
+      const graded = await onSubmit(answers);
+      setResult(graded);
+      if (graded.passed) void celebrate('quiz');
       writeQuizDraft(draftKey, null);
       setRestored(false);
       setPhase('result');

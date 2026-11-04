@@ -162,7 +162,7 @@ export function GlobalSearch() {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[10vh] print:hidden">
-      <button type="button" aria-label="Close search" onClick={() => setOpen(false)} className="absolute inset-0 bg-ink/25 backdrop-blur-[3px] animate-fade" />
+      <button type="button" aria-label="Close search" onClick={() => setOpen(false)} className="absolute inset-0 bg-scrim backdrop-blur-[3px] animate-fade" />
       <div role="dialog" aria-modal="true" aria-label="Search" className="relative flex max-h-[75vh] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-float animate-rise">
         <div className="flex items-center gap-3 border-b border-line px-4">
           <Search className="h-5 w-5 shrink-0 text-brand" />

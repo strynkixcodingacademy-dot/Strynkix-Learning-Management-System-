@@ -20,6 +20,11 @@ import { ErrorState, LoadingState, Notice } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { Award, CalendarDays, Flame, HelpCircle, MessageSquareText, Target } from 'lucide-react';
 
+/** The streak flame flickers while a streak is alive. */
+function LiveFlame({ className }: { className?: string }) {
+  return <Flame className={`${className ?? ''} flame-flicker`} />;
+}
+
 export function useMyEngagement() {
   return useApiData('my-engagement', () => engagementApi<MyEngagement>({ action: 'my_engagement' }));
 }
@@ -60,7 +65,7 @@ export function EngagementPanel() {
     <div className="space-y-6">
       {data.newlyAwarded.length > 0 && <Notice kind="success">New achievement{data.newlyAwarded.length > 1 ? 's' : ''}: {data.achievements.filter((a) => data.newlyAwarded.includes(a.key)).map((a) => a.title).join(', ')}. <Link href="/dashboard/achievements" className="underline">View achievements</Link></Notice>}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiTile label="Learning streak" value={data.streak.current} suffix={data.streak.current === 1 ? 'day' : 'days'} icon={Flame} tone="coral" hint={data.streak.learnedToday ? 'You learned today' : data.streak.current ? 'Learn today to keep it going' : `Longest: ${data.streak.longest} days`} />
+        <KpiTile label="Learning streak" value={data.streak.current} suffix={data.streak.current === 1 ? 'day' : 'days'} icon={data.streak.current > 0 ? LiveFlame : Flame} tone="coral" hint={data.streak.learnedToday ? 'You learned today' : data.streak.current ? 'Learn today to keep it going' : `Longest: ${data.streak.longest} days`} />
         <KpiTile label="Learning days" value={data.streak.totalDays} icon={CalendarDays} tone="teal" hint={`${data.thisMonth.learningDays} this month`} />
         <KpiTile label="Lessons completed" value={data.stats.lessonsCompleted} tone="brand" hint={`${data.stats.assignmentsSubmitted} assignments · ${data.stats.assessmentsCompleted} assessments`} />
         <KpiTile label="Achievements" value={data.achievements.length} icon={Award} tone="lavender" hint={`of ${data.available} kinds · earned from your recorded progress`} />

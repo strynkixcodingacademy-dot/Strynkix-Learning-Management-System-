@@ -15,7 +15,8 @@ import { categoriesFor } from '@/lib/navigation/catalog';
 import { buttonClasses } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/Page';
 import { EmptyState, LoadingState } from '@/components/ui/States';
-import { cx, TONE_CLASSES } from '@/components/ui/tones';
+import { cx, TONE_CLASSES, TONE_GRADIENTS } from '@/components/ui/tones';
+import { StaggerItem, StaggerList } from '@/components/ui/Motion';
 import { ArrowRight } from 'lucide-react';
 
 interface HubPageProps {
@@ -41,21 +42,21 @@ function Hub({ params }: HubPageProps) {
   return (
     <div className="space-y-8">
       <div className="flex items-start gap-4">
-        <span className={cx('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl', tone.soft, tone.ink)}>
+        <span className={cx('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-white shadow-lift', TONE_GRADIENTS[category.tone])}>
           <Icon className="h-7 w-7" />
         </span>
         <PageHeader title={category.name} description={category.description} className="flex-1" />
       </div>
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <StaggerList className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {features.map((f) => {
           const FIcon = f.icon;
           return (
-            <li key={f.href}>
+            <StaggerItem key={f.href}>
               <Link
                 href={f.href}
                 className="group flex h-full items-start gap-4 rounded-2xl border border-line bg-surface p-5 shadow-card transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-silver hover:shadow-lift"
               >
-                <span className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', tone.soft, tone.ink)}>
+                <span className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105', tone.soft, tone.ink)}>
                   <FIcon className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -64,10 +65,10 @@ function Hub({ params }: HubPageProps) {
                 </span>
                 <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-ink-4 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
               </Link>
-            </li>
+            </StaggerItem>
           );
         })}
-      </ul>
+      </StaggerList>
     </div>
   );
 }

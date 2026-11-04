@@ -1,5 +1,6 @@
 import React from 'react';
 import { TONE_CLASSES, Tone, cx } from './tones';
+import { AnimatedNumber } from './AnimatedNumber';
 
 /** Initials avatar. Colour is derived from the name so it is stable per person. */
 const AVATAR_TONES: Tone[] = ['brand', 'teal', 'lavender', 'coral', 'success', 'warning'];
@@ -52,7 +53,9 @@ export function KpiTile({
         )}
       </div>
       <div className="mt-2 flex items-baseline gap-1">
-        <span className="text-[30px] font-extrabold leading-none tracking-tight text-ink tabular-nums">{value}</span>
+        <span className="text-[30px] font-extrabold leading-none tracking-tight text-ink tabular-nums">
+          {typeof value === 'number' && Number.isFinite(value) ? <AnimatedNumber value={value} /> : value}
+        </span>
         {suffix && <span className="text-sm font-bold text-ink-3">{suffix}</span>}
       </div>
       {hint && <div className="mt-2 text-xs leading-relaxed text-ink-3">{hint}</div>}

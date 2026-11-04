@@ -8,38 +8,46 @@
  */
 @theme {
   /*
-   * "Silver Atelier": warm off-white paper, white cards, a silver neutral
-   * system and one electric-cobalt accent. Light only, everywhere.
+   * "Midnight & Marigold": cool paper, white cards, a midnight-indigo brand
+   * and a warm marigold "spark" for wins (XP, streaks, celebrations).
+   * Dark values live under :root[data-theme="dark"] below.
    */
 
   /* Surfaces */
-  --color-canvas: #f7f7f4;
+  --color-canvas: #f5f6fb;
   --color-surface: #ffffff;
-  --color-surface-muted: #f3f4f6;
-  --color-surface-sunken: #e9ebef;
+  --color-surface-muted: #f1f2f8;
+  --color-surface-sunken: #e6e8f1;
+  --color-scrim: rgb(15 17 38 / 0.22); /* backdrop behind dialogs and sheets */
 
   /* Ink (text) */
-  --color-ink: #14171f;
-  --color-ink-2: #363d4c;
-  --color-ink-3: #5d6575;
-  --color-ink-4: #9aa1ae; /* decorative / disabled only */
+  --color-ink: #0f1126;
+  --color-ink-2: #343852;
+  --color-ink-3: #5a5f78;
+  --color-ink-4: #9a9fb5; /* decorative / disabled only */
 
   /* Silver lines */
-  --color-line: #e4e6eb;
-  --color-line-strong: #cfd3db;
-  --color-silver: #c3c8d2;
-  --color-silver-soft: #eef0f4;
+  --color-line: #e3e5ef;
+  --color-line-strong: #cdd0de;
+  --color-silver: #c2c6d6;
+  --color-silver-soft: #eef0f6;
 
-  /* Brand: electric cobalt (primary action, links, navigation) */
-  --color-brand: #2b59f0;
-  --color-brand-strong: #2449d8;
-  --color-brand-soft: #edf2ff;
-  --color-brand-line: #cbd8ff;
-  --color-brand-ink: #1f45d6;
+  /* Brand: midnight indigo (primary action, links, navigation) */
+  --color-brand: #3b3fe4;
+  --color-brand-strong: #2f32c9;
+  --color-brand-soft: #eeefff;
+  --color-brand-line: #cfd1fb;
+  --color-brand-ink: #2d30c2;
+
+  /* Spark: marigold for wins — XP, streaks, celebrations */
+  --color-spark: #ffb020;
+  --color-spark-soft: #fff4dc;
+  --color-spark-line: #ffdf9e;
+  --color-spark-ink: #8a5200;
 
   /* Highlighter: the signature marker stroke behind titles and active nav */
-  --color-highlight: #ffe766;
-  --color-highlight-soft: #fff8cc;
+  --color-highlight: #ffd76a;
+  --color-highlight-soft: #fff6d8;
 
   /* Meaning accents */
   --color-success: #16a34a; /* completed, progress */
@@ -87,14 +95,14 @@
 
   /* Type */
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
   /* Shape & depth */
   --radius-card: 16px;
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 1px 2px rgb(20 23 31 / 0.04), 0 2px 6px -2px rgb(20 23 31 / 0.04);
-  --shadow-lift: 0 14px 32px -14px rgb(20 23 31 / 0.18), 0 3px 8px -2px rgb(20 23 31 / 0.06);
-  --shadow-float: 0 24px 60px -20px rgb(20 23 31 / 0.28), 0 6px 16px -6px rgb(20 23 31 / 0.08);
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 1px 2px rgb(15 17 38 / 0.04), 0 2px 6px -2px rgb(15 17 38 / 0.05);
+  --shadow-lift: 0 16px 34px -14px rgb(47 50 201 / 0.22), 0 3px 8px -2px rgb(15 17 38 / 0.06);
+  --shadow-float: 0 24px 60px -20px rgb(15 17 38 / 0.3), 0 6px 16px -6px rgb(15 17 38 / 0.08);
 
   /* Motion */
   --animate-rise: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -120,6 +128,78 @@
   }
 }
 
+/*
+ * Dark theme ("midnight"). The <html data-theme> attribute is set before
+ * first paint by the script in layout.tsx (Light / Dark / System).
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-canvas: #0b0d1a;
+  --color-surface: #13162a;
+  --color-surface-muted: #1a1e36;
+  --color-surface-sunken: #232845;
+  --color-scrim: rgb(0 0 0 / 0.55);
+
+  --color-ink: #eef0fb;
+  --color-ink-2: #c9cce0;
+  --color-ink-3: #9a9fbd;
+  --color-ink-4: #646a8a;
+
+  --color-line: #262b47;
+  --color-line-strong: #343a5c;
+  --color-silver: #3d4366;
+  --color-silver-soft: #1d2140;
+
+  --color-brand: #5b5ff0;
+  --color-brand-strong: #6f73ff;
+  --color-brand-soft: #1e2150;
+  --color-brand-line: #363c8c;
+  --color-brand-ink: #a9abff;
+
+  --color-spark: #ffb020;
+  --color-spark-soft: #2e2410;
+  --color-spark-line: #5a4618;
+  --color-spark-ink: #ffc857;
+
+  --color-highlight: #5c4a10;
+  --color-highlight-soft: #2a2410;
+
+  --color-success-soft: #0f2a1d;
+  --color-success-line: #1d4d33;
+  --color-success-ink: #6ee7a0;
+  --color-warning-soft: #2e2410;
+  --color-warning-line: #5a4618;
+  --color-warning-ink: #ffd166;
+  --color-danger-soft: #33141a;
+  --color-danger-line: #5c2129;
+  --color-danger-ink: #ff8a8a;
+  --color-coral-soft: #331a14;
+  --color-coral-line: #5c2d22;
+  --color-coral-ink: #ff9f85;
+  --color-teal-soft: #0d2a28;
+  --color-teal-line: #1a4d48;
+  --color-teal-ink: #5eead4;
+  --color-lavender-soft: #221b40;
+  --color-lavender-line: #3d3270;
+  --color-lavender-ink: #c4b5fd;
+
+  --color-code: #0f1224;
+  --color-code-line: #262b47;
+  --color-code-ink: #e5e7f5;
+  --color-code-muted: #8b90ad;
+  --color-syn-keyword: #c792ea;
+  --color-syn-string: #7fd8a8;
+  --color-syn-number: #f5a97f;
+  --color-syn-comment: #7a809e;
+  --color-syn-fn: #82aaff;
+  --color-syn-highlight: #2e2a10;
+
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-lift: 0 16px 34px -14px rgb(0 0 0 / 0.6), 0 3px 8px -2px rgb(0 0 0 / 0.3);
+  --shadow-float: 0 24px 60px -20px rgb(0 0 0 / 0.7), 0 6px 16px -6px rgb(0 0 0 / 0.4);
+}
+
 @layer base {
   html {
     color-scheme: light;
@@ -134,6 +214,11 @@
 
   h1, h2, h3, h4 {
     text-wrap: balance;
+  }
+
+  h1, h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
   }
 
   ::selection {
@@ -179,9 +264,9 @@
   height: 1px;
 }
 
-/* Soft dotted paper texture for hero areas (very subtle, light only). */
+/* Soft dotted paper texture for hero areas (very subtle). */
 @utility paper-dots {
-  background-image: radial-gradient(rgb(20 23 31 / 0.07) 1px, transparent 1px);
+  background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 8%, transparent) 1px, transparent 1px);
   background-size: 18px 18px;
 }
 
@@ -220,6 +305,18 @@
   30% { opacity: 1; }
   100% { opacity: 0; scale: 1.4; }
 }
+
+/* Strix the loader owl, the streak flame and other small student moments. */
+.strix-bob { animation: strix-bob 1.6s ease-in-out infinite; transform-origin: 60px 100px; }
+.strix-shadow { animation: strix-shadow 1.6s ease-in-out infinite; transform-origin: 60px 112px; }
+.strix-blink { animation: strix-blink 4s ease-in-out infinite; transform-origin: 60px 54px; }
+.strix-glyph { animation: strix-glyph 3.3s ease-out infinite both; opacity: 0; }
+.flame-flicker { animation: flame-flicker 1.4s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes strix-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes strix-shadow { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.82); } }
+@keyframes strix-blink { 0%, 44%, 50%, 100% { transform: scaleY(1); } 47% { transform: scaleY(0.1); } }
+@keyframes strix-glyph { 0% { opacity: 0; transform: translateY(8px); } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-16px); } }
+@keyframes flame-flicker { 0%, 100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.12) rotate(3deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   *,

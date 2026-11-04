@@ -11,7 +11,8 @@
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { cx, TONE_CLASSES } from '@/components/ui/tones';
+import { cx, TONE_GRADIENTS } from '@/components/ui/tones';
+import { StaggerItem, StaggerList } from '@/components/ui/Motion';
 import { categoriesFor, categoryOfHref, type CategoryGroup } from '@/lib/navigation/catalog';
 import { AppArt, AppArtName } from './AppArt';
 import type { AppTile } from './HomeBlocks';
@@ -34,7 +35,7 @@ function Sheet({ title, art, children, onClose }: { title: string; art: AppArtNa
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" />
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-scrim backdrop-blur-[3px] animate-fade" />
       <section role="dialog" aria-modal="true" aria-label={title} className="relative flex h-full w-full max-w-[880px] flex-col bg-canvas shadow-float animate-rise">
         <header className="flex items-center gap-3 border-b border-line bg-surface px-5 py-4 sm:px-7">
           <AppArt name={art} size={34} />
@@ -60,14 +61,13 @@ function Badge({ count, label }: { count: number; label?: string }) {
 
 function CategoryTile({ group, badge, badgeLabel }: { group: CategoryGroup; badge: number; badgeLabel: string }) {
   const { category, features, href } = group;
-  const tone = TONE_CLASSES[category.tone];
   const Icon = category.icon;
   return (
     <Link
       href={href}
       className="group relative flex h-full min-h-[132px] flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-card transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-silver hover:shadow-lift"
     >
-      <span className={cx('flex h-11 w-11 items-center justify-center rounded-xl', tone.soft, tone.ink)}>
+      <span className={cx('flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-card transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105', TONE_GRADIENTS[category.tone])}>
         <Icon className="h-[22px] w-[22px]" />
       </span>
       <span className="min-w-0">
@@ -121,13 +121,13 @@ export function HomeBoard({
         <h2 id="workspace-heading" className="text-[18px] font-extrabold tracking-tight text-ink">Your workspace</h2>
         {/* Extra rows scroll inside the column; the page itself stays put. */}
         <div className="flex flex-col gap-6 pt-2 pr-2 lg:min-h-0 lg:overflow-y-auto lg:pb-2">
-          <ul className="grid grid-cols-2 gap-3 sm:gap-4">
+          <StaggerList className="grid grid-cols-2 gap-3 sm:gap-4">
             {groups.map((g) => (
-              <li key={g.category.id}>
+              <StaggerItem key={g.category.id}>
                 <CategoryTile group={g} badge={badges.get(g.category.id)?.count ?? 0} badgeLabel={badges.get(g.category.id)?.labels.join(', ') ?? ''} />
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </StaggerList>
           {quick.length > 0 && (
             <section aria-labelledby="quick-heading" className="space-y-2.5">
               <h3 id="quick-heading" className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-4">Quick open</h3>
