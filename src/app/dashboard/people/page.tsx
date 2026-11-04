@@ -223,6 +223,9 @@ export default function PeoplePage() {
                 </Notice>
               )}
               {notice && <Notice kind={notice.kind}>{notice.text}</Notice>}
+              <Notice kind="info" action={<Link href="/dashboard/students" className="shrink-0 text-xs font-bold text-brand-ink underline">Open Students</Link>}>
+                Need a student’s contacts, guardian, attendance, results or fees, or a spreadsheet of everyone? Use the Students register.
+              </Notice>
 
               <Card className="overflow-hidden">
                 <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">

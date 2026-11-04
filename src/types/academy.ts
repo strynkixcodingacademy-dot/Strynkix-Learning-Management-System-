@@ -182,6 +182,11 @@ export interface PersonalDetails {
   emergencyName?: string;
   emergencyRelation?: string;
   emergencyPhone?: string;
+  /** Parent or guardian (students). */
+  guardianName?: string;
+  guardianRelation?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
   address?: string;
   city?: string;
   state?: string;

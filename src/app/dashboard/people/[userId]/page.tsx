@@ -43,7 +43,7 @@ interface Detail {
 
 function EditForm({ d, onSaved }: { d: Detail; onSaved: () => void }) {
   const p = d.profile?.personal ?? { firstName: '', lastName: '', email: d.user.email, mobile: d.user.phoneNumber ?? '' };
-  const [personal, setPersonal] = useState({ mobile: p.mobile ?? '', emergencyName: p.emergencyName ?? '', emergencyRelation: p.emergencyRelation ?? '', emergencyPhone: p.emergencyPhone ?? '', address: p.address ?? '', city: p.city ?? '', state: p.state ?? '', pinCode: p.pinCode ?? '' });
+  const [personal, setPersonal] = useState({ mobile: p.mobile ?? '', ...(d.user.role === 'student' ? { guardianName: p.guardianName ?? '', guardianRelation: p.guardianRelation ?? '', guardianPhone: p.guardianPhone ?? '', guardianEmail: p.guardianEmail ?? '' } : {}), emergencyName: p.emergencyName ?? '', emergencyRelation: p.emergencyRelation ?? '', emergencyPhone: p.emergencyPhone ?? '', address: p.address ?? '', city: p.city ?? '', state: p.state ?? '', pinCode: p.pinCode ?? '' });
   const [comp, setComp] = useState(d.profile?.compensation ? String(d.profile.compensation.amount / 100) : '');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
@@ -124,6 +124,7 @@ function Person({ userId }: { userId: string }) {
           <Card className="grid gap-3 p-5 text-sm sm:grid-cols-3">
             <div><div className="text-xs text-ink-3">Mobile</div><div className="font-semibold">{p.mobile || '—'}</div></div>
             <div><div className="text-xs text-ink-3">Date of birth</div><div className="font-semibold">{formatDate(p.dateOfBirth)}</div></div>
+            {(p.guardianName || p.guardianPhone || p.guardianEmail) && <div><div className="text-xs text-ink-3">Parent / guardian</div><div className="font-semibold">{[p.guardianName, p.guardianRelation, p.guardianPhone, p.guardianEmail].filter(Boolean).join(' · ')}</div></div>}
             <div><div className="text-xs text-ink-3">Emergency contact</div><div className="font-semibold">{[p.emergencyName, p.emergencyRelation, p.emergencyPhone].filter(Boolean).join(' · ') || '—'}</div></div>
             <div className="sm:col-span-3"><div className="text-xs text-ink-3">Address</div><div className="font-semibold">{[p.address, p.city, p.state, p.pinCode].filter(Boolean).join(', ') || '—'}</div></div>
             {profile?.academic?.highestQualification && <div><div className="text-xs text-ink-3">Qualification</div><div className="font-semibold">{profile.academic.highestQualification}</div></div>}
