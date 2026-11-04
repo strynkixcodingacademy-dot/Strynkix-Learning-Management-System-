@@ -6,7 +6,7 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, Auth } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, Firestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, connectFirestoreEmulator, Firestore } from 'firebase/firestore';
 import { getFirebaseConfig } from './config';
 
 const config = getFirebaseConfig();
@@ -25,7 +25,18 @@ const app: FirebaseApp =
     : getApp();
 
 const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+// Optional fields left undefined (a timetable activity without notes, say) are
+// dropped instead of failing the whole write. initializeFirestore can run only
+// once per app; after a hot reload the existing instance is reused.
+function createFirestore(): Firestore {
+  try {
+    return initializeFirestore(app, { ignoreUndefinedProperties: true });
+  } catch {
+    return getFirestore(app);
+  }
+}
+
+const db: Firestore = createFirestore();
 
 // Connect to Emulators if configured and running client-side
 if (config.useEmulator && typeof window !== 'undefined') {
