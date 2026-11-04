@@ -175,7 +175,8 @@ test('G05 — a signed-in user changes their password and signs in with it', asy
   await page.locator('#pw-current').fill(PASSWORD);
   await page.getByRole('button', { name: 'Change password' }).click();
   await expect(page.getByText(/Password changed/)).toBeVisible();
-  await page.getByRole('button', { name: 'Sign out' }).first().click();
+  await page.getByRole('button', { name: /^Account menu/ }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByText(/Please sign in|Sign in with the email/).first()).toBeVisible();
   await page.goto('/login');
   await page.locator('input[type="email"]').first().fill(emailOf('pwUser'));
