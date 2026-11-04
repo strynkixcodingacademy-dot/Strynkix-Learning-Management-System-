@@ -11,6 +11,16 @@ import { ReviewError } from '@/lib/review/workflow';
 
 const MAX_BODY_BYTES = 65_536;
 
+/**
+ * Firestore gave up on a transaction because another one held the same
+ * documents (gRPC ABORTED, after the SDK's own retries). Nothing was written,
+ * so the caller can simply try again.
+ */
+export function isContention(err: unknown): boolean {
+  const code = (err as { code?: unknown })?.code;
+  return code === 10 || code === 'aborted' || code === 'ABORTED';
+}
+
 function json(status: number, body: unknown) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 }
@@ -43,6 +53,7 @@ export async function handleContentRoute(
     return json(200, await run(getAdminServices(), bearerToken(request.headers.get('authorization')), body));
   } catch (err) {
     if (err instanceof ReviewError) return json(err.status, { error: err.code, message: err.message });
+    if (isContention(err)) return json(409, { error: 'busy', message: 'Someone else was saving this at the same moment. Nothing was recorded; try again.' });
     console.error(`[${label}]`, err instanceof AdminConfigError ? err.message : err);
     return json(err instanceof AdminConfigError ? 503 : 500, { error: 'unavailable', message: 'This action is unavailable right now. Try again later.' });
   }

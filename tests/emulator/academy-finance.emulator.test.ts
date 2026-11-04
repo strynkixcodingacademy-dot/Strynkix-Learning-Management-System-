@@ -318,9 +318,18 @@ describe('review fixes', () => {
     const id = (await admit('af_ba1', 'race@stu.test', { discountType: 'none', discountValue: 0, plan: 'one_time', installments: [] })).confirm.json.feeAccountId;
     const pay = (requestId: string, amount: number) => F('af_ba1', { action: 'record_payment', feeAccountId: id, requestId, amount, method: 'cash', date: TODAY });
     const [a, b] = await Promise.all([pay(rid(), 20_000_00), pay(rid(), 20_000_00)]);
-    expect([a.status, b.status].sort()).toEqual([200, 400]);
+    // Exactly one is recorded. The other is refused, either for exceeding the
+    // balance (400) or, when the transactions collide under load, as busy (409).
+    const statuses = [a.status, b.status].sort();
+    expect(statuses[0], JSON.stringify([a.json, b.json])).toBe(200);
+    expect([400, 409], JSON.stringify([a.json, b.json])).toContain(statuses[1]);
     const same = rid();
-    const [c, d] = await Promise.all([pay(same, 1_000_00), pay(same, 1_000_00)]);
+    // A client retries a busy answer with the same request id; the retry must not record twice.
+    const payOnce = async (requestId: string, amount: number) => {
+      const r = await pay(requestId, amount);
+      return r.status === 409 ? pay(requestId, amount) : r;
+    };
+    const [c, d] = await Promise.all([payOnce(same, 1_000_00), payOnce(same, 1_000_00)]);
     expect([c.status, d.status]).toEqual([200, 200]);
     expect([c.json.duplicate, d.json.duplicate].filter(Boolean)).toHaveLength(1);
     const ledger = (await db.collection('feeTransactions').where('feeAccountId', '==', id).get()).docs.map((x) => x.data());
