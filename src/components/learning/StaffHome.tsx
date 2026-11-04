@@ -32,6 +32,7 @@ import {
   CalendarCheck,
   Check,
   ChevronRight,
+  CalendarDays,
   CalendarPlus,
   ClipboardCheck,
   FileEdit,
@@ -267,9 +268,14 @@ export function StaffHome() {
                       <Stat value={r.needsReview} label="need review" tone="attention" />
                       <Stat value={r.corrections} label="awaiting fixes" />
                     </div>
-                    <Link href={planHref} className={buttonClasses(r.plan ? (r.needsReview ? 'primary' : 'secondary') : 'primary', 'sm', 'self-start 2xl:self-center')}>
-                      {r.plan ? (r.needsReview ? <><ClipboardCheck className="w-3.5 h-3.5" /> Review</> : 'Open plan') : <><CalendarPlus className="w-3.5 h-3.5" /> Plan today</>}
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2 self-start 2xl:self-center">
+                      <Link href={`/dashboard/batches/${r.batch.id}/timetable`} className={buttonClasses('secondary', 'sm')}>
+                        <CalendarDays className="w-3.5 h-3.5" /> Timetable
+                      </Link>
+                      <Link href={planHref} className={buttonClasses(r.plan ? (r.needsReview ? 'primary' : 'ghost') : 'ghost', 'sm')}>
+                        {r.plan ? (r.needsReview ? <><ClipboardCheck className="w-3.5 h-3.5" /> Review</> : 'Open plan') : <><CalendarPlus className="w-3.5 h-3.5" /> Plan today</>}
+                      </Link>
+                    </div>
                   </div>
                 </Card>
               );
@@ -286,6 +292,8 @@ export function StaffHome() {
   const apps: HomeApp[] = [
     { label: isManager ? 'Batches' : 'My Batches', art: 'clipboard', href: '/dashboard/batches' },
     { label: 'Daily Plans', art: 'calendar', href: firstUnplanned ? `/dashboard/batches/${firstUnplanned.batch.id}/plans` : rows[0] ? `/dashboard/batches/${rows[0].batch.id}/plans` : '/dashboard/batches', badge: unplanned, badgeLabel: 'batches without a plan today' },
+    { label: 'Weekly Timetable', art: 'calendar', href: rows[0] ? `/dashboard/batches/${rows[0].batch.id}/timetable` : '/dashboard/batches' },
+    ...(role === 'super_admin' ? [{ label: 'Timetable Approvals', art: 'review' as const, href: '/dashboard/admin/timetables' }] : []),
     { label: 'Review Work', art: 'review', badge: needsReview, badgeLabel: 'submissions to review',
       sheet: loadingOrError ?? (reviewRows.length ? renderRows(reviewRows) : (
         <EmptyState compact illustration="inbox" title="Nothing to review">New submissions for today’s plans will appear here.</EmptyState>
