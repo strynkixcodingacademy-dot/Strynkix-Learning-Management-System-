@@ -1,18 +1,29 @@
 /**
- * Consolidation — every role's navigation opens without errors, refusals or
- * duplicate titles; the student's own fees and receipts; in-app reason
- * dialogs instead of browser prompts.
+ * Consolidation — every role's navigation (rail categories and the pages in
+ * each hub) opens without errors, refusals or duplicate titles; global search;
+ * the student's own fees and receipts; in-app reason dialogs instead of
+ * browser prompts.
  */
 import { test, expect, type Page } from '@playwright/test';
 import { admin, resetData, signInAs, type FixtureUser } from './fixtures';
 
 test.beforeEach(resetData);
 
+const hrefsOf = (links: ReturnType<Page['locator']>) => links.evaluateAll((as) => as.map((a) => a.getAttribute('href') ?? ''));
+
+/** The rail's categories, plus every page listed in each category hub. */
 async function navLinks(page: Page): Promise<string[]> {
   await page.goto('/dashboard');
-  await expect(page.locator('nav[aria-label="Main"] a').first()).toBeAttached();
-  const hrefs = await page.locator('nav[aria-label="Main"] a').evaluateAll((as) => as.map((a) => a.getAttribute('href') ?? ''));
-  return [...new Set(hrefs.filter((h) => h.startsWith('/dashboard')))];
+  const rail = page.locator('nav[aria-label="Main"] a');
+  await expect(rail.first()).toBeAttached();
+  const found = new Set<string>(await hrefsOf(rail));
+  for (const hub of [...found].filter((h) => h.startsWith('/dashboard/hub/'))) {
+    await page.goto(hub);
+    const tiles = page.getByRole('main').locator('ul a');
+    await expect(tiles.first()).toBeVisible();
+    for (const h of await hrefsOf(tiles)) found.add(h);
+  }
+  return [...found].filter((h) => h.startsWith('/dashboard'));
 }
 
 async function expectPageWorks(page: Page, href: string) {
@@ -34,6 +45,39 @@ for (const [user, min] of [['stu', 15], ['inst', 10], ['ba', 14], ['uni', 14], [
   });
 }
 
+test('home shows category tiles, and a hub lists only the role’s pages', async ({ page }) => {
+  await signInAs(page, 'inst');
+  const workspace = page.getByRole('complementary', { name: 'Your workspace' });
+  await expect(workspace.getByRole('link', { name: /^Teaching/ })).toBeVisible();
+  await expect(workspace.getByRole('link', { name: /^Money/ })).toHaveCount(0);
+  await workspace.getByRole('link', { name: /^Teaching/ }).click();
+  await expect(page).toHaveURL(/\/dashboard\/hub\/teaching$/);
+  await expect(page.getByRole('heading', { name: 'Teaching', level: 1 })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('link', { name: /^My Batches/ })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('link', { name: /^Batches & Enrollment/ })).toHaveCount(0);
+  await page.goto('/dashboard/hub/money');
+  await expect(page.getByText('This section isn’t available')).toBeVisible();
+});
+
+test('search finds features by everyday words and content by title, within the role', async ({ page }) => {
+  await signInAs(page, 'ba');
+  await page.keyboard.press('ControlOrMeta+k');
+  const dialog = page.getByRole('dialog', { name: 'Search' });
+  const box = dialog.getByRole('combobox');
+  await expect(box).toBeFocused();
+  await box.fill('scheduler');
+  await expect(dialog.getByRole('option', { name: /Batches & Enrollment/ })).toBeVisible();
+  await box.fill('organizations');
+  await expect(dialog.getByRole('option', { name: /^Organizations/ })).toHaveCount(0);
+  await box.fill('E2E Live');
+  await expect(dialog.getByRole('option', { name: /E2E Live Course/ }).first()).toBeVisible();
+  await box.fill('fees');
+  await expect(dialog.getByRole('option').first()).toContainText('Finance');
+  await box.press('Enter');
+  await expect(page).toHaveURL(/\/dashboard\/finance$/);
+  await expect(dialog).toBeHidden();
+});
+
 test('a student sees their own fees and opens a receipt', async ({ page }) => {
   const { db } = admin();
   const now = new Date().toISOString();
@@ -51,7 +95,7 @@ test('a student sees their own fees and opens a receipt', async ({ page }) => {
   });
   await signInAs(page, 'stu');
   await page.goto('/dashboard');
-  await page.locator('nav[aria-label="Main"]').filter({ visible: true }).getByRole('link', { name: 'My Fees' }).click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Fees' }).click();
   await expect(page.getByRole('heading', { name: 'My fees' })).toBeVisible();
   await expect(page.getByText('Partly paid').first()).toBeVisible();
   await page.getByRole('link', { name: 'Receipt E2E-R-1' }).click();

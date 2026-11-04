@@ -31,7 +31,8 @@ async function seed() {
 test('Scenario 1 — global view → academy → branch → students, courses, attendance and finance', async ({ page }) => {
   await seed();
   await signInAs(page, 'super');
-  await page.getByRole('link', { name: 'Command Centre' }).first().click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Insights' }).click();
+  await page.getByRole('main').getByRole('link', { name: /^Command Centre/ }).click();
   await expect(page.getByRole('main').getByRole('heading', { name: 'Command Centre', level: 1, exact: true })).toBeVisible();
   await expect(page.getByText('Fees expected')).toBeVisible();
   await page.locator('#cf-org').selectOption('e2e_org');
@@ -90,7 +91,7 @@ test('Scenario 4 — people: search a student and review admission, course, batc
   await seed();
   await signInAs(page, 'super');
   await page.goto('/dashboard/command/people');
-  await page.getByLabel('Search').fill('9876543210');
+  await page.getByLabel('Search', { exact: true }).fill('9876543210');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('link', { name: 'E2E stu' }).click();
   await expect(page.getByText(/Student ID E2E-E2E-2026-0001/)).toBeVisible();

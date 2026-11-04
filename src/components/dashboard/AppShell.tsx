@@ -2,13 +2,14 @@
 
 /**
  * Strynkix Live Books — application shell.
- * One navigation frame for every signed-in page: a silver sidebar and a light
- * top bar on desktop, a drawer on mobile, a "bare" variant for focused reading,
- * and the help assistant on every page. Navigation is role-aware; Firestore
- * rules remain the security boundary.
+ * One navigation frame for every signed-in page: a rail of labelled categories
+ * on desktop (each opens a hub of its pages), a top bar with global search and
+ * where you are, a drawer on mobile, a "bare" variant for focused reading, and
+ * the help assistant on every page. Navigation is role-aware; Firestore rules
+ * remain the security boundary.
  */
 
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -18,104 +19,19 @@ import { BrandMark } from '@/components/ui/Illustrations';
 import { Avatar } from '@/components/ui/DataViz';
 import { cx } from '@/components/ui/tones';
 import { HelpAssistant, openHelpAssistant } from '@/components/help/HelpAssistant';
-import { UserRole } from '@/types/domain';
+import { GlobalSearch, openGlobalSearch, SearchTrigger } from '@/components/search/GlobalSearch';
 import {
-  BarChart3,
-  BookOpen,
-  Building2,
-  CircleHelp,
-  GitBranch,
-  Home,
-  LifeBuoy,
-  LogOut,
-  Menu,
-  PenTool,
-  Users,
-  UsersRound,
-  X,
-  type LucideIcon,
-  ScrollText,
-  LayoutDashboard,
-  Library,
-  ClipboardList,
-  Trophy,
-  CalendarCheck,
-  Award,
-  Briefcase,
-  FileText,
-  UserPlus,
-  IndianRupee,
-  Receipt,
-  FileBarChart,
-  Gauge,
-  Sparkles,
-  HelpCircle,
-  CalendarDays,
-  MessageSquareText,
-} from 'lucide-react';
-
-type NavGroup = 'Overview' | 'Learn' | 'Teach' | 'Manage' | 'Finance' | 'Support';
-
-interface NavItem {
-  name: string;
-  href: string;
-  icon: LucideIcon;
-  roles: UserRole[];
-  group: NavGroup;
-}
-
-const CONTENT: UserRole[] = ['content_lead', 'content_designer'];
-const ALL: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor', 'student', ...CONTENT];
-const STAFF: UserRole[] = ['super_admin', 'university_admin', 'branch_admin', 'instructor'];
-const MANAGERS: UserRole[] = ['super_admin', 'university_admin', 'branch_admin'];
-// Staff author drafts; Course Design members author in-scope drafts (rules enforce scope).
-const AUTHORS: UserRole[] = [...STAFF, ...CONTENT];
-
-// Navigation only shows the way; every route and API call authorizes on its own.
-const NAV_ITEMS: NavItem[] = [
-  { name: 'Home', href: '/dashboard', icon: Home, roles: ALL, group: 'Overview' },
-  { name: 'Command Centre', href: '/dashboard/command', icon: Gauge, roles: ['super_admin'], group: 'Overview' },
-  { name: 'Dashboard', href: '/dashboard/overview', icon: LayoutDashboard, roles: ['student'], group: 'Overview' },
-  { name: 'My Progress', href: '/dashboard/analytics', icon: BarChart3, roles: ['student'], group: 'Overview' },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: STAFF, group: 'Overview' },
-  { name: 'My Courses', href: '/dashboard/my-courses', icon: BookOpen, roles: ['student'], group: 'Learn' },
-  { name: 'Live Books', href: '/courses', icon: Library, roles: ['student'], group: 'Learn' },
-  { name: 'Assignments & Exams', href: '/dashboard/assessments', icon: ClipboardList, roles: ['student'], group: 'Learn' },
-  { name: 'My Scores', href: '/dashboard/scores', icon: Trophy, roles: ['student'], group: 'Learn' },
-  { name: 'Attendance', href: '/dashboard/attendance', icon: CalendarCheck, roles: ['student'], group: 'Learn' },
-  { name: 'Certificates', href: '/dashboard/certificates', icon: Award, roles: ['student'], group: 'Learn' },
-  { name: 'My Fees', href: '/dashboard/fees', icon: IndianRupee, roles: ['student'], group: 'Learn' },
-  { name: 'Achievements', href: '/dashboard/achievements', icon: Sparkles, roles: ['student'], group: 'Learn' },
-  { name: 'Doubts', href: '/dashboard/doubts', icon: HelpCircle, roles: ['student'], group: 'Learn' },
-  { name: 'Activities', href: '/dashboard/activities', icon: CalendarDays, roles: ['student'], group: 'Learn' },
-  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquareText, roles: ['student'], group: 'Learn' },
-  { name: 'Projects & Portfolio', href: '/dashboard/portfolio', icon: Briefcase, roles: ['student'], group: 'Learn' },
-  { name: 'Resume', href: '/dashboard/resume', icon: FileText, roles: ['student'], group: 'Learn' },
-  { name: 'My Teaching', href: '/dashboard/teaching', icon: Gauge, roles: ['instructor'], group: 'Teach' },
-  { name: 'My Batches', href: '/dashboard/batches', icon: Users, roles: ['instructor'], group: 'Teach' },
-  { name: 'Batches & Enrollment', href: '/dashboard/batches', icon: Users, roles: MANAGERS, group: 'Teach' },
-  { name: 'Course Authoring', href: '/dashboard/courses', icon: PenTool, roles: AUTHORS, group: 'Teach' },
-  { name: 'Live Books', href: '/courses', icon: BookOpen, roles: [...STAFF, ...CONTENT], group: 'Teach' },
-  { name: 'Attendance', href: '/dashboard/attendance', icon: CalendarCheck, roles: STAFF, group: 'Teach' },
-  { name: 'Evaluate', href: '/dashboard/assessments', icon: ClipboardList, roles: STAFF, group: 'Teach' },
-  { name: 'Certificates', href: '/dashboard/certificates', icon: Award, roles: STAFF, group: 'Teach' },
-  { name: 'Doubts', href: '/dashboard/doubts', icon: HelpCircle, roles: STAFF, group: 'Teach' },
-  { name: 'Project reviews', href: '/dashboard/projects/review', icon: Briefcase, roles: STAFF, group: 'Teach' },
-  { name: 'Activities', href: '/dashboard/activities', icon: CalendarDays, roles: STAFF, group: 'Teach' },
-  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquareText, roles: STAFF, group: 'Teach' },
-  { name: 'Engagement', href: '/dashboard/engagement', icon: Sparkles, roles: MANAGERS, group: 'Manage' },
-  { name: 'Admissions', href: '/dashboard/admissions', icon: UserPlus, roles: MANAGERS, group: 'Manage' },
-  { name: 'People', href: '/dashboard/people', icon: UsersRound, roles: MANAGERS, group: 'Manage' },
-  { name: 'Branches', href: '/dashboard/branches', icon: GitBranch, roles: ['super_admin', 'university_admin'], group: 'Manage' },
-  { name: 'Organizations', href: '/dashboard/organizations', icon: Building2, roles: ['super_admin'], group: 'Manage' },
-  { name: 'Audit log', href: '/dashboard/audit', icon: ScrollText, roles: ['super_admin', 'university_admin'], group: 'Manage' },
-  { name: 'Finance', href: '/dashboard/finance', icon: IndianRupee, roles: MANAGERS, group: 'Finance' },
-  { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt, roles: MANAGERS, group: 'Finance' },
-  { name: 'Reports', href: '/dashboard/reports', icon: FileBarChart, roles: MANAGERS, group: 'Finance' },
-  { name: 'User Guide', href: '/dashboard/guide', icon: LifeBuoy, roles: ALL, group: 'Support' },
-];
-
-const GROUPS: NavGroup[] = ['Overview', 'Learn', 'Teach', 'Manage', 'Finance', 'Support'];
+  activeCategory,
+  categoriesFor,
+  CATEGORIES,
+  currentFeature,
+  featuresFor,
+  HOME_HREF,
+  isActivePath,
+  type CategoryGroup,
+} from '@/lib/navigation/catalog';
+import { UserRole } from '@/types/domain';
+import { ChevronRight, CircleHelp, Home, LifeBuoy, LogOut, Menu, Search, UserRound, X } from 'lucide-react';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: 'Super Admin',
@@ -127,47 +43,47 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   content_designer: 'Content Designer',
 };
 
-function isActive(pathname: string, href: string) {
-  if (href === '/dashboard') return pathname === '/dashboard';
-  return pathname === href || pathname.startsWith(`${href}/`);
+function initials(name: string) {
+  return name.split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('');
 }
 
-function NavList({ items, pathname, onNavigate }: { items: NavItem[]; pathname: string; onNavigate?: () => void }) {
-  const groups = GROUPS.filter((g) => items.some((i) => i.group === g));
+/** Mobile drawer: Home, then each category with its pages, then account pages. */
+function NavList({ groups, role, pathname, onNavigate }: { groups: CategoryGroup[]; role?: UserRole; pathname: string; onNavigate?: () => void }) {
+  const account = featuresFor(role).filter((f) => !f.category);
+  const link = (key: string, href: string, label: string, Icon: React.ElementType) => {
+    const active = isActivePath(pathname, href);
+    return (
+      <Link
+        key={key}
+        href={href}
+        onClick={onNavigate}
+        aria-current={active ? 'page' : undefined}
+        className={cx(
+          'group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-semibold transition-[background-color,color,box-shadow] duration-150',
+          active ? 'bg-surface text-ink shadow-card ring-1 ring-line' : 'text-ink-2 hover:bg-surface/70 hover:text-ink'
+        )}
+      >
+        {active && <span aria-hidden="true" className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-brand" />}
+        <span className={cx('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors', active ? 'bg-brand text-white' : 'bg-surface-muted text-ink-3 group-hover:text-ink-2')}>
+          <Icon className="w-[15px] h-[15px]" />
+        </span>
+        <span>{label}</span>
+      </Link>
+    );
+  };
   return (
     <div className="space-y-5">
-      {groups.map((group) => (
-        <div key={group} className="space-y-0.5">
-          <div className="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-4">{group}</div>
-          {items.filter((i) => i.group === group).map((item) => {
-            const active = isActive(pathname, item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={`${item.href}-${item.name}`}
-                href={item.href}
-                onClick={onNavigate}
-                aria-current={active ? 'page' : undefined}
-                className={cx(
-                  'group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-semibold transition-[background-color,color,box-shadow] duration-150',
-                  active
-                    ? 'bg-surface text-ink shadow-card ring-1 ring-line'
-                    : 'text-ink-2 hover:bg-surface/70 hover:text-ink'
-                )}
-              >
-                {active && <span aria-hidden="true" className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-brand" />}
-                <span className={cx(
-                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors',
-                  active ? 'bg-brand text-white' : 'bg-surface-muted text-ink-3 group-hover:text-ink-2'
-                )}>
-                  <Icon className="w-[15px] h-[15px]" />
-                </span>
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+      <div className="space-y-0.5">{link('home', HOME_HREF, 'Home', Home)}</div>
+      {groups.map(({ category, features }) => (
+        <div key={category.id} className="space-y-0.5">
+          <div className="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-4">{category.name}</div>
+          {features.map((f) => link(`${category.id}-${f.href}`, f.href, f.name, f.icon))}
         </div>
       ))}
+      <div className="space-y-0.5">
+        <div className="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-ink-4">Account</div>
+        {account.map((f) => link(`acct-${f.href}`, f.href, f.name, f.icon))}
+      </div>
     </div>
   );
 }
@@ -197,56 +113,97 @@ function UserCard({ onSignOut, onNavigate }: { onSignOut: () => void; onNavigate
   );
 }
 
-/** Desktop icon rail: compact, with a label that appears on hover and keyboard focus. */
-function Rail({ items, pathname, onSignOut }: { items: NavItem[]; pathname: string; onSignOut: () => void }) {
+/** The avatar button and its menu: profile, guide, help and sign out. */
+function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
   const { profile, tenant } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const name = profile?.displayName || profile?.email || '?';
-  const groups = GROUPS.filter((g) => g !== 'Support' && items.some((i) => i.group === g));
-  const tip = 'pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-ink px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lift transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100';
-  const railLink = (active: boolean) => cx(
-    'group relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors',
-    active ? 'bg-brand-soft text-brand' : 'text-ink-3 hover:bg-surface-muted hover:text-ink'
-  );
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const item = 'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13.5px] font-semibold text-ink-2 hover:bg-surface-muted hover:text-ink';
   return (
-    <aside className="sticky top-0 z-40 hidden h-screen w-[76px] shrink-0 flex-col items-center border-r border-line bg-surface py-4 lg:flex print:!hidden">
-      <Link href="/dashboard" className="group relative mb-3 rounded-xl" aria-label="Strynkix Live Books home">
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Account menu (${name})`}
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface-muted text-[13px] font-extrabold text-ink-2 hover:border-brand-line"
+      >
+        {initials(name)}
+      </button>
+      {open && (
+        <div role="menu" aria-label="Account" className="absolute bottom-0 left-full z-50 ml-3 w-64 rounded-2xl border border-line bg-surface p-2 shadow-float animate-rise">
+          <div className="flex items-center gap-2.5 border-b border-line px-2 pb-3 pt-1">
+            <Avatar name={name} size={36} />
+            <span className="min-w-0">
+              <span className="block truncate text-[13.5px] font-bold text-ink">{name}</span>
+              <span className="block truncate text-[11.5px] font-semibold text-ink-3">{tenant ? ROLE_LABELS[tenant.role] : ''}</span>
+            </span>
+          </div>
+          <div className="pt-2">
+            <Link role="menuitem" href="/dashboard/profile" onClick={() => setOpen(false)} className={item}><UserRound className="h-4 w-4" /> My Profile</Link>
+            <Link role="menuitem" href="/dashboard/guide" onClick={() => setOpen(false)} className={item}><LifeBuoy className="h-4 w-4" /> User Guide</Link>
+            <button role="menuitem" type="button" onClick={() => { setOpen(false); openHelpAssistant(); }} className={item}><CircleHelp className="h-4 w-4" /> Ask for help</button>
+            <button role="menuitem" type="button" onClick={onSignOut} className={cx(item, 'hover:bg-danger-soft hover:text-danger-ink')}><LogOut className="h-4 w-4" /> Sign out</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Desktop rail: Home and the role's categories, each with its name under the icon. */
+function Rail({ groups, active, pathname, onSignOut }: { groups: CategoryGroup[]; active?: string; pathname: string; onSignOut: () => void }) {
+  const railLink = (on: boolean) => cx(
+    'relative flex w-[68px] flex-col items-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold leading-tight transition-colors',
+    on ? 'bg-brand-soft text-brand-ink' : 'text-ink-3 hover:bg-surface-muted hover:text-ink'
+  );
+  const marker = <span aria-hidden="true" className="absolute -left-[8px] top-2 bottom-2 w-[3px] rounded-r-full bg-brand" />;
+  const home = pathname === HOME_HREF;
+  return (
+    <aside className="sticky top-0 z-40 hidden h-screen w-[84px] shrink-0 flex-col items-center border-r border-line bg-surface py-4 lg:flex print:!hidden">
+      <Link href={HOME_HREF} className="mb-3 rounded-xl" aria-label="Strynkix Live Books home">
         <BrandMark size={38} />
-        <span className={tip}>Live Books home</span>
       </Link>
-      <span aria-hidden="true" className="mb-3 h-px w-8 bg-line" />
-      <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col items-center gap-1 [@media(max-height:960px)]:overflow-y-auto [@media(max-height:960px)]:[scrollbar-width:none]">
-        {groups.map((group, gi) => (
-          <React.Fragment key={group}>
-            {gi > 0 && <span aria-hidden="true" className="my-2 h-px w-6 bg-line" />}
-            {items.filter((i) => i.group === group).map((item) => {
-              const active = isActive(pathname, item.href);
-              const Icon = item.icon;
-              return (
-                <Link key={`${item.href}-${item.name}`} href={item.href} aria-label={item.name} aria-current={active ? 'page' : undefined} className={railLink(active)}>
-                  {active && <span aria-hidden="true" className="absolute -left-[16px] top-2 bottom-2 w-[3px] rounded-r-full bg-brand" />}
-                  <Icon className="h-[20px] w-[20px]" />
-                  <span className={tip}>{item.name}</span>
-                </Link>
-              );
-            })}
-          </React.Fragment>
-        ))}
+      <span aria-hidden="true" className="mb-3 h-px w-10 bg-line" />
+      <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto [scrollbar-width:none]">
+        <Link href={HOME_HREF} aria-current={home ? 'page' : undefined} className={railLink(home)}>
+          {home && marker}
+          <Home className="h-[20px] w-[20px]" />
+          <span>Home</span>
+        </Link>
+        {groups.map(({ category, href }) => {
+          const on = active === category.id;
+          const Icon = category.icon;
+          return (
+            <Link key={category.id} href={href} aria-current={on ? 'page' : undefined} title={category.description} className={railLink(on)}>
+              {on && marker}
+              <Icon className="h-[20px] w-[20px]" />
+              <span>{category.name}</span>
+            </Link>
+          );
+        })}
       </nav>
       <div className="flex flex-col items-center gap-2 pt-3">
         <NotificationBell align="rail" />
-        <Link href="/dashboard/guide" aria-label="User Guide" aria-current={isActive(pathname, '/dashboard/guide') ? 'page' : undefined} className={railLink(isActive(pathname, '/dashboard/guide'))}>
-          <LifeBuoy className="h-[20px] w-[20px]" />
-          <span className={tip}>User Guide</span>
-        </Link>
-        <button type="button" onClick={onSignOut} aria-label="Sign out" className="group relative flex h-11 w-11 items-center justify-center rounded-xl text-ink-3 transition-colors hover:bg-danger-soft hover:text-danger-ink">
-          <LogOut className="h-[18px] w-[18px]" />
-          <span className={tip}>Sign out</span>
-        </button>
-        <span aria-hidden="true" className="h-px w-8 bg-line" />
-        <Link href="/dashboard/profile" aria-label={`My Profile (${name})`} className="group relative mt-1 flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface-muted text-[13px] font-extrabold text-ink-2 hover:border-brand-line">
-          {name.split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('')}
-          <span className={tip}>{name}{tenant ? ` · ${ROLE_LABELS[tenant.role]}` : ''}</span>
-        </Link>
+        <span aria-hidden="true" className="h-px w-10 bg-line" />
+        <AccountMenu onSignOut={onSignOut} />
       </div>
     </aside>
   );
@@ -268,8 +225,12 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
   const { tenant, profile, signOut } = useAuth();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const items = NAV_ITEMS.filter((i) => tenant && i.roles.includes(tenant.role));
-  const current = [...items].sort((a, b) => b.href.length - a.href.length).find((i) => isActive(pathname, i.href));
+  const role = tenant?.role;
+  const groups = categoriesFor(role);
+  const activeId = activeCategory(pathname, role);
+  const category = CATEGORIES.find((c) => c.id === activeId);
+  const group = groups.find((g) => g.category.id === activeId);
+  const feature = currentFeature(pathname, role);
 
   // Close the drawer on Escape.
   useEffect(() => {
@@ -308,18 +269,31 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
     </button>
   );
 
+  // Where you are: Category › Page (the category links to its hub).
+  const trail = !bare && (category || feature) && (
+    <nav aria-label="You are here" className="hidden min-w-0 items-center gap-1.5 text-[13px] font-semibold text-ink-3 lg:flex">
+      {category && group && (
+        group.href === feature?.href
+          ? <span className="truncate text-ink-2">{category.name}</span>
+          : <Link href={group.href} className="truncate hover:text-ink">{category.name}</Link>
+      )}
+      {category && feature && feature.href !== group?.href && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink-4" />}
+      {feature && feature.href !== group?.href && <span className="truncate text-ink-2">{feature.name}</span>}
+    </nav>
+  );
+
   return (
     <RequireAuth>
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:shadow-lift">
         Skip to content
       </a>
       <div className="flex min-h-screen bg-canvas text-ink">
-        {/* Desktop icon rail */}
-        {!bare && <Rail items={items} pathname={pathname} onSignOut={handleSignOut} />}
+        {/* Desktop category rail */}
+        {!bare && <Rail groups={groups} active={activeId} pathname={pathname} onSignOut={handleSignOut} />}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Top bar: mobile always; desktop shows section + help */}
-          <header className={cx('sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md print:hidden', !bare && 'lg:hidden')}>
+          {/* Top bar: where you are, search, help */}
+          <header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-md print:hidden">
             <div className={cx('flex h-14 items-center gap-3 px-4 sm:px-6', bare ? 'mx-auto max-w-7xl' : 'lg:px-10')}>
               {!bare && (
                 <button
@@ -334,14 +308,19 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
                 </button>
               )}
               <div className={bare ? '' : 'lg:hidden'}>{brand}</div>
-              {!bare && current && (
-                <div className="hidden min-w-0 items-center gap-2 text-[13px] font-semibold text-ink-3 lg:flex">
-                  <current.icon className="w-4 h-4 text-ink-4" />
-                  <span className="truncate">{current.name}</span>
+              {trail}
+              {!bare && (
+                <div className="mx-auto hidden w-full max-w-[520px] md:block">
+                  <SearchTrigger />
                 </div>
               )}
-              <div className="ml-auto flex min-w-0 items-center gap-2">
+              <div className="ml-auto flex min-w-0 items-center gap-2 md:ml-0">
                 {topBar}
+                {!bare && (
+                  <button type="button" onClick={openGlobalSearch} className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-muted md:hidden" aria-label="Open search">
+                    <Search className="h-5 w-5" />
+                  </button>
+                )}
                 {!bare && <div className="lg:hidden"><NotificationBell /></div>}
                 {helpButton}
                 {!bare && (
@@ -353,7 +332,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
             </div>
           </header>
 
-          <main id="main" className={cx('flex-1', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-12 print:max-w-none print:p-0')}>
+          <main id="main" className={cx('flex-1', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-[calc(100vh-57px)] lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-10 print:max-w-none print:p-0')}>
             {pageTitle && (
               <h1 className="mb-6 text-[26px] font-extrabold tracking-tight text-ink sm:text-[30px]">{pageTitle}</h1>
             )}
@@ -373,15 +352,15 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
                 </button>
               </div>
               <nav aria-label="Main" className="flex-1 overflow-y-auto">
-                <NavList items={items} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
+                <NavList groups={groups} role={role} pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
               </nav>
               <UserCard onSignOut={handleSignOut} onNavigate={() => setDrawerOpen(false)} />
             </div>
           </div>
         )}
       </div>
+      {!bare && <GlobalSearch />}
       <div className="print:hidden"><HelpAssistant showLauncher={!fit} /></div>
     </RequireAuth>
   );
 }
-

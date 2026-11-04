@@ -13,7 +13,8 @@ test('an unauthenticated visitor to a protected page is asked to sign in', async
 test('a student signs in, reaches their home, and loses access after signing out', async ({ page }) => {
   await signInAs(page, 'stu');
   await expect(page).toHaveURL(/\/dashboard/);
-  await page.getByRole('button', { name: 'Sign out' }).first().click();
+  await page.getByRole('button', { name: /^Account menu/ }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByText(/Please sign in|Sign in with the email/).first()).toBeVisible();
   await page.goto('/courses/e2e_course/lessons/e2e_plain');
   await expect(page.getByText('Please sign in')).toBeVisible();
