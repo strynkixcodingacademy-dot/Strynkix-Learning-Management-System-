@@ -19,16 +19,20 @@ export function NotificationPreferences() {
   const { data } = useApiData('prefs', () => engagementApi<{ muted: string[]; categories: string[] }>({ action: 'preferences' }));
   const [draft, setDraft] = useState<string[] | null>(null);
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
-  if (!data) return <p className="mt-3 text-sm text-ink-3">Loading…</p>;
+  if (!data) return <p className="text-sm text-ink-3">Loading…</p>;
   const muted = draft ?? data.muted;
   return (
-    <div className="mt-3 space-y-2">
+    <div className="space-y-3">
+      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line">
       {data.categories.map((c) => (
-        <label key={c} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!muted.includes(c)} onChange={(e) => setDraft(e.target.checked ? muted.filter((x) => x !== c) : [...muted, c])} /> {LABELS[c] ?? c}</label>
+        <label key={c} className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm font-medium text-ink-2 hover:bg-surface-muted"><input type="checkbox" className="h-4 w-4 shrink-0" checked={!muted.includes(c)} onChange={(e) => setDraft(e.target.checked ? muted.filter((x) => x !== c) : [...muted, c])} /> {LABELS[c] ?? c}</label>
       ))}
-      <p className="text-xs text-ink-3">Grades, feedback replies, doubt answers, account messages and announcements always appear. Notifications are in-app only.</p>
+      </div>
+      <p className="text-xs text-ink-3">Grades, feedback replies, doubt answers, account messages and announcements always appear.</p>
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      <div className="flex justify-end">
       <Button size="sm" variant="secondary" disabled={!draft} onClick={async () => { try { await engagementApi({ action: 'set_preferences', muted }); setMsg({ kind: 'success', text: 'Preferences saved.' }); setDraft(null); } catch (e) { setMsg({ kind: 'error', text: (e as Error).message }); } }}>Save preferences</Button>
+      </div>
     </div>
   );
 }

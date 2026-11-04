@@ -157,7 +157,7 @@ function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
             </span>
           </div>
           <div className="pt-2">
-            <Link role="menuitem" href="/dashboard/profile" onClick={() => setOpen(false)} className={item}><UserRound className="h-4 w-4" /> My Profile</Link>
+            <Link role="menuitem" href="/dashboard/profile" onClick={() => setOpen(false)} className={item}><UserRound className="h-4 w-4" /> Profile & settings</Link>
             <Link role="menuitem" href="/dashboard/guide" onClick={() => setOpen(false)} className={item}><LifeBuoy className="h-4 w-4" /> User Guide</Link>
             <button role="menuitem" type="button" onClick={() => { setOpen(false); openHelpAssistant(); }} className={item}><CircleHelp className="h-4 w-4" /> Ask for help</button>
             <button role="menuitem" type="button" onClick={onSignOut} className={cx(item, 'hover:bg-danger-soft hover:text-danger-ink')}><LogOut className="h-4 w-4" /> Sign out</button>
@@ -332,7 +332,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
             </div>
           </header>
 
-          <main id="main" className={cx('flex-1', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-[calc(100vh-57px)] lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-10 print:max-w-none print:p-0')}>
+          <main id="main" className={cx('flex-1 animate-fade', bare ? 'pb-24' : fit ? 'mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:h-[calc(100vh-57px)] lg:overflow-hidden lg:px-10 lg:py-7' : 'mx-auto w-full max-w-[1320px] px-4 pt-7 pb-28 sm:px-6 lg:px-12 lg:pt-10 print:max-w-none print:p-0')}>
             {pageTitle && (
               <h1 className="mb-6 text-[26px] font-extrabold tracking-tight text-ink sm:text-[30px]">{pageTitle}</h1>
             )}
@@ -343,7 +343,7 @@ export function AppShell({ children, pageTitle, bare = false, topBar, fit = fals
         {/* Mobile drawer */}
         {!bare && drawerOpen && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
-            <button type="button" className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" aria-label="Close navigation" onClick={() => setDrawerOpen(false)} />
+            <button type="button" className="absolute inset-0 bg-scrim backdrop-blur-[3px] animate-fade" aria-label="Close navigation" onClick={() => setDrawerOpen(false)} />
             <div id="mobile-nav" className="relative flex h-full w-[290px] max-w-[85vw] flex-col gap-5 bg-gradient-to-b from-silver-soft via-canvas to-silver-soft px-4 py-5 shadow-float animate-rise">
               <div className="flex items-center justify-between">
                 {brand}

@@ -48,14 +48,18 @@ export function HomeHero({ name, facts, academy }: { name: string; facts: HeroFa
   return (
     <section
       aria-label="Welcome"
-      className="relative overflow-hidden rounded-card border border-brand-line border-b-[3px] border-b-brand bg-brand-soft/50 animate-rise"
-      style={{
-        backgroundImage:
-          'linear-gradient(rgb(43 89 240 / 0.06) 1px, transparent 1px), linear-gradient(90deg, rgb(43 89 240 / 0.06) 1px, transparent 1px)',
-        backgroundSize: '22px 22px',
-      }}
+      className="relative overflow-hidden rounded-card border border-brand-line border-b-[3px] border-b-brand bg-brand-soft/50 animate-rise dark:border-line dark:border-b-brand/70 dark:bg-linear-to-br dark:from-brand-soft/45 dark:via-surface dark:to-surface"
     >
-      <div className="flex flex-col gap-4 p-5 sm:px-7 sm:py-6 md:flex-row md:items-center">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 dark:opacity-40"
+        style={{
+          backgroundImage:
+            'linear-gradient(color-mix(in srgb, var(--color-brand) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 7%, transparent) 1px, transparent 1px)',
+          backgroundSize: '22px 22px',
+        }}
+      />
+      <div className="relative flex flex-col gap-4 p-5 sm:px-7 sm:py-6 md:flex-row md:items-center">
         <div className="min-w-0 flex-1 space-y-3">
           <h1 className="text-[24px] font-extrabold tracking-tight text-ink sm:text-[27px]">
             Hi {name} <span aria-hidden="true">👋</span>

@@ -12,6 +12,8 @@ import { Lesson } from '@/types/domain';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Notice } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
+import { celebrate } from '@/lib/celebrate';
+import { toast } from 'sonner';
 
 interface LessonNavigationProps {
   courseId: string;
@@ -41,6 +43,8 @@ export function LessonNavigation({
     try {
       await onMarkCompleted();
       setJustCompleted(true);
+      void celebrate('lesson');
+      toast.success('Lesson complete — nicely done! 🎉', { description: 'Your progress and your instructor’s view are updated.' });
     } catch {
       setFailed(true);
     } finally {

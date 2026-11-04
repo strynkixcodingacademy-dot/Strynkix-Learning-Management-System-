@@ -139,7 +139,7 @@ export const FEATURES: Feature[] = [
   { name: 'Audit log', href: '/dashboard/audit', icon: ScrollText, roles: ['super_admin', 'university_admin'], category: 'insights', description: 'Who changed what, and when', keywords: ['audit', 'history', 'log', 'changes'] },
 
   // Account (avatar menu and search)
-  { name: 'My Profile', href: '/dashboard/profile', icon: UserRound, roles: ALL, description: 'Your details and password', keywords: ['profile', 'password', 'account', 'settings'] },
+  { name: 'My Profile', href: '/dashboard/profile', icon: UserRound, roles: ALL, description: 'Your details, password, notifications and appearance', keywords: ['profile', 'password', 'account', 'settings', 'preferences', 'notifications', 'theme', 'dark mode', 'light mode', 'appearance'] },
   { name: 'User Guide', href: '/dashboard/guide', icon: LifeBuoy, roles: ALL, description: 'How to use Live Books', keywords: ['help', 'guide', 'manual', 'how to'] },
 ];
 

@@ -800,7 +800,7 @@ Please log in to start learning!`;
 
       {/* Modal: Create & Assign Instructor */}
       {showCreateInstructorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
@@ -913,7 +913,7 @@ Please log in to start learning!`;
 
       {/* Modal: Share Instructor Credentials */}
       {createdInstructorCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
@@ -992,7 +992,7 @@ Please log in to start learning!`;
 
       {/* Modal: Create & Enroll Student */}
       {showCreateStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
@@ -1105,7 +1105,7 @@ Please log in to start learning!`;
 
       {/* Modal: Share Student Credentials */}
       {createdStudentCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim backdrop-blur-[3px] animate-fade">
           <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">

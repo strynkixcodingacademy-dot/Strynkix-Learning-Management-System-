@@ -46,7 +46,7 @@ export function UniversityAdminDialog({ orgId, orgName, onClose }: { orgId: stri
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" />
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-scrim backdrop-blur-[3px] animate-fade" />
       <section role="dialog" aria-modal="true" aria-labelledby="uni-admin-title" className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-float animate-rise">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-lavender-soft text-lavender-ink"><ShieldCheck className="h-5 w-5" /></span>

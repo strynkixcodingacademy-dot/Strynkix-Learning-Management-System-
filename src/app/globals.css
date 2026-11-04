@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* `dark:` follows the app theme switch, not only the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /*
  * Strynkix Live Books — design tokens
  * "Paper, ink and colour with meaning" (docs/UI_UX_AUDIT.md §3).
@@ -8,38 +11,46 @@
  */
 @theme {
   /*
-   * "Silver Atelier": warm off-white paper, white cards, a silver neutral
-   * system and one electric-cobalt accent. Light only, everywhere.
+   * "Midnight & Marigold": cool paper, white cards, a midnight-indigo brand
+   * and a warm marigold "spark" for wins (XP, streaks, celebrations).
+   * Dark values live under :root[data-theme="dark"] below.
    */
 
   /* Surfaces */
-  --color-canvas: #f7f7f4;
+  --color-canvas: #f5f6fb;
   --color-surface: #ffffff;
-  --color-surface-muted: #f3f4f6;
-  --color-surface-sunken: #e9ebef;
+  --color-surface-muted: #f1f2f8;
+  --color-surface-sunken: #e6e8f1;
+  --color-scrim: rgb(15 17 38 / 0.22); /* backdrop behind dialogs and sheets */
 
   /* Ink (text) */
-  --color-ink: #14171f;
-  --color-ink-2: #363d4c;
-  --color-ink-3: #5d6575;
-  --color-ink-4: #9aa1ae; /* decorative / disabled only */
+  --color-ink: #0f1126;
+  --color-ink-2: #343852;
+  --color-ink-3: #5a5f78;
+  --color-ink-4: #9a9fb5; /* decorative / disabled only */
 
   /* Silver lines */
-  --color-line: #e4e6eb;
-  --color-line-strong: #cfd3db;
-  --color-silver: #c3c8d2;
-  --color-silver-soft: #eef0f4;
+  --color-line: #e3e5ef;
+  --color-line-strong: #cdd0de;
+  --color-silver: #c2c6d6;
+  --color-silver-soft: #eef0f6;
 
-  /* Brand: electric cobalt (primary action, links, navigation) */
-  --color-brand: #2b59f0;
-  --color-brand-strong: #2449d8;
-  --color-brand-soft: #edf2ff;
-  --color-brand-line: #cbd8ff;
-  --color-brand-ink: #1f45d6;
+  /* Brand: midnight indigo (primary action, links, navigation) */
+  --color-brand: #3b3fe4;
+  --color-brand-strong: #2f32c9;
+  --color-brand-soft: #eeefff;
+  --color-brand-line: #cfd1fb;
+  --color-brand-ink: #2d30c2;
+
+  /* Spark: marigold for wins — XP, streaks, celebrations */
+  --color-spark: #ffb020;
+  --color-spark-soft: #fff4dc;
+  --color-spark-line: #ffdf9e;
+  --color-spark-ink: #8a5200;
 
   /* Highlighter: the signature marker stroke behind titles and active nav */
-  --color-highlight: #ffe766;
-  --color-highlight-soft: #fff8cc;
+  --color-highlight: #ffd76a;
+  --color-highlight-soft: #fff6d8;
 
   /* Meaning accents */
   --color-success: #16a34a; /* completed, progress */
@@ -87,14 +98,14 @@
 
   /* Type */
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
   /* Shape & depth */
   --radius-card: 16px;
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 1px 2px rgb(20 23 31 / 0.04), 0 2px 6px -2px rgb(20 23 31 / 0.04);
-  --shadow-lift: 0 14px 32px -14px rgb(20 23 31 / 0.18), 0 3px 8px -2px rgb(20 23 31 / 0.06);
-  --shadow-float: 0 24px 60px -20px rgb(20 23 31 / 0.28), 0 6px 16px -6px rgb(20 23 31 / 0.08);
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 1px 2px rgb(15 17 38 / 0.04), 0 2px 6px -2px rgb(15 17 38 / 0.05);
+  --shadow-lift: 0 16px 34px -14px rgb(47 50 201 / 0.22), 0 3px 8px -2px rgb(15 17 38 / 0.06);
+  --shadow-float: 0 24px 60px -20px rgb(15 17 38 / 0.3), 0 6px 16px -6px rgb(15 17 38 / 0.08);
 
   /* Motion */
   --animate-rise: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -120,6 +131,93 @@
   }
 }
 
+/*
+ * Dark theme. Built on the Radix Colors dark scales (Slate neutrals with
+ * Iris, Green, Amber, Red, Orange, Teal and Violet accents), the same system
+ * behind many product dark modes: near-black neutral greys rather than a
+ * tinted navy, steps 3/6/11 for tinted fills, borders and text on tints.
+ * <html data-theme> is set before first paint by the script in layout.tsx.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Slate */
+  --color-canvas: #111113;
+  --color-surface: #18191b;
+  --color-surface-muted: #212225;
+  --color-surface-sunken: #272a2d;
+  --color-scrim: rgb(0 0 0 / 0.6);
+
+  --color-ink: #edeef0;
+  --color-ink-2: #d3d5d9;
+  --color-ink-3: #b0b4ba;
+  --color-ink-4: #777b84;
+
+  --color-line: #2e3135;
+  --color-line-strong: #363a3f;
+  --color-silver: #43484e;
+  --color-silver-soft: #212225;
+
+  /* Iris */
+  --color-brand: #5b5bd6;
+  --color-brand-strong: #6e6ade;
+  --color-brand-soft: #202248;
+  --color-brand-line: #3d3e82;
+  --color-brand-ink: #b1a9ff;
+
+  /* Amber */
+  --color-spark: #ffc53d;
+  --color-spark-soft: #302008;
+  --color-spark-line: #5c3d05;
+  --color-spark-ink: #ffca16;
+  --color-highlight: #4d3000;
+  --color-highlight-soft: #302008;
+  --color-warning: #ffc53d;
+  --color-warning-soft: #302008;
+  --color-warning-line: #5c3d05;
+  --color-warning-ink: #ffca16;
+
+  /* Green, Red, Orange, Teal, Violet */
+  --color-success: #30a46c;
+  --color-success-strong: #33b074;
+  --color-success-soft: #132d21;
+  --color-success-line: #20573e;
+  --color-success-ink: #3dd68c;
+  --color-danger: #e5484d;
+  --color-danger-soft: #3b1219;
+  --color-danger-line: #72232d;
+  --color-danger-ink: #ff9592;
+  --color-coral: #f76b15;
+  --color-coral-soft: #331e0b;
+  --color-coral-line: #66350c;
+  --color-coral-ink: #ffa057;
+  --color-teal: #12a594;
+  --color-teal-soft: #0d2d2a;
+  --color-teal-line: #145750;
+  --color-teal-ink: #0bd8b6;
+  --color-lavender: #6e56cf;
+  --color-lavender-soft: #291f43;
+  --color-lavender-line: #473876;
+  --color-lavender-ink: #baa7ff;
+
+  /* Code panel */
+  --color-code: #111113;
+  --color-code-line: #2e3135;
+  --color-code-ink: #edeef0;
+  --color-code-muted: #b0b4ba;
+  --color-syn-keyword: #baa7ff;
+  --color-syn-string: #3dd68c;
+  --color-syn-number: #ffa057;
+  --color-syn-comment: #777b84;
+  --color-syn-fn: #9eb1ff;
+  --color-syn-highlight: #302008;
+
+  /* Dark UIs separate with borders, not big shadows. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 8px 24px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-float: 0 20px 48px -12px rgb(0 0 0 / 0.75), 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
 @layer base {
   html {
     color-scheme: light;
@@ -136,9 +234,19 @@
     text-wrap: balance;
   }
 
+  h1, h2 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+
   ::selection {
     background: var(--color-highlight);
     color: var(--color-ink);
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-brand);
   }
 
   :focus-visible {
@@ -179,9 +287,9 @@
   height: 1px;
 }
 
-/* Soft dotted paper texture for hero areas (very subtle, light only). */
+/* Soft dotted paper texture for hero areas (very subtle). */
 @utility paper-dots {
-  background-image: radial-gradient(rgb(20 23 31 / 0.07) 1px, transparent 1px);
+  background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 8%, transparent) 1px, transparent 1px);
   background-size: 18px 18px;
 }
 
@@ -220,6 +328,18 @@
   30% { opacity: 1; }
   100% { opacity: 0; scale: 1.4; }
 }
+
+/* Strix the loader owl, the streak flame and other small student moments. */
+.strix-bob { animation: strix-bob 1.6s ease-in-out infinite; transform-origin: 60px 100px; }
+.strix-shadow { animation: strix-shadow 1.6s ease-in-out infinite; transform-origin: 60px 112px; }
+.strix-blink { animation: strix-blink 4s ease-in-out infinite; transform-origin: 60px 54px; }
+.strix-glyph { animation: strix-glyph 3.3s ease-out infinite both; opacity: 0; }
+.flame-flicker { animation: flame-flicker 1.4s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes strix-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes strix-shadow { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.82); } }
+@keyframes strix-blink { 0%, 44%, 50%, 100% { transform: scaleY(1); } 47% { transform: scaleY(0.1); } }
+@keyframes strix-glyph { 0% { opacity: 0; transform: translateY(8px); } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-16px); } }
+@keyframes flame-flicker { 0%, 100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.12) rotate(3deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -30,7 +30,7 @@ export async function runStructureChange(req: StructureRequest): Promise<string 
 function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" />
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-scrim backdrop-blur-[3px] animate-fade" />
       <section role="dialog" aria-modal="true" aria-label={title} className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-float animate-rise">
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-[18px] font-extrabold text-ink">{title}</h2>

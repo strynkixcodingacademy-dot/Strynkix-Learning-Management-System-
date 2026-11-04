@@ -513,7 +513,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
       {/* Modal: Create Module */}
       {showModuleModal && (
-        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
           <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
@@ -616,7 +616,7 @@ function CurriculumBuilderView({ courseId }: { courseId: string }) {
 
       {/* Modal: Create Lesson */}
       {showLessonModal && (
-        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-scrim backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
           <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">

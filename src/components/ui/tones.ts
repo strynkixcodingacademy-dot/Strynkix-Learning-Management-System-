@@ -16,6 +16,18 @@ export const TONE_CLASSES: Record<Tone, { soft: string; ink: string; line: strin
   lavender: { soft: 'bg-lavender-soft', ink: 'text-lavender-ink', line: 'border-lavender-line', solid: 'bg-lavender', ring: 'stroke-lavender' },
 };
 
+/** Gradient icon chips (white icon) for tiles and hubs. */
+export const TONE_GRADIENTS: Record<Tone, string> = {
+  neutral: 'bg-linear-to-br from-ink-3 to-ink-4',
+  brand: 'bg-linear-to-br from-brand to-lavender',
+  success: 'bg-linear-to-br from-success to-teal',
+  warning: 'bg-linear-to-br from-spark to-coral',
+  danger: 'bg-linear-to-br from-danger to-coral',
+  coral: 'bg-linear-to-br from-coral to-spark',
+  teal: 'bg-linear-to-br from-teal to-brand',
+  lavender: 'bg-linear-to-br from-lavender to-brand',
+};
+
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
 }
