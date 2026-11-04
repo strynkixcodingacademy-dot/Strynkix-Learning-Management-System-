@@ -32,6 +32,7 @@ import {
   Plus,
   Users,
 } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 type StatusFilter = 'current' | 'archived' | 'all';
 
@@ -124,7 +125,7 @@ export default function BatchesPage() {
       setSuccessMsg(archiving ? `Batch "${batch.name}" archived.` : `Batch "${batch.name}" restored as upcoming.`);
       reload();
     } catch (err) {
-      setError((err as Error).message || 'Failed to update batch status.');
+      setError(firestoreErrorMessage(err, 'Failed to update batch status.'));
     } finally {
       setBusyBatchId(null);
     }

@@ -17,10 +17,8 @@ import {
 } from '@/lib/learning/timetable';
 import {
   assessmentScheduleSchema,
-  dayScheduleSchema,
   timetableActivitySchema,
   timetableCorrectionSchema,
-  timetableRevisionSchema,
   weeklyTimetableSchema,
 } from '@/types/validation';
 import { Progress, Submission, TimetableActivity } from '@/types/domain';

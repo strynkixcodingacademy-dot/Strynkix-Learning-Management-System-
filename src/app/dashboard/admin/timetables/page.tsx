@@ -17,7 +17,6 @@ import { formatWeekRange, getSundayOfWeek } from '@/lib/learning/timetable';
 import { Batch, WeeklyTimetable } from '@/types/domain';
 import {
   ArrowRight,
-  CalendarCheck,
   CheckCircle,
   Clock,
   Loader2,

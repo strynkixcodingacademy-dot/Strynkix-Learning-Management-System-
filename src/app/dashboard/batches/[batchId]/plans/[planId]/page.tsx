@@ -39,6 +39,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { Button } from '@/components/ui/Button';
 import { Assignment, AssignmentSubmissionType, Batch, DailyPlan, Enrollment, Progress, Submission } from '@/types/domain';
 import { AlertCircle, Archive, CalendarCheck, CheckCircle2, FileEdit, Filter, Loader2, Save, Send, Users } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 interface PlanPageProps {
   params: Promise<{ batchId: string; planId: string }>;
@@ -90,7 +91,7 @@ function SubmissionReview({ submission, assignment, uid }: { submission: Submiss
         setMessage({ tone: 'success', text: 'Correction requested.' });
       }
     } catch (err) {
-      setMessage({ tone: 'error', text: (err as Error).message });
+      setMessage({ tone: 'error', text: firestoreErrorMessage(err, 'Something went wrong. Try again.') });
     } finally {
       setBusy(null);
     }
@@ -293,7 +294,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
       setPlan(saved);
       setPlanMsg({ tone: 'success', text: 'Plan saved.' });
     } catch (err) {
-      setPlanMsg({ tone: 'error', text: (err as Error).message });
+      setPlanMsg({ tone: 'error', text: firestoreErrorMessage(err, 'Something went wrong. Try again.') });
     } finally {
       setSavingPlan(false);
     }
@@ -315,7 +316,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
       setPlan({ ...plan, assignmentId: saved.id });
       setAssignMsg({ tone: 'success', text: 'Assignment saved.' });
     } catch (err) {
-      setAssignMsg({ tone: 'error', text: (err as Error).message });
+      setAssignMsg({ tone: 'error', text: firestoreErrorMessage(err, 'Something went wrong. Try again.') });
     } finally {
       setSavingAssignment(false);
     }
@@ -339,7 +340,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
       if (assignment) setAssignment({ ...assignment, status });
       setStatusMsg({ tone: 'success', text: status === 'published' ? 'Published. Enrolled students can now see this plan.' : 'Plan archived.' });
     } catch (err) {
-      setStatusMsg({ tone: 'error', text: (err as Error).message || 'Status change failed.' });
+      setStatusMsg({ tone: 'error', text: firestoreErrorMessage(err, 'Status change failed.') });
     } finally {
       setStatusBusy(false);
     }

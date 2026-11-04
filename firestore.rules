@@ -1425,8 +1425,9 @@ service cloud.firestore {
           canManageBatchTimetable(get(/databases/$(database)/documents/timetables/$(timetableId)).data.batchId)
         );
 
+        // getAfter: a new timetable's first entry is written in the same batch as the timetable.
         allow create: if isAuthenticated() && isAccountActive() &&
-          canManageBatchTimetable(get(/databases/$(database)/documents/timetables/$(timetableId)).data.batchId) &&
+          canManageBatchTimetable(getAfter(/databases/$(database)/documents/timetables/$(timetableId)).data.batchId) &&
           request.resource.data.timetableId == timetableId &&
           isValidTimetableAuditLog(request.resource.data);
 

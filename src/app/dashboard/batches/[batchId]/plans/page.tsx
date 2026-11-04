@@ -19,6 +19,7 @@ import { toLocalDateKey } from '@/lib/learning/metrics';
 import { formatPlanDate } from '@/components/learning/LearningBits';
 import { Batch, DailyPlan } from '@/types/domain';
 import { AlertCircle, ArrowLeft, ArrowRight, CalendarPlus, ClipboardList, Loader2 } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 interface PlansPageProps {
   params: Promise<{ batchId: string }>;
@@ -85,7 +86,7 @@ function PlansView({ batchId }: { batchId: string }) {
       }, tenant, user.uid, null);
       router.push(`/dashboard/batches/${batch.id}/plans/${plan.id}`);
     } catch (err) {
-      setFormError((err as Error).message || 'Could not create the plan.');
+      setFormError(firestoreErrorMessage(err, 'Could not create the plan.'));
       setIsCreating(false);
     }
   };

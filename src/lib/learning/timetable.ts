@@ -12,7 +12,6 @@ import {
   Progress,
   Submission,
   TimetableActivity,
-  TimetableRevision,
   TimetableStatus,
   UserRole,
 } from '@/types/domain';

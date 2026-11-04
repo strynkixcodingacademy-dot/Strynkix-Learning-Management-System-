@@ -17,13 +17,11 @@ import {
   FileEdit,
   History,
   Send,
-  Sparkles,
 } from 'lucide-react';
 
 interface ApprovalBannerProps {
   revision: TimetableRevision | null;
   latestStatus?: TimetableStatus;
-  isSuperAdmin: boolean;
   canManage: boolean;
   onSubmit: () => void;
   onOpenAudit: () => void;
@@ -47,7 +45,6 @@ const STATUS_PILL_STYLES: Record<TimetableStatus, string> = {
 export function ApprovalBanner({
   revision,
   latestStatus = 'draft',
-  isSuperAdmin,
   canManage,
   onSubmit,
   onOpenAudit,

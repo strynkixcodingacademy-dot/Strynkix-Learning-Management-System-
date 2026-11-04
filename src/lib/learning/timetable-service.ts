@@ -1,8 +1,9 @@
 /**
  * Strynkix LMS — Weekly Timetable Service
  * Operations for creating, editing, submitting, reviewing, approving and activating
- * weekly timetables and revisions. Atomic transactions guarantee that approvals
- * and active-version updates are strictly consistent and audited.
+ * weekly timetables and revisions. Every change writes its root, revision and
+ * audit entry together (a batch, or a transaction for approvals), so a timetable
+ * is never left half-saved.
  */
 
 import {
@@ -17,10 +18,9 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  setDoc,
   Timestamp,
-  updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { TenantContext } from '@/types/auth';
@@ -41,7 +41,6 @@ import {
 } from '@/types/validation';
 import { canManageBatchScope, isBatchOpenForEnrollment } from '@/lib/batches/scope';
 import {
-  createEmptyDaysRecord,
   getSundayOfWeek,
   normalizeActivityOrder,
   revisionIdFor,
@@ -266,14 +265,13 @@ export async function saveTimetableDraft(
     updatedAt: now,
   };
 
-  // Write root and revision
-  await setDoc(doc(fs, 'timetables', timetableId), withoutUndefined(rootData));
-  await setDoc(doc(fs, `timetables/${timetableId}/revisions`, revId), withoutUndefined(revisionData));
-
-  // Log creation if first time
+  // Root, revision and (for a new timetable) its first audit entry land together.
+  const batchWrite = writeBatch(fs);
+  batchWrite.set(doc(fs, 'timetables', timetableId), withoutUndefined(rootData));
+  batchWrite.set(doc(fs, `timetables/${timetableId}/revisions`, revId), withoutUndefined(revisionData));
   if (!existingRevisionId && revNumber === 1 && !existingRoot) {
     const logRef = doc(collection(fs, `timetables/${timetableId}/auditLogs`));
-    await setDoc(logRef, {
+    batchWrite.set(logRef, {
       id: logRef.id,
       timetableId,
       revisionId: revId,
@@ -285,6 +283,7 @@ export async function saveTimetableDraft(
       timestamp: serverTimestamp(),
     });
   }
+  await batchWrite.commit();
 
   return { timetable: rootData, revision: revisionData };
 }
@@ -310,23 +309,22 @@ export async function submitTimetableForApproval(
   const now = new Date().toISOString();
   const nextStatus = 'submitted';
 
-  // Update revision and root
-  await updateDoc(doc(fs, `timetables/${timetableId}/revisions`, revisionId), {
+  // Revision, root and audit entry land together, so a dropped connection
+  // can't leave a submitted revision behind a root that still says draft.
+  const batchWrite = writeBatch(fs);
+  batchWrite.update(doc(fs, `timetables/${timetableId}/revisions`, revisionId), {
     status: nextStatus,
     submittedById: uid,
     submittedAt: now,
     updatedAt: now,
   });
-
-  await updateDoc(doc(fs, 'timetables', timetableId), {
+  batchWrite.update(doc(fs, 'timetables', timetableId), {
     currentRevisionId: revisionId,
     latestStatus: nextStatus,
     updatedAt: now,
   });
-
-  // Append audit log
   const logRef = doc(collection(fs, `timetables/${timetableId}/auditLogs`));
-  await setDoc(logRef, {
+  batchWrite.set(logRef, {
     id: logRef.id,
     timetableId,
     revisionId,
@@ -337,6 +335,7 @@ export async function submitTimetableForApproval(
     actorRole: tenant?.role ?? 'branch_admin',
     timestamp: serverTimestamp(),
   });
+  await batchWrite.commit();
 }
 
 // -----------------------------------------------------------------------------
@@ -449,8 +448,9 @@ export async function approveTimetable(
       updatedAt: now,
     });
 
+    // Firestore refuses undefined fields, so an approval without a comment omits it.
     const logRef = doc(collection(fs, `timetables/${timetableId}/auditLogs`));
-    transaction.set(logRef, {
+    transaction.set(logRef, withoutUndefined({
       id: logRef.id,
       timetableId,
       revisionId,
@@ -461,7 +461,7 @@ export async function approveTimetable(
       actorRole: 'super_admin',
       comment: parsed.data.comment || undefined,
       timestamp: serverTimestamp(),
-    });
+    }));
   });
 }
 

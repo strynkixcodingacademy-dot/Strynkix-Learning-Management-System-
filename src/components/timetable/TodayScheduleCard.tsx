@@ -18,7 +18,6 @@ import {
   ACTIVITY_TYPE_LABELS,
   calculateDayCompletion,
   deriveActivityProgress,
-  DerivedActivityState,
 } from '@/lib/learning/timetable';
 import { Card } from '@/components/ui/Page';
 import { ProgressRing } from '@/components/ui/Progress';
@@ -35,7 +34,6 @@ import {
   GraduationCap,
   Lock,
   PartyPopper,
-  Sparkles,
 } from 'lucide-react';
 
 interface TodayScheduleCardProps {
