@@ -19,7 +19,7 @@ import {
   ACTIVITY_TYPE_LABELS,
   calculateDurationMinutes,
 } from '@/lib/learning/timetable';
-import { AlertCircle, Clock, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, Plus, Trash2, X } from 'lucide-react';
 
 interface ActivityFormModalProps {
   isOpen: boolean;

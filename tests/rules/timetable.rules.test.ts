@@ -19,6 +19,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
   Firestore,
 } from 'firebase/firestore';
 import * as fs from 'node:fs';
@@ -186,6 +187,32 @@ describe('Stage 8 — Opening a week nobody has planned yet', () => {
     for (const id of ['timetable_batch_missing_2026-11-02', 'timetable_batch_pune', 'batch_pune_2026-11-02']) {
       await assertFails(getDoc(doc(as('super_admin'), 'timetables', id)));
     }
+  });
+});
+
+describe('Stage 8 — Saving a new timetable in one batch', () => {
+  const firstSave = (db: Firestore, actor: string) => {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'timetables', TIMETABLE_ID), validRoot());
+    batch.set(doc(db, `timetables/${TIMETABLE_ID}/revisions`, REV_1_ID), validRevision({ createdById: actor }));
+    const logRef = doc(collection(db, `timetables/${TIMETABLE_ID}/auditLogs`));
+    batch.set(logRef, {
+      id: logRef.id, timetableId: TIMETABLE_ID, revisionId: REV_1_ID, fromStatus: 'draft', toStatus: 'draft',
+      action: 'create_draft', actorUid: actor, actorRole: 'branch_admin', timestamp: serverTimestamp(),
+    });
+    return batch.commit();
+  };
+
+  it('the branch admin CAN create the timetable, its first revision and audit entry together', async () => {
+    await assertSucceeds(firstSave(as('ba_pune'), 'ba_pune'));
+  });
+
+  it('another branch CANNOT, and nothing is left behind', async () => {
+    await assertFails(firstSave(as('ba_mumbai'), 'ba_mumbai'));
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const snap = await getDoc(doc(context.firestore(), 'timetables', TIMETABLE_ID));
+      if (snap.exists()) throw new Error('a refused batch left a timetable behind');
+    });
   });
 });
 

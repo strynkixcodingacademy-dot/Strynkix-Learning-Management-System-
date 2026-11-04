@@ -49,6 +49,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 interface BatchDetailPageProps {
   params: Promise<{ batchId: string }>;
@@ -314,7 +315,7 @@ function BatchDetailView({ batchId }: { batchId: string }) {
       setInstructorPassword('');
       setSuccessMsg(`Instructor "${newInst.displayName}" created and assigned to ${batch.name}!`);
     } catch (err: unknown) {
-      setInstructorFormError((err as Error).message || 'Failed to create instructor.');
+      setInstructorFormError(firestoreErrorMessage(err, 'Failed to create instructor.'));
     } finally {
       setIsSubmittingInstructor(false);
     }
@@ -376,7 +377,7 @@ Please log in to manage daily plans, post assignments, and review student code!`
       // Refresh roster & candidates
       await Promise.all([loadRoster(batch), loadStudents(batch)]);
     } catch (err: unknown) {
-      setStudentFormError((err as Error).message || 'Failed to create student.');
+      setStudentFormError(firestoreErrorMessage(err, 'Failed to create student.'));
     } finally {
       setIsSubmittingStudent(false);
     }
@@ -424,7 +425,7 @@ Please log in to start learning!`;
       setSelectedStudentId('');
       await loadRoster(batch);
     } catch (err) {
-      setActionError((err as Error).message || 'Enrollment failed.');
+      setActionError(firestoreErrorMessage(err, 'Enrollment failed.'));
     } finally {
       setIsEnrolling(false);
     }
@@ -450,7 +451,7 @@ Please log in to start learning!`;
       setSuccessMsg(`${name}: enrollment updated.`);
       await loadRoster(batch);
     } catch (err) {
-      setActionError((err as Error).message || 'Failed to update enrollment.');
+      setActionError(firestoreErrorMessage(err, 'Failed to update enrollment.'));
     } finally {
       setBusyEnrollmentId(null);
     }

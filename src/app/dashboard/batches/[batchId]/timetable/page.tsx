@@ -8,7 +8,6 @@
 
 import React, { Suspense, use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
@@ -48,12 +47,12 @@ import {
 import {
   AlertCircle,
   ArrowLeft,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   Loader2,
   ShieldAlert,
 } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 interface TimetablePageProps {
   params: Promise<{ batchId: string }>;
@@ -61,7 +60,6 @@ interface TimetablePageProps {
 
 function TimetableBatchView({ batchId }: { batchId: string }) {
   const { user, tenant } = useAuth();
-  const router = useRouter();
 
   // Current selected Monday (YYYY-MM-DD)
   const [weekStartDate, setWeekStartDate] = useState(() => getMondayOfWeek(new Date()));
@@ -134,7 +132,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
         }
       } catch (err) {
         console.error('Failed to load weekly timetable', err);
-        if (isMounted) setError((err as Error).message || 'Failed to load timetable.');
+        if (isMounted) setError(firestoreErrorMessage(err, 'Failed to load timetable.'));
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -176,7 +174,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
       const updatedLogs = await getTimetableAuditLogs(res.timetable.id);
       setAuditLogs(updatedLogs);
     } catch (err) {
-      setActionError((err as Error).message || 'Could not save draft.');
+      setActionError(firestoreErrorMessage(err, 'Could not save draft.'));
     } finally {
       setIsSaving(false);
     }
@@ -203,7 +201,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
       const updatedLogs = await getTimetableAuditLogs(res.timetable.id);
       setAuditLogs(updatedLogs);
     } catch (err) {
-      setActionError((err as Error).message || 'Submission failed.');
+      setActionError(firestoreErrorMessage(err, 'Submission failed.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -222,7 +220,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
       const updatedLogs = await getTimetableAuditLogs(timetable.id);
       setAuditLogs(updatedLogs);
     } catch (err) {
-      setActionError((err as Error).message || 'Approval failed.');
+      setActionError(firestoreErrorMessage(err, 'Approval failed.'));
     } finally {
       setAdminActionBusy(false);
     }
@@ -245,7 +243,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
       const updatedLogs = await getTimetableAuditLogs(timetable.id);
       setAuditLogs(updatedLogs);
     } catch (err) {
-      setActionError((err as Error).message || 'Requesting changes failed.');
+      setActionError(firestoreErrorMessage(err, 'Requesting changes failed.'));
     } finally {
       setAdminActionBusy(false);
     }
@@ -335,7 +333,6 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
       <ApprovalBanner
         revision={revision}
         latestStatus={timetable?.latestStatus}
-        isSuperAdmin={isSuperAdmin}
         canManage={canManage}
         onSubmit={handleSubmitForApproval}
         onOpenAudit={() => setIsAuditOpen(true)}
@@ -388,7 +385,7 @@ function TimetableBatchView({ batchId }: { batchId: string }) {
                 setRevision(res.revision);
                 setDays(res.revision.days);
               } catch (err) {
-                setActionError((err as Error).message);
+                setActionError(firestoreErrorMessage(err, 'Something went wrong. Try again.'));
               } finally {
                 setIsSaving(false);
               }
