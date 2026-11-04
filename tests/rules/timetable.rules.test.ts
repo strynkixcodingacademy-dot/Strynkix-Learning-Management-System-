@@ -167,6 +167,28 @@ describe('Stage 8 — Weekly Timetable Root Creation & Permissions', () => {
   });
 });
 
+describe('Stage 8 — Opening a week nobody has planned yet', () => {
+  it('Super Admin, University Admin, the branch admin, the instructor and an enrolled student CAN see it is empty', async () => {
+    for (const uid of ['super_admin', 'uni_admin', 'ba_pune', 'inst_pune', 'stu_pune']) {
+      const snap = await assertSucceeds(getDoc(doc(as(uid), 'timetables', TIMETABLE_ID)));
+      if (snap.exists()) throw new Error(`${uid} saw a timetable that does not exist`);
+    }
+  });
+
+  it('another branch, an unenrolled student and a signed-out visitor CANNOT probe it', async () => {
+    for (const uid of ['ba_mumbai', 'stu_other', 'stu_mumbai']) {
+      await assertFails(getDoc(doc(as(uid), 'timetables', TIMETABLE_ID)));
+    }
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore() as unknown as Firestore, 'timetables', TIMETABLE_ID)));
+  });
+
+  it('IDs that do not name a real batch and week are refused', async () => {
+    for (const id of ['timetable_batch_missing_2026-11-02', 'timetable_batch_pune', 'batch_pune_2026-11-02']) {
+      await assertFails(getDoc(doc(as('super_admin'), 'timetables', id)));
+    }
+  });
+});
+
 describe('Stage 8 — Revision Creation, Editing & Submission', () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {

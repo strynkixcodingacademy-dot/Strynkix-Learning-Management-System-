@@ -434,6 +434,18 @@ service cloud.firestore {
     // Helper Functions: Stage 8 Weekly Timetable, Revisions & Approval
     // -------------------------------------------------------------------------
 
+    // Whether the caller may learn that a batch has no timetable for a week:
+    // the same people who could read it once it exists.
+    function canReadUnplannedWeek(timetableId) {
+      let batchId = timetableId.replace('^timetable_', '').replace('_[0-9]{4}-[0-9]{2}-[0-9]{2}$', '');
+      let batch = get(/databases/$(database)/documents/batches/$(batchId));
+      return timetableId.matches('^timetable_.+_[0-9]{4}-[0-9]{2}-[0-9]{2}$') && batch != null && (
+        canManageBatchTimetable(batchId) ||
+        (isInstructor(batch.data.orgId) && request.auth.uid in batch.data.get('instructorUserIds', [])) ||
+        (isStudent(batch.data.orgId) && isEnrolledInBatch(batch.data.courseId, batchId))
+      );
+    }
+
     function canManageBatchTimetable(batchId) {
       let batch = get(/databases/$(database)/documents/batches/$(batchId));
       return batch != null && isAuthenticated() && isAccountActive() && (
@@ -1298,15 +1310,20 @@ service cloud.firestore {
     // Students only read active approved revisions for their enrolled batch.
     // -------------------------------------------------------------------------
     match /timetables/{timetableId} {
+      // A week nobody has planned yet has no document, so the batch comes from
+      // the ID instead (timetable_<batchId>_<YYYY-MM-DD>, enforced on create).
       allow read: if isAuthenticated() && isAccountActive() && (
-        canManageBatchTimetable(resource.data.batchId) ||
-        (isInstructor(resource.data.orgId) && request.auth.uid in get(/databases/$(database)/documents/batches/$(resource.data.batchId)).data.get('instructorUserIds', [])) ||
-        (
-          isStudent(resource.data.orgId) &&
-          resource.data.activeRevisionId != null &&
-          isCoursePublished(resource.data.courseId) &&
-          isEnrolledInBatch(resource.data.courseId, resource.data.batchId)
-        )
+        (resource == null && canReadUnplannedWeek(timetableId)) ||
+        (resource != null && (
+          canManageBatchTimetable(resource.data.batchId) ||
+          (isInstructor(resource.data.orgId) && request.auth.uid in get(/databases/$(database)/documents/batches/$(resource.data.batchId)).data.get('instructorUserIds', [])) ||
+          (
+            isStudent(resource.data.orgId) &&
+            resource.data.activeRevisionId != null &&
+            isCoursePublished(resource.data.courseId) &&
+            isEnrolledInBatch(resource.data.courseId, resource.data.batchId)
+          )
+        ))
       );
 
       allow create: if canManageBatchTimetable(request.resource.data.batchId) &&
