@@ -1,0 +1,90 @@
+name: CI
+
+# Checks every pull request and every push to staging and main. Tests run
+# only against local Firebase emulators (demo- projects); this workflow holds
+# no secrets and never touches a real Firebase project or Vercel.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - staging
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FIREBASE_TOOLS_VERSION: 15.14.0
+
+jobs:
+  checks:
+    name: Typecheck, lint and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint -- --max-warnings=0
+      - run: npm run test:unit
+
+  rules:
+    name: Security rules and emulator tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ env.FIREBASE_TOOLS_VERSION }}
+      - run: npm ci
+      - run: npm install --global firebase-tools@${{ env.FIREBASE_TOOLS_VERSION }}
+      - run: npm run test:emulator
+
+  e2e:
+    name: Browser tests (emulators)
+    runs-on: ubuntu-latest
+    needs: checks
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ env.FIREBASE_TOOLS_VERSION }}
+      - run: npm ci
+      - run: npm install --global firebase-tools@${{ env.FIREBASE_TOOLS_VERSION }}
+      - run: npm run test:e2e
+      - name: Keep the failure report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
