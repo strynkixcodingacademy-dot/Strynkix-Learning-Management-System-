@@ -21,7 +21,7 @@ import { idSchema, planDateSchema } from '@/types/validation';
 import type { Batch, Branch, Course, Enrollment, Organization, Progress, UserProfile, UserRole } from '@/types/domain';
 import type { Admission, Assessment, AssessmentAttempt, AttendanceSession, Expense, FeeAccount, FeeTransaction } from '@/types/academy';
 import { balanceOf, collectedOf, dueOf, dueSummary } from '@/lib/finance/fees';
-import { type Actor, denied, displayName, getDocData, invalid, loadActor, localDate, notFound, parseBody } from '@/lib/server/academy-scope';
+import { type Actor, denied, displayName, getDocData, invalid, loadActor, localDate, localDayEndIso, localDayStartIso, notFound, parseBody } from '@/lib/server/academy-scope';
 import { attendanceStats, pct } from '@/lib/server/academy-metrics';
 import { financeSummary, type Scope } from '@/lib/server/reports';
 import { totalsFromLedger } from '@/lib/server/finance';
@@ -181,11 +181,11 @@ async function academicSnapshot(db: Firestore, s: Scope, from: string, to: strin
 async function admissionAnalytics(db: Firestore, s: Scope, from: string, to: string) {
   const today = localDate();
   const base = scoped(db, 'admissions', s).where('status', '==', 'confirmed');
-  const yearStart = `${today.slice(0, 4)}-01-01T00:00:00.000Z`;
+  // Day, month and year boundaries are local midnight, not 00:00 UTC (05:30 IST).
   const [total, thisYear, thisMonth, todayCount, inPeriod] = await Promise.all([
-    count(base), count(base.where('confirmedAt', '>=', yearStart)), count(base.where('confirmedAt', '>=', `${today.slice(0, 7)}-01T00:00:00.000Z`)),
-    count(base.where('confirmedAt', '>=', `${today}T00:00:00.000Z`)),
-    base.where('confirmedAt', '>=', `${from}T00:00:00.000Z`).where('confirmedAt', '<=', `${to}T23:59:59.999Z`).select('orgId', 'branchId', 'courseId', 'confirmedAt').get(),
+    count(base), count(base.where('confirmedAt', '>=', localDayStartIso(`${today.slice(0, 4)}-01-01`))), count(base.where('confirmedAt', '>=', localDayStartIso(`${today.slice(0, 7)}-01`))),
+    count(base.where('confirmedAt', '>=', localDayStartIso(today))),
+    base.where('confirmedAt', '>=', localDayStartIso(from)).where('confirmedAt', '<=', localDayEndIso(to)).select('orgId', 'branchId', 'courseId', 'confirmedAt').get(),
   ]);
   const rows = inPeriod.docs.map((d) => d.data() as Admission);
   const group = (f: (a: Admission) => string) => [...rows.reduce((m, a) => m.set(f(a), (m.get(f(a)) ?? 0) + 1), new Map<string, number>()).entries()];
@@ -193,7 +193,7 @@ async function admissionAnalytics(db: Firestore, s: Scope, from: string, to: str
   const named = (pairs: [string, number][], n: Map<string, string>) => pairs.map(([id, c]) => ({ id, name: n.get(id) ?? id, count: c })).sort((a, b) => b.count - a.count);
   return {
     total, thisYear, thisMonth, today: todayCount, inPeriod: rows.length,
-    byMonth: group((a) => (a.confirmedAt ?? '').slice(0, 7)).sort().map(([month, c]) => ({ month, count: c })),
+    byMonth: group((a) => (a.confirmedAt ? localDate(new Date(a.confirmedAt)) : '').slice(0, 7)).sort().map(([month, c]) => ({ month, count: c })),
     byAcademy: named(group((a) => a.orgId), orgN), byBranch: named(group((a) => a.branchId), branchN), byCourse: named(group((a) => a.courseId ?? ''), courseN),
   };
 }

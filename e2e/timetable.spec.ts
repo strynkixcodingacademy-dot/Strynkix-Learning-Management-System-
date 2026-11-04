@@ -48,3 +48,20 @@ test('a branch manager drafts and submits a week, and Super Admin approves it', 
   expect((await tt.ref.collection('auditLogs').get()).docs.map((d) => d.get('action')).sort()).toEqual(['approve', 'create_draft', 'submit']);
   await sa.close();
 });
+
+test('an activity without optional details saves', async ({ page }) => {
+  await signInAs(page, 'ba');
+  await page.goto('/dashboard/batches/e2e_batch/timetable');
+  await page.getByRole('button', { name: 'Add Activity' }).click();
+  await page.locator('#actType').selectOption('revision');
+  await page.locator('#actTitle').fill('Recap of week one');
+  await page.getByRole('dialog').getByRole('button', { name: 'Add Activity' }).click();
+  await page.getByRole('button', { name: 'Save Draft' }).click();
+  await expect.poll(async () => {
+    const tt = await timetableOf();
+    if (!tt) return null;
+    const rev = await tt.ref.collection('revisions').doc(tt.get('currentRevisionId')).get();
+    return Object.values(rev.get('days') as Record<string, { activities: { title: string }[] }>).flatMap((d) => d.activities.map((a) => a.title));
+  }).toEqual(['Recap of week one']);
+  await expect(page.getByText(/unsupported field value/i)).toHaveCount(0);
+});

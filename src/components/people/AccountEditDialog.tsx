@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Field, fieldClasses } from '@/components/ui/Page';
 import { Notice } from '@/components/ui/States';
 import { X } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 type Section = 'role' | 'branch' | 'email';
 
@@ -64,7 +65,7 @@ export function AccountEditDialog({ person, viewerRole, branches, onClose, onSav
         onSaved(`Sign-in email updated for ${person.displayName}. They sign in with the new address from now on.`);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : (err as Error).message || 'The change couldn’t be saved.');
+      setError(err instanceof ApiError ? err.message : firestoreErrorMessage(err, 'The change couldn’t be saved.'));
       setConfirming(null);
     } finally {
       setBusy(false);

@@ -11,6 +11,7 @@ import type { UserRole } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { Card, PageHeader, fieldClasses } from '@/components/ui/Page';
 import { EmptyState, Notice } from '@/components/ui/States';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 interface Hit { id: string; displayName: string; email: string; role: UserRole; status: string; studentId: string | null }
 
@@ -26,7 +27,7 @@ function Search() {
         e.preventDefault();
         setBusy(true);
         setError(null);
-        try { setHits((await admissionsApi<{ people: Hit[] }>({ action: 'search', q })).people); } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+        try { setHits((await admissionsApi<{ people: Hit[] }>({ action: 'search', q })).people); } catch (err) { setError(firestoreErrorMessage(err, 'Something went wrong. Try again.')); } finally { setBusy(false); }
       }}>
         <input aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, email, mobile or student ID" className={`${fieldClasses} max-w-md`} />
         <Button type="submit" loading={busy} disabled={q.trim().length < 2}>Search</Button>

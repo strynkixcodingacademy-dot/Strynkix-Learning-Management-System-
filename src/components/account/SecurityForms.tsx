@@ -13,6 +13,7 @@ import { changeOwnPassword, requestOwnEmailChange } from '@/lib/account/service'
 import { Button } from '@/components/ui/Button';
 import { Field, fieldClasses } from '@/components/ui/Page';
 import { Notice } from '@/components/ui/States';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 export function ChangePasswordForm() {
   const [current, setCurrent] = useState('');
@@ -35,7 +36,7 @@ export function ChangePasswordForm() {
       setConfirm('');
       setMessage({ kind: 'success', text: 'Password changed. Use the new password next time you sign in.' });
     } catch (err) {
-      setMessage({ kind: 'error', text: (err as Error).message });
+      setMessage({ kind: 'error', text: firestoreErrorMessage(err, 'Something went wrong. Try again.') });
     } finally {
       setBusy(false);
     }
@@ -74,7 +75,7 @@ export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
       setPassword('');
       setEmail('');
     } catch (err) {
-      setMessage({ kind: 'error', text: (err as Error).message });
+      setMessage({ kind: 'error', text: firestoreErrorMessage(err, 'Something went wrong. Try again.') });
     } finally {
       setBusy(false);
     }

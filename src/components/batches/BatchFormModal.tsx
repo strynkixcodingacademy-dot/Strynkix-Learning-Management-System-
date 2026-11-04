@@ -11,6 +11,7 @@ import { TenantContext } from '@/types/auth';
 import { createBatch, getAssignableInstructors, updateBatch } from '@/lib/batches/service';
 import { MAX_BATCH_INSTRUCTORS } from '@/types/validation';
 import { AlertCircle, Layers, Loader2 } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 interface BatchFormModalProps {
   tenant: TenantContext;
@@ -153,7 +154,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
         onSaved(`Batch "${name.trim()}" created.`);
       }
     } catch (err: unknown) {
-      setFormError((err as Error).message || 'Failed to save batch.');
+      setFormError(firestoreErrorMessage(err, 'Failed to save batch.'));
     } finally {
       setIsSubmitting(false);
     }

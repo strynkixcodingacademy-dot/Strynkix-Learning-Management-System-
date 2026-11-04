@@ -61,6 +61,7 @@ import {
   PlayCircle,
   Link2,
 } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 // Authors edit quiz answers inline; they are stored separately in the
 // confidential answer key, so merge it back in for editing and preview.
@@ -443,7 +444,7 @@ function LessonBlockEditorView({
       setSuccessMsg('Revision discarded. The published version is unchanged.');
       await reloadLessonData();
     } catch (err: unknown) {
-      setError(`Failed to discard the revision: ${(err as Error).message}`);
+      setError(firestoreErrorMessage(err, 'The revision couldn’t be discarded. Try again.'));
     }
   };
   const toggleVersions = async () => {

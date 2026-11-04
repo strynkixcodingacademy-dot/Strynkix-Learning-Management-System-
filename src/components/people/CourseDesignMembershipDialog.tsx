@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Notice } from '@/components/ui/States';
 import { PenTool, X } from 'lucide-react';
 import { CourseDesignFields } from './CourseDesignFields';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 export function CourseDesignMembershipDialog({
   person,
@@ -39,7 +40,7 @@ export function CourseDesignMembershipDialog({
     try {
       onSaved(await assignCourseDesignMembership(person.id, parsed.data));
     } catch (err) {
-      setError((err as Error).message || 'Membership couldn’t be saved.');
+      setError(firestoreErrorMessage(err, 'Membership couldn’t be saved.'));
     } finally {
       setBusy(null);
     }
@@ -52,7 +53,7 @@ export function CourseDesignMembershipDialog({
       await revokeCourseDesignMembership(person.id);
       onSaved(undefined);
     } catch (err) {
-      setError((err as Error).message || 'Membership couldn’t be removed.');
+      setError(firestoreErrorMessage(err, 'Membership couldn’t be removed.'));
     } finally {
       setBusy(null);
     }

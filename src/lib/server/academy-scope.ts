@@ -113,4 +113,12 @@ export function localDate(d: Date = new Date(), timeZone = 'Asia/Kolkata'): stri
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 }
 
+/**
+ * The instant (UTC ISO) a local calendar day starts or ends in the academy's
+ * zone (Asia/Kolkata, no daylight saving), for comparing with stored timestamps.
+ * `${date}T00:00:00Z` is 05:30 local and drops everything before it.
+ */
+export const localDayStartIso = (date: string) => new Date(`${date}T00:00:00+05:30`).toISOString();
+export const localDayEndIso = (date: string) => new Date(`${date}T23:59:59.999+05:30`).toISOString();
+
 export const displayName = (a: Pick<UserProfile, 'displayName' | 'email'>) => a.displayName || a.email || 'Staff';

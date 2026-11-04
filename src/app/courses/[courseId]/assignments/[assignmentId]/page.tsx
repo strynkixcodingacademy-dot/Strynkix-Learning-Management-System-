@@ -22,6 +22,7 @@ import { canStudentSubmit, getDeadlineState, isLateSubmission } from '@/lib/lear
 import { DeadlineBadge, formatDateTime } from '@/components/learning/LearningBits';
 import { Assignment, Submission } from '@/types/domain';
 import { CheckCircle2, ClipboardList, Loader2, MessageSquare, Send } from 'lucide-react';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 interface AssignmentPageProps {
   params: Promise<{ courseId: string; assignmentId: string }>;
@@ -181,7 +182,7 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
       setNow(new Date());
       setSuccessMsg(submission ? 'Your updated submission was received.' : 'Your submission was received.');
     } catch (err) {
-      setFormError((err as Error).message || 'Submission failed. Please try again.');
+      setFormError(firestoreErrorMessage(err, 'Submission failed. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

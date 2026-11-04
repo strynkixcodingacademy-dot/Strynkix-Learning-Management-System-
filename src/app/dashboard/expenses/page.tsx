@@ -25,6 +25,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { Tabs } from '@/components/ui/Tabs';
 import { cx } from '@/components/ui/tones';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { firestoreErrorMessage } from '@/lib/firebase/errors';
 
 const METHODS: { id: PaymentMethod; label: string }[] = [{ id: 'cash', label: 'Cash' }, { id: 'upi', label: 'UPI' }, { id: 'bank_transfer', label: 'Bank transfer' }, { id: 'card', label: 'Card' }, { id: 'cheque', label: 'Cheque' }, { id: 'other', label: 'Other' }];
 type Tab = 'history' | 'recurring' | 'analysis' | 'categories';
@@ -120,7 +121,7 @@ function History({ scope, categories, version, onChanged }: { scope: FinanceScop
                   const reason = await prompt({ title: `Void “${e.title}”?`, body: 'The expense stays in the history, marked void.', label: 'Why is it being voided?', confirmLabel: 'Void expense', tone: 'danger' });
                   if (!reason) return;
                   setVoidError(null);
-                  try { await expensesApi({ action: 'void_expense', expenseId: e.id, reason }); onChanged(); } catch (err) { setVoidError((err as Error).message); }
+                  try { await expensesApi({ action: 'void_expense', expenseId: e.id, reason }); onChanged(); } catch (err) { setVoidError(firestoreErrorMessage(err, 'Something went wrong. Try again.')); }
                 }}>Void</button>}</td>
               </tr>
             ))}</tbody>
