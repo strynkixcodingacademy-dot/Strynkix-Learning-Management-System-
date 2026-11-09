@@ -24,7 +24,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import type { Tone } from '@/components/ui/tones';
 
 interface Row { id: string; title: string; courseTitle: string; lessonTitle: string | null; studentName: string; status: string; priority: string; assignedToName: string | null; messageCount: number; lastActivityAt: string; createdAt: string }
-const STATUS_TONE: Record<string, Tone> = { open: 'brand', assigned: 'lavender', in_progress: 'teal', waiting_for_student: 'warning', resolved: 'success' };
+const STATUS_TONE: Record<string, Tone> = { open: 'brand', assigned: 'info', in_progress: 'teal', waiting_for_student: 'warning', resolved: 'success' };
 
 function Ask({ onCreated }: { onCreated: (id: string) => void }) {
   const { tenant } = useAuth();
@@ -41,7 +41,7 @@ function Ask({ onCreated }: { onCreated: (id: string) => void }) {
   const active = (courses.data?.courses ?? []).filter((c) => c.enrollmentStatus === 'active');
   return (
     <Card className="space-y-3 p-5">
-      <h2 className="text-sm font-bold text-ink">Ask a doubt</h2>
+      <h2 className="type-section text-ink">Ask a doubt</h2>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Course" htmlFor="dq-course" required><select id="dq-course" value={courseId} onChange={async (e) => { setCourseId(e.target.value); setLessonId(''); const c = tenant && e.target.value ? await getCourseWithCurriculum(e.target.value, tenant.orgId).catch(() => null) : null; setLessons(c?.lessons.map((l) => ({ id: l.id, title: l.title })) ?? []); }} className={fieldClasses}><option value="">Choose</option>{active.map((c) => <option key={c.courseId} value={c.courseId}>{c.title}</option>)}</select></Field>
         <Field label="Lesson (optional)" htmlFor="dq-lesson"><select id="dq-lesson" value={lessonId} disabled={!lessons.length} onChange={(e) => setLessonId(e.target.value)} className={fieldClasses}><option value="">Not about a specific lesson</option>{lessons.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}</select></Field>
@@ -80,12 +80,12 @@ function Doubts() {
         {!student && <Field label="Priority" htmlFor="dl-pr"><select id="dl-pr" value={priority} onChange={(e) => setPriority(e.target.value)} className={fieldClasses}><option value="">All</option><option value="high">Urgent</option><option value="normal">Normal</option></select></Field>}
       </div>
       {error ? <ErrorState onRetry={reload}>{error}</ErrorState> : !data ? <LoadingState label="Loading doubts…" /> : data.doubts.length === 0 ? <EmptyState title="No doubts here">{student ? 'Questions you ask appear here with your instructors’ answers.' : 'No questions from your students match these filters.'}</EmptyState> : (
-        <ul className="space-y-2">{data.doubts.map((d) => (
-          <li key={d.id}><Link href={`/dashboard/doubts/${d.id}`}><Card interactive className="flex flex-wrap items-center gap-3 p-4">
-            <div className="min-w-0 flex-1"><div className="font-bold text-ink">{d.title}</div><div className="text-xs text-ink-3">{d.courseTitle}{d.lessonTitle ? ` · ${d.lessonTitle}` : ''}{!student ? ` · ${d.studentName}` : ''}{d.assignedToName ? ` · assigned to ${d.assignedToName}` : ''} · {d.messageCount} repl{d.messageCount === 1 ? 'y' : 'ies'} · {formatWhen(d.lastActivityAt)}</div></div>
-            {d.priority === 'high' && <StatusPill size="sm" tone="danger">Urgent</StatusPill>}
+        <ul className="divide-y divide-line rounded-card border border-line bg-surface">{data.doubts.map((d) => (
+          <li key={d.id}><Link href={`/dashboard/doubts/${d.id}`} className="group flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-muted/50">
+            <div className="min-w-0 flex-1"><div className="text-body font-medium text-ink group-hover:text-brand-ink">{d.title}</div><div className="text-xs text-ink-3">{d.courseTitle}{d.lessonTitle ? `, ${d.lessonTitle}` : ''}{!student ? `, ${d.studentName}` : ''}{d.assignedToName ? `, assigned to ${d.assignedToName}` : ''}. {d.messageCount} repl{d.messageCount === 1 ? 'y' : 'ies'}, {formatWhen(d.lastActivityAt)}</div></div>
+            {d.priority === 'high' && <StatusPill size="sm" tone="coral">Urgent</StatusPill>}
             <StatusPill size="sm" tone={STATUS_TONE[d.status]}>{DOUBT_STATUS_LABEL[d.status]}</StatusPill>
-          </Card></Link></li>
+          </Link></li>
         ))}</ul>
       )}
     </div>

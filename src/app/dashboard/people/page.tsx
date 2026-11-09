@@ -218,7 +218,7 @@ export default function PeoplePage() {
               </div>
 
               {counts.pending > 0 && statusFilter !== 'pending' && (
-                <Notice kind="warning" action={<button type="button" onClick={() => { setLoading(true); setStatusFilter('pending'); }} className="text-xs font-bold text-warning-ink underline">Review now</button>}>
+                <Notice kind="warning" action={<button type="button" onClick={() => { setLoading(true); setStatusFilter('pending'); }} className="text-xs font-semibold text-warning-ink underline">Review now</button>}>
                   {counts.pending} account{counts.pending === 1 ? ' is' : 's are'} waiting for approval.
                 </Notice>
               )}
@@ -229,7 +229,7 @@ export default function PeoplePage() {
                   <div role="tablist" aria-label="Filter by role" className="flex gap-1 overflow-x-auto rounded-xl bg-surface-muted p-1">
                     {roleTabs.map(([value, label]) => (
                       <button key={value} type="button" role="tab" aria-selected={roleFilter === value} onClick={() => { if (value !== roleFilter) { setLoading(true); setRoleFilter(value); } }}
-                        className={cx('shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors', roleFilter === value ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink')}>
+                        className={cx('shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors', roleFilter === value ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink')}>
                         {label}
                       </button>
                     ))}
@@ -253,7 +253,7 @@ export default function PeoplePage() {
                 {filtered.length === 0 ? (
                   <div className="p-6">
                     <EmptyState compact illustration="inbox" title={people.length ? 'Nobody matches these filters' : 'No people yet'}
-                      action={people.length ? <button type="button" onClick={() => { setLoading(true); setRoleFilter('all'); setStatusFilter('all'); setQ(''); }} className="text-sm font-bold text-brand-ink hover:underline">Clear filters</button>
+                      action={people.length ? <button type="button" onClick={() => { setLoading(true); setRoleFilter('all'); setStatusFilter('all'); setQ(''); }} className="text-sm font-semibold text-brand-ink hover:underline">Clear filters</button>
                         : <Link href="/dashboard/batches" className={buttonClasses('primary', 'sm')}>Open batches</Link>}>
                       {people.length ? 'Try a different role, status or search.' : 'Create students and instructors from a batch so they’re enrolled and assigned in one step.'}
                     </EmptyState>
@@ -269,12 +269,12 @@ export default function PeoplePage() {
                           <div className="flex min-w-0 items-center gap-3 md:w-[34%]">
                             <Avatar name={p.displayName || p.email} size={38} />
                             <div className="min-w-0">
-                              <Link href={`/dashboard/people/${p.id}`} className="block truncate text-sm font-bold text-ink hover:text-brand-ink">{p.displayName || 'Unnamed'}</Link>
+                              <Link href={`/dashboard/people/${p.id}`} className="block truncate text-sm font-medium text-ink hover:text-brand-ink">{p.displayName || 'Unnamed'}</Link>
                               <div className="truncate text-xs text-ink-3">{p.email}</div>
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 md:w-[22%]">
-                            <StatusPill tone={p.role === 'student' ? 'brand' : p.role === 'instructor' ? 'teal' : isContent(p.role) ? 'coral' : 'lavender'} size="sm">{ROLE_LABELS[p.role]}</StatusPill>
+                            <StatusPill tone={p.role === 'student' ? 'brand' : p.role === 'instructor' ? 'teal' : isContent(p.role) ? 'coral' : 'info'} size="sm">{ROLE_LABELS[p.role]}</StatusPill>
                             {tenant?.role === 'super_admin' && p.branchId && <span className="truncate text-xs font-semibold text-ink-3">{branchName.get(p.branchId) ?? p.branchId}</span>}
                           </div>
                           <div className="min-w-0 flex-1 text-xs text-ink-3">

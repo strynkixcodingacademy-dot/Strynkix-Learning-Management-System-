@@ -41,7 +41,7 @@ function Reviewer({ p, onDone }: { p: Row; onDone: (msg: string) => void }) {
         <Button size="sm" variant="secondary" disabled={busy || !comment.trim()} onClick={() => decide('changes')}>Request improvements</Button>
         <Button size="sm" variant="success" disabled={busy} onClick={() => decide('approve')}>Approve (verified)</Button>
       </div>
-      <p className="text-[11px] text-ink-3">Approve only after you have opened and checked the repository or demo. Approval shows as “Verified by {'{your name}'}” on the student’s portfolio.</p>
+      <p className="text-xs text-ink-3">Approve only after you have opened and checked the repository or demo. Approval shows as “Verified by {'{your name}'}” on the student’s portfolio.</p>
     </div>
   );
 }
@@ -59,7 +59,7 @@ function Queue() {
       {!data ? <LoadingState label="Loading projects…" /> : data.projects.length === 0 ? <EmptyState title="Nothing to review">Submitted projects from your batches appear here.</EmptyState> : (
         <ul className="space-y-3">{data.projects.map((p) => (
           <li key={p.id}><Card className="space-y-2 p-4">
-            <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-ink">{p.title}</span><StatusPill size="sm" tone={REVIEW_TONE[p.reviewStatus ?? 'draft']}>{REVIEW_LABEL[p.reviewStatus ?? 'draft']}</StatusPill><span className="ml-auto text-xs text-ink-3"><Link href={`/dashboard/people/${p.studentId}`} className="hover:underline">{p.studentName}</Link> · submitted {formatWhen(p.submittedAt)}</span></div>
+            <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-ink">{p.title}</span><StatusPill size="sm" tone={REVIEW_TONE[p.reviewStatus ?? 'draft']}>{REVIEW_LABEL[p.reviewStatus ?? 'draft']}</StatusPill><span className="ml-auto text-xs text-ink-3"><Link href={`/dashboard/people/${p.studentId}`} className="hover:underline">{p.studentName}</Link> · submitted {formatWhen(p.submittedAt)}</span></div>
             <p className="whitespace-pre-wrap text-sm text-ink-2">{p.description}</p>
             {p.technologies.length > 0 && <p className="text-xs text-ink-3">{p.technologies.join(' · ')}</p>}
             <div className="flex flex-wrap gap-3 text-sm">{p.repoUrl && <a href={p.repoUrl} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline">Repository</a>}{p.liveUrl && <a href={p.liveUrl} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline">Live demo</a>}</div>

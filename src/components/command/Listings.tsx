@@ -15,7 +15,7 @@ import { Card, Field, PageHeader, fieldClasses } from '@/components/ui/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
 
-const th = 'p-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-3';
+const th = 'p-2.5 text-left text-xs font-semibold text-ink-3';
 const td = 'p-2.5';
 
 function Pager({ page, total, size, onPage }: { page: number; total: number; size: number; onPage: (p: number) => void }) {

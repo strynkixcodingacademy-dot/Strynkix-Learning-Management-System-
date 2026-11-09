@@ -40,20 +40,20 @@ function ResultTable({ rows, courses }: { rows: ScoreRow[]; courses: Record<stri
   return (
     <Card className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-sm">
-        <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3">
+        <thead><tr className="border-b border-line text-left text-xs text-ink-3">
           <th className="p-3">Activity</th><th className="p-3">Attempt</th><th className="p-3">Submitted</th><th className="p-3">Status</th><th className="p-3 text-right">Marks</th><th className="p-3 text-right">%</th><th className="p-3">Result</th>
         </tr></thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-b border-line align-top last:border-0">
-              <td className="p-3"><Link href={`/courses/${r.courseId}/activities/${r.assessmentId}`} className="font-semibold text-ink hover:text-brand-ink">{r.title}</Link><div className="text-xs text-ink-3">{courses[r.courseId] ?? ''}</div>{r.released && r.feedback && <div className="mt-1 text-xs text-ink-2">Feedback: {r.feedback}</div>}</td>
+              <td className="p-3"><Link href={`/courses/${r.courseId}/activities/${r.assessmentId}`} className="font-medium text-ink hover:text-brand-ink">{r.title}</Link><div className="text-xs text-ink-3">{courses[r.courseId] ?? ''}</div>{r.released && r.feedback && <div className="mt-1 text-xs text-ink-2">Feedback: {r.feedback}</div>}</td>
               <td className="p-3">{r.attemptNumber}</td>
               <td className="p-3">{formatWhen(r.submittedAt ?? undefined)}{r.late ? <span className="ml-1 text-xs text-danger-ink">late</span> : null}</td>
               <td className="p-3">{ATTEMPT_STATUS_LABELS[r.status]}</td>
               <td className="p-3 text-right tabular-nums">{r.released ? `${r.score} / ${r.totalMarks}` : r.provisional !== null ? <span title="Provisional">{r.provisional}* / {r.totalMarks}</span> : `— / ${r.totalMarks}`}</td>
               <td className="p-3 text-right tabular-nums">{r.released ? r.percent : '—'}</td>
               <td className="p-3">
-                {r.released ? <><StatusPill size="sm" tone={r.passed ? 'success' : 'danger'}>{r.passed ? 'Passed' : 'Not passed'}</StatusPill><div className="mt-1 text-[11px] text-ink-3">Final · published {formatWhen(r.resultPublishedAt ?? undefined)}</div></>
+                {r.released ? <><StatusPill size="sm" tone={r.passed ? 'success' : 'danger'}>{r.passed ? 'Passed' : 'Not passed'}</StatusPill><div className="mt-1 text-xs text-ink-3">Final · published {formatWhen(r.resultPublishedAt ?? undefined)}</div></>
                   : <StatusPill size="sm" tone="warning">{r.provisional !== null ? 'Provisional' : 'Awaiting result'}</StatusPill>}
               </td>
             </tr>
@@ -96,24 +96,24 @@ function Scores() {
       ]} />
       {tab === 'overall' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
             <KpiTile label="Average score" value={avg ?? '—'} suffix={avg === null ? undefined : '%'} hint="Across released results" />
             <KpiTile label="Results released" value={released.length} tone="teal" />
             <KpiTile label="Passed" value={released.filter((r) => r.passed).length} tone="success" />
             <KpiTile label="Awaiting results" value={data.assessments.length - released.length} tone="warning" />
           </div>
-          {trend.length >= 2 && <Card className="p-5"><h2 className="mb-3 text-sm font-bold text-ink">Your last {trend.length} results (%)</h2><ColumnChart data={trend} label="Scores over time" /></Card>}
+          {trend.length >= 2 && <Card className="p-5"><h2 className="font-sans tracking-normal mb-3 text-sm font-semibold text-ink">Your last {trend.length} results (%)</h2><ColumnChart data={trend} label="Scores over time" /></Card>}
           <Card className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-sm">
-              <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Course</th><th className="p-3 text-right">Results</th><th className="p-3 text-right">Average</th><th className="p-3 text-right">Passed</th></tr></thead>
-              <tbody>{byCourse.map((c) => <tr key={c.id} className="border-b border-line last:border-0"><td className="p-3 font-semibold text-ink">{c.title}</td><td className="p-3 text-right">{c.count}</td><td className="p-3 text-right">{c.avg === null ? '—' : `${c.avg}%`}</td><td className="p-3 text-right">{c.passed}</td></tr>)}</tbody>
+              <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Course</th><th className="p-3 text-right">Results</th><th className="p-3 text-right">Average</th><th className="p-3 text-right">Passed</th></tr></thead>
+              <tbody>{byCourse.map((c) => <tr key={c.id} className="border-b border-line last:border-0"><td className="p-3 font-medium text-ink">{c.title}</td><td className="p-3 text-right">{c.count}</td><td className="p-3 text-right">{c.avg === null ? '—' : `${c.avg}%`}</td><td className="p-3 text-right">{c.passed}</td></tr>)}</tbody>
             </table>
           </Card>
           {data.lessonQuizzes.length > 0 && (
             <Card className="overflow-x-auto">
-              <h2 className="p-3 text-sm font-bold text-ink">Lesson knowledge checks</h2>
+              <h2 className="font-sans tracking-normal p-3 text-sm font-semibold text-ink">Lesson knowledge checks</h2>
               <table className="w-full min-w-[520px] text-sm">
-                <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Lesson</th><th className="p-3 text-right">Attempts</th><th className="p-3 text-right">Best</th><th className="p-3">Status</th></tr></thead>
+                <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Lesson</th><th className="p-3 text-right">Attempts</th><th className="p-3 text-right">Best</th><th className="p-3">Status</th></tr></thead>
                 <tbody>{data.lessonQuizzes.map((q) => <tr key={q.lessonId} className="border-b border-line last:border-0"><td className="p-3">{q.lessonTitle}</td><td className="p-3 text-right">{q.attempts}</td><td className="p-3 text-right">{q.bestPercent}%</td><td className="p-3">{q.passed ? 'Passed' : 'Not passed yet'}</td></tr>)}</tbody>
               </table>
             </Card>
@@ -126,9 +126,9 @@ function Scores() {
           <ResultTable rows={groups.assignments} courses={data.courses} />
           {data.assignments.length > 0 && (
             <Card className="overflow-x-auto">
-              <h2 className="p-3 text-sm font-bold text-ink">Daily assignments</h2>
+              <h2 className="font-sans tracking-normal p-3 text-sm font-semibold text-ink">Daily assignments</h2>
               <table className="w-full min-w-[620px] text-sm">
-                <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Assignment</th><th className="p-3">Status</th><th className="p-3 text-right">Score</th><th className="p-3">Feedback</th></tr></thead>
+                <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Assignment</th><th className="p-3">Status</th><th className="p-3 text-right">Score</th><th className="p-3">Feedback</th></tr></thead>
                 <tbody>{data.assignments.map((s) => <tr key={s.id} className="border-b border-line last:border-0"><td className="p-3">{s.title}</td><td className="p-3">{s.status.replace('_', ' ')}</td><td className="p-3 text-right">{s.score === null ? '—' : `${s.score}${s.totalPoints ? ` / ${s.totalPoints}` : ''}`}</td><td className="p-3 text-ink-2">{s.feedback ?? ''}</td></tr>)}</tbody>
               </table>
             </Card>

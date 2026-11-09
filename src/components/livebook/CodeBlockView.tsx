@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * Strynkix Live Books — code panels.
- * A dark "ink page" inside the light book: line numbers hidden from assistive
- * tech, optional highlighted lines, copy to clipboard, and light syntax colour.
+ * Strynkix Live Books — code panels, typeset like good developer documentation:
+ * filename tab, line numbers hidden from assistive tech, optional highlighted
+ * lines, copy to clipboard, and restrained syntax colour.
  */
 
 import React, { useState } from 'react';
-import { Copy, Check, FileCode } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { CodeExampleBlock } from '@/types/domain';
 import { tokenizeLine, TokenKind } from './highlight';
 
@@ -44,7 +44,7 @@ export function CopyButton({ text, label = 'Copy code' }: { text: string; label?
   );
 }
 
-/** Shared dark code panel used by code examples, worked solutions and practice starters. */
+/** Shared code panel used by code examples, worked solutions and practice starters. */
 export function CodePanel({
   code,
   language,
@@ -61,15 +61,12 @@ export function CodePanel({
   const lines = code.replace(/\n$/, '').split('\n');
   const highlight = new Set(highlightLines);
   return (
-    <figure className="my-6 overflow-hidden rounded-xl border border-code-line bg-code shadow-card">
-      <div className="flex items-center justify-between gap-3 border-b border-code-line px-4 py-2">
-        <div className="flex min-w-0 items-center gap-2 text-xs text-code-muted">
-          <FileCode className="w-4 h-4 shrink-0" aria-hidden="true" />
-          <span className="truncate font-mono">{filename || language.toLowerCase()}</span>
-        </div>
+    <figure className="my-7 overflow-hidden rounded-lg border border-code-line bg-code">
+      <div className="flex items-center justify-between gap-3 border-b border-code-line bg-surface-muted/50 py-1 pl-4 pr-1.5">
+        <span className="truncate font-mono text-xs text-code-muted">{filename || language.toLowerCase()}</span>
         <CopyButton text={code} />
       </div>
-      <div className="overflow-x-auto py-3 text-[13px] leading-6 font-mono">
+      <div className="overflow-x-auto py-3.5 font-mono text-[0.8125rem] leading-[1.7]">
         <pre className="m-0">
           <code className={`block w-max min-w-full text-code-ink language-${language.toLowerCase()}`}>
             {lines.map((line, idx) => {
@@ -80,9 +77,9 @@ export function CodePanel({
                   key={lineNum}
                   data-line={lineNum}
                   data-highlighted={isHighlighted || undefined}
-                  className={`grid grid-cols-[3rem_auto] border-l-2 pr-6 ${isHighlighted ? 'border-syn-number bg-syn-highlight' : 'border-transparent'}`}
+                  className={`grid grid-cols-[2.75rem_auto] pr-6 ${isHighlighted ? 'bg-syn-highlight' : ''}`}
                 >
-                  <span aria-hidden="true" className="select-none pr-4 text-right text-code-muted/70">{lineNum}</span>
+                  <span aria-hidden="true" className={`select-none pr-4 text-right ${isHighlighted ? 'text-warning-ink' : 'text-silver'}`}>{lineNum}</span>
                   <span className="whitespace-pre">
                     {line ? tokenizeLine(line, language).map((t, i) => (
                       <span key={i} className={TOKEN_CLASS[t.kind]}>{t.text}</span>

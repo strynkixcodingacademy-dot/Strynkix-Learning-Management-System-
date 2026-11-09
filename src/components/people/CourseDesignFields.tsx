@@ -35,14 +35,14 @@ export function CourseDesignFields({ orgId, value, onChange }: { orgId: string; 
   return (
     <div className="space-y-4">
       <fieldset className="space-y-2 rounded-xl border border-line p-3.5">
-        <legend className="px-1 text-xs font-bold uppercase tracking-wider text-ink-3">Responsibilities</legend>
+        <legend className="px-1 text-xs font-semibold text-ink-3">Responsibilities</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {COURSE_DESIGN_RESPONSIBILITIES.map((r) => {
             const checked = value.responsibilities.includes(r.id);
             return (
               <label key={r.id} className={cx('flex cursor-pointer items-start gap-2.5 rounded-lg border p-2 text-xs transition-colors', checked ? 'border-brand bg-brand-soft/50' : 'border-line hover:border-silver')}>
                 <input type="checkbox" checked={checked} onChange={() => toggleResp(r.id)} className="mt-0.5" />
-                <span><span className="block font-bold text-ink">{r.label}</span><span className="block leading-tight text-ink-3">{r.description}</span></span>
+                <span><span className="block font-semibold text-ink">{r.label}</span><span className="block leading-tight text-ink-3">{r.description}</span></span>
               </label>
             );
           })}
@@ -50,10 +50,10 @@ export function CourseDesignFields({ orgId, value, onChange }: { orgId: string; 
       </fieldset>
 
       <fieldset className="space-y-2 rounded-xl border border-line p-3.5">
-        <legend className="px-1 text-xs font-bold uppercase tracking-wider text-ink-3">Course scope</legend>
+        <legend className="px-1 text-xs font-semibold text-ink-3">Course scope</legend>
         <label className="flex cursor-pointer items-start gap-2 text-xs">
           <input type="checkbox" checked={orgWide} onChange={() => onChange({ ...value, assignedCourseIds: orgWide ? [] : [ALL_COURSES] })} className="mt-0.5" />
-          <span><span className="font-bold text-ink">Every course in this organization</span><span className="block text-ink-3">Includes courses created later. Grant only when needed.</span></span>
+          <span><span className="font-semibold text-ink">Every course in this organization</span><span className="block text-ink-3">Includes courses created later. Grant only when needed.</span></span>
         </label>
         {!orgWide && (
           loadError ? <p className="text-xs text-danger-ink">Courses couldn’t be loaded.</p>

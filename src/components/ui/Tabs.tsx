@@ -34,10 +34,9 @@ export function Tabs<T extends string>({
     onChange(items[next].id);
   };
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 overflow-x-auto border-b border-line -mx-1 px-1">
+    <div role="tablist" aria-label={label} className="flex gap-5 overflow-x-auto border-b border-line [scrollbar-width:none]">
       {items.map((item, i) => {
         const selected = item.id === value;
-        const Icon = item.icon;
         return (
           <button
             key={item.id}
@@ -53,21 +52,17 @@ export function Tabs<T extends string>({
             onClick={() => onChange(item.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cx(
-              'relative inline-flex items-center gap-2 px-3.5 py-3 text-sm font-semibold whitespace-nowrap transition-colors duration-150',
+              'relative inline-flex items-center gap-1.5 py-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 -outline-offset-2',
               selected ? 'text-ink' : 'text-ink-3 hover:text-ink'
             )}
           >
-            {Icon && <Icon className={cx('w-4 h-4', selected ? 'text-brand' : 'text-ink-4')} />}
             {item.label}
             {typeof item.count === 'number' && (
-              <span className={cx('rounded-full px-1.5 text-[11px] font-bold', selected ? 'bg-brand-soft text-brand-ink' : 'bg-surface-muted text-ink-3')}>
+              <span className={cx('rounded-full px-1.5 text-xs tabular-nums', selected ? 'bg-brand-soft text-brand-ink' : 'bg-surface-muted text-ink-3')}>
                 {item.count}
               </span>
             )}
-            <span
-              aria-hidden="true"
-              className={cx('absolute inset-x-2 -bottom-px h-[3px] rounded-full transition-all duration-200', selected ? 'bg-brand opacity-100' : 'opacity-0')}
-            />
+            <span aria-hidden="true" className={cx('absolute inset-x-0 -bottom-px h-0.5 bg-brand transition-opacity duration-150', selected ? 'opacity-100' : 'opacity-0')} />
           </button>
         );
       })}

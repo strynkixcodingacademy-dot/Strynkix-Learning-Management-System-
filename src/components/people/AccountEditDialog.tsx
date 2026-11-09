@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { ModalFrame } from '@/components/ui/Modal';
 import { correctAccount } from '@/lib/admin/service';
 import { ACADEMY_WIDE_ROLES, ProvisionableRole, manageableRoles } from '@/lib/admin/account-authority';
 import { ApiError } from '@/lib/api/authed';
@@ -84,12 +85,12 @@ export function AccountEditDialog({ person, viewerRole, branches, onClose, onSav
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" />
+    <ModalFrame onClose={onClose}>
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 cursor-default" />
       <section role="dialog" aria-modal="true" aria-label={`Edit account of ${person.displayName}`} className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-float animate-rise">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[18px] font-extrabold text-ink">Edit account</h2>
+            <h2 className="type-section text-ink">Edit account</h2>
             <p className="text-sm text-ink-3">{person.displayName} · {ROLE_LABELS[person.role]}{person.branchId ? ` · ${branchName(person.branchId)}` : ''}</p>
           </div>
           <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 hover:bg-surface-muted" aria-label="Close"><X className="h-5 w-5" /></button>
@@ -98,7 +99,7 @@ export function AccountEditDialog({ person, viewerRole, branches, onClose, onSav
 
         <div className="mt-5 space-y-6">
           <fieldset className="space-y-3">
-            <legend className="text-sm font-bold text-ink">Role</legend>
+            <legend className="text-sm font-semibold text-ink">Role</legend>
             <Field label="New role" htmlFor="ae-role">
               <select id="ae-role" value={role} onChange={(e) => { setRole(e.target.value as ProvisionableRole | ''); setConfirming(null); }} className={fieldClasses}>
                 <option value="">Keep {ROLE_LABELS[person.role]}</option>
@@ -119,7 +120,7 @@ export function AccountEditDialog({ person, viewerRole, branches, onClose, onSav
 
           {academyAdmin && hasBranch && (
             <fieldset className="space-y-3 border-t border-line pt-5">
-              <legend className="text-sm font-bold text-ink">Branch</legend>
+              <legend className="text-sm font-semibold text-ink">Branch</legend>
               <Field label="Move to branch" htmlFor="ae-branch">
                 <select id="ae-branch" value={branch} onChange={(e) => { setBranch(e.target.value); setConfirming(null); }} className={fieldClasses}>
                   <option value="">Keep {branchName(person.branchId)}</option>
@@ -132,7 +133,7 @@ export function AccountEditDialog({ person, viewerRole, branches, onClose, onSav
 
           {academyAdmin && (
             <fieldset className="space-y-3 border-t border-line pt-5">
-              <legend className="text-sm font-bold text-ink">Sign-in email</legend>
+              <legend className="text-sm font-semibold text-ink">Sign-in email</legend>
               <Field label="Email address" htmlFor="ae-email" hint="Corrects the address they sign in with. They keep their password.">
                 <input id="ae-email" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setConfirming(null); }} className={fieldClasses} />
               </Field>
@@ -141,6 +142,6 @@ export function AccountEditDialog({ person, viewerRole, branches, onClose, onSav
           )}
         </div>
       </section>
-    </div>
+    </ModalFrame>
   );
 }

@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { listStudentAssessments, type StudentAssessmentSummary } from '@/lib/assessments/service';
 import { KIND_LABELS } from '@/lib/assessments/grading';
 import { AttemptStatusPill, formatWhen } from './AttemptStatusPill';
-import { ClipboardList, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 export function LessonActivities({ courseId, lessonId }: { courseId: string; lessonId: string }) {
   const [items, setItems] = useState<StudentAssessmentSummary[] | null>(null);
@@ -28,21 +28,19 @@ export function LessonActivities({ courseId, lessonId }: { courseId: string; les
   if (!items || items.length === 0) return null;
   return (
     <section aria-labelledby="lesson-activities" className="my-12 space-y-3">
-      <h2 id="lesson-activities" className="flex items-center gap-2 text-xl font-extrabold text-ink">
-        <ClipboardList className="h-5 w-5 text-brand" aria-hidden="true" /> Lesson activities
-      </h2>
+      <h2 id="lesson-activities" className="type-section text-ink">Lesson activities</h2>
       <p className="text-sm text-ink-3">Complete these after the lesson. Your instructor sees your submissions.</p>
-      <ul className="space-y-2">
+      <ul className="divide-y divide-line rounded-card border border-line bg-surface font-sans">
         {items.map((a) => (
           <li key={a.id}>
-            <Link href={`/courses/${courseId}/activities/${a.id}`} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4 shadow-card hover:border-silver">
+            <Link href={`/courses/${courseId}/activities/${a.id}`} className="group flex flex-wrap items-center gap-3 p-4 transition-colors hover:bg-surface-muted/50">
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-ink">{a.title}</div>
-                <div className="text-xs text-ink-3">{KIND_LABELS[a.kind]} · {a.totalMarks} marks{a.closesAt ? ` · due ${formatWhen(a.closesAt)}` : ''}</div>
+                <div className="text-sm font-medium text-ink group-hover:text-brand-ink">{a.title}</div>
+                <div className="text-xs text-ink-3">{KIND_LABELS[a.kind]}, {a.totalMarks} marks{a.closesAt ? `, due ${formatWhen(a.closesAt)}` : ''}</div>
               </div>
               <AttemptStatusPill status={a.status} late={a.late} size="sm" />
-              {a.score !== undefined && <span className="text-sm font-bold text-ink">{a.score}/{a.totalMarks}</span>}
-              <ChevronRight className="h-4 w-4 text-ink-4" aria-hidden="true" />
+              {a.score !== undefined && <span className="text-sm font-medium tabular-nums text-ink">{a.score}/{a.totalMarks}</span>}
+              <ChevronRight className="h-4 w-4 text-silver" aria-hidden="true" />
             </Link>
           </li>
         ))}

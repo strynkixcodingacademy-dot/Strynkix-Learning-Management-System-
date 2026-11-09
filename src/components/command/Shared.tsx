@@ -33,23 +33,23 @@ export interface ActivityRow { id: string; label: string; academy: string | null
 export function Metric({ label, value, href, hint }: { label: string; value: React.ReactNode; href?: string; hint?: string }) {
   const body = (
     <>
-      <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-3">{label}</div>
-      <div className="mt-1 text-2xl font-extrabold tabular-nums text-ink">{value}</div>
+      <div className="text-sm text-ink-3">{label}</div>
+      <div className="type-figure mt-1.5 text-[1.75rem] text-ink [overflow-wrap:anywhere]">{value}</div>
       {hint && <div className="mt-0.5 text-xs text-ink-3">{hint}</div>}
     </>
   );
-  return href ? <Link href={href} className="block rounded-card border border-line bg-surface p-4 shadow-card hover:border-silver">{body}</Link> : <div className="rounded-card border border-line bg-surface p-4 shadow-card">{body}</div>;
+  return href ? <Link href={href} className="group block border-t border-line-strong pt-3 transition-colors hover:border-brand">{body}</Link> : <div className="border-t border-line-strong pt-3">{body}</div>;
 }
 
 export function ActivityList({ rows }: { rows: ActivityRow[] }) {
   if (!rows.length) return <p className="text-sm text-ink-3">No recorded activity yet.</p>;
   return (
-    <ul className="divide-y divide-line rounded-card border border-line bg-surface">
+    <ul className="divide-y divide-line border-y border-line">
       {rows.map((r) => (
-        <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 p-3 text-sm">
-          <span className="font-semibold text-ink">{r.label}</span>
+        <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2.5 text-sm">
+          <span className="font-medium text-ink">{r.label}</span>
           {r.amount !== null && <span className="tabular-nums text-ink-2">{formatMoney(r.amount)}</span>}
-          <span className="text-ink-3">{[r.academy, r.branch].filter(Boolean).join(' · ')}</span>
+          <span className="text-ink-3">{[r.academy, r.branch].filter(Boolean).join(', ')}</span>
           <span className="text-ink-3">by {r.by}</span>
           {r.reason && <span className="text-xs text-ink-3">“{r.reason}”</span>}
           <span className="ml-auto text-xs text-ink-3">{formatWhen(r.at ?? undefined)}</span>

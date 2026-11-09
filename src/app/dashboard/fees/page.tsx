@@ -38,29 +38,29 @@ function Account({ a }: { a: MyFeeAccount }) {
   return (
     <Card className="space-y-4 p-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-bold text-ink">{a.courseTitle}</h2>
+        <h2 className="type-section text-ink">{a.courseTitle}</h2>
         <PaymentStatusPill status={a.paymentStatus} />
         <span className="ml-auto text-xs text-ink-3">Admission {a.admissionNumber}</span>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
         <KpiTile label="Total fee" value={formatMoney(a.due)} tone="teal" />
         <KpiTile label="Paid" value={formatMoney(a.collected)} tone="success" />
-        <KpiTile label="Balance" value={formatMoney(a.balance)} tone={a.overdue > 0 ? 'coral' : 'lavender'} />
+        <KpiTile label="Balance" value={formatMoney(a.balance)} tone={a.overdue > 0 ? 'coral' : 'info'} />
         <KpiTile label="Next payment" value={a.nextDue ? formatMoney(a.nextDue.amount) : '—'} hint={a.nextDue ? `due ${formatDate(a.nextDue.dueDate)}` : 'nothing due'} tone="warning" />
       </div>
       {a.discount > 0 && <p className="text-sm text-ink-2">Includes an approved discount of {formatMoney(a.discount)} on {formatMoney(a.grossFee)}.</p>}
-      {a.overdue > 0 && <p className="text-sm font-semibold text-danger-ink">{formatMoney(a.overdue)} is overdue. Please contact your branch office.</p>}
+      {a.overdue > 0 && <p className="text-sm font-medium text-coral-ink">{formatMoney(a.overdue)} is overdue. Please contact your branch office.</p>}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[480px] text-sm">
-          <caption className="pb-2 text-left font-bold text-ink">Installments</caption>
-          <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-2">Due date</th><th className="p-2 text-right">Amount</th><th className="p-2 text-right">Paid</th><th className="p-2">Status</th></tr></thead>
+          <caption className="pb-2 text-left text-sm font-semibold text-ink">Installments</caption>
+          <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-2">Due date</th><th className="p-2 text-right">Amount</th><th className="p-2 text-right">Paid</th><th className="p-2">Status</th></tr></thead>
           <tbody>{a.installments.map((it, i) => (
             <tr key={i} className="border-b border-line last:border-0"><td className="p-2">{formatDate(it.dueDate)}</td><td className="p-2 text-right tabular-nums">{formatMoney(it.amount)}</td><td className="p-2 text-right tabular-nums">{formatMoney(it.paid)}</td><td className="p-2"><InstallmentPill state={it.state} /></td></tr>
           ))}</tbody>
         </table>
       </div>
       <div>
-        <h3 className="pb-2 font-bold text-ink">Payments and receipts</h3>
+        <h3 className="pb-2 text-sm font-semibold text-ink">Payments and receipts</h3>
         {a.entries.length === 0 ? <p className="text-sm text-ink-3">No payments recorded yet.</p> : (
           <ul className="divide-y divide-line text-sm">{a.entries.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center gap-2 py-2">

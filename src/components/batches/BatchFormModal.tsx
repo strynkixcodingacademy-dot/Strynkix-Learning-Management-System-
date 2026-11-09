@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { ModalFrame } from '@/components/ui/Modal';
 import { Batch, BatchStatus, Branch, Course, UserProfile } from '@/types/domain';
 import { TenantContext } from '@/types/auth';
 import { createBatch, getAssignableInstructors, updateBatch } from '@/lib/batches/service';
@@ -31,7 +32,7 @@ const EDITABLE_STATUSES: { value: BatchStatus; label: string }[] = [
 ];
 
 const inputClass =
-  'w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15';
+  'w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15';
 
 function toDateInput(iso?: string): string {
   return iso ? iso.slice(0, 10) : '';
@@ -160,10 +161,10 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+    <ModalFrame onClose={onClose}>
       <div className="max-w-lg w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-line">
-          <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
+          <div className="flex items-center gap-2 text-brand-ink font-semibold text-sm">
             <Layers className="w-5 h-5" />
             <span>{isEdit ? 'Edit Batch' : 'Create Batch'}</span>
           </div>
@@ -221,7 +222,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
             </div>
           </div>
           {isEdit && (
-            <p className="text-[11px] text-ink-3">Branch and course cannot be changed after a batch is created.</p>
+            <p className="text-xs text-ink-3">Branch and course cannot be changed after a batch is created.</p>
           )}
 
           <div className="grid grid-cols-3 gap-3">
@@ -252,7 +253,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
                 required
                 minLength={2}
                 maxLength={30}
-                className={`${inputClass} font-bold uppercase tracking-[0.06em]`}
+                className={`${inputClass} font-semibold  `}
               />
             </div>
           </div>
@@ -314,7 +315,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-ink-2">Instructors</label>
-              <span className="text-[11px] text-ink-3">
+              <span className="text-xs text-ink-3">
                 {instructorIds.length}/{MAX_BATCH_INSTRUCTORS} selected
               </span>
             </div>
@@ -356,7 +357,7 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
                 .map((id) => (
                   <div
                     key={id}
-                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-warning-soft border border-warning-line text-[11px] text-warning-ink"
+                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-warning-soft border border-warning-line text-xs text-warning-ink"
                   >
                     <span>
                       <span className="font-mono">{id}</span> is no longer eligible or is outside your scope.
@@ -391,6 +392,6 @@ export function BatchFormModal({ tenant, actorUid, branches, courses, batch, onC
           </div>
         </form>
       </div>
-    </div>
+    </ModalFrame>
   );
 }

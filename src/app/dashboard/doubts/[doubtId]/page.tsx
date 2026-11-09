@@ -17,7 +17,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { cx } from '@/components/ui/tones';
 import type { Tone } from '@/components/ui/tones';
 
-const TONE: Record<string, Tone> = { open: 'brand', assigned: 'lavender', in_progress: 'teal', waiting_for_student: 'warning', resolved: 'success' };
+const TONE: Record<string, Tone> = { open: 'brand', assigned: 'info', in_progress: 'teal', waiting_for_student: 'warning', resolved: 'success' };
 interface Detail {
   doubt: { id: string; title: string; body: string; references: string[]; courseTitle: string; lessonTitle: string | null; studentId: string; studentName: string; status: string; priority: string; assignedToId: string | null; assignedToName: string | null; createdAt: string };
   messages: { id: string; kind: 'message' | 'status'; body: string; authorId: string; authorName: string; authorRole: UserRole; fromStatus?: string; toStatus?: string; createdAt: string }[];
@@ -38,16 +38,16 @@ function Thread({ id }: { id: string }) {
   };
   const resolved = d.status === 'resolved';
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-5">
       <PageHeader breadcrumbs={[{ label: 'Doubts', href: '/dashboard/doubts' }, { label: d.title }]} title={d.title}
         description={`${d.courseTitle}${d.lessonTitle ? ` · ${d.lessonTitle}` : ''} · asked by ${data.isStudent ? 'you' : d.studentName} · ${formatWhen(d.createdAt)}`}
-        actions={<><StatusPill tone={TONE[d.status]}>{DOUBT_STATUS_LABEL[d.status]}</StatusPill>{d.priority === 'high' && <StatusPill tone="danger">Urgent</StatusPill>}</>} />
-      <Card className="space-y-2 p-5"><p className="whitespace-pre-wrap text-sm text-ink">{d.body}</p>{d.references.length > 0 && <ul className="text-sm">{d.references.map((r) => <li key={r}><a href={r} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline">{r}</a></li>)}</ul>}</Card>
+        actions={<><StatusPill tone={TONE[d.status]}>{DOUBT_STATUS_LABEL[d.status]}</StatusPill>{d.priority === 'high' && <StatusPill tone="coral">Urgent</StatusPill>}</>} />
+      <div className="space-y-2"><p className="whitespace-pre-wrap font-reading text-[1.0625rem] leading-relaxed text-ink">{d.body}</p>{d.references.length > 0 && <ul className="text-sm">{d.references.map((r) => <li key={r}><a href={r} target="_blank" rel="noopener noreferrer" className="text-brand-ink underline">{r}</a></li>)}</ul>}</div>
       <ol className="space-y-2" aria-label="Discussion">{data.messages.map((m) => m.kind === 'status' ? (
         <li key={m.id} className="text-center text-xs text-ink-3">{m.authorName} {m.toStatus && m.fromStatus !== m.toStatus ? `changed the status to “${DOUBT_STATUS_LABEL[m.toStatus]}”` : ''}{m.body ? ` — ${m.body}` : ''} · {formatWhen(m.createdAt)}</li>
       ) : (
-        <li key={m.id} className={cx('rounded-xl border p-3 text-sm', m.authorId === d.studentId ? 'border-line bg-surface' : 'border-brand-line bg-brand-soft/40')}>
-          <div className="mb-1 text-xs text-ink-3"><strong className="text-ink">{m.authorName}</strong> · {m.authorId === d.studentId ? 'Student' : ROLE_LABELS[m.authorRole]} · {formatWhen(m.createdAt)}</div>
+        <li key={m.id} className={cx('rounded-lg p-3.5 text-sm', m.authorId === d.studentId ? 'border border-line bg-surface' : 'bg-brand-soft/60')}>
+          <div className="mb-1 text-xs text-ink-3"><span className="font-medium text-ink">{m.authorName}</span>, {m.authorId === d.studentId ? 'Student' : ROLE_LABELS[m.authorRole]}, {formatWhen(m.createdAt)}</div>
           <p className="whitespace-pre-wrap text-ink">{m.body}</p>
         </li>
       ))}</ol>

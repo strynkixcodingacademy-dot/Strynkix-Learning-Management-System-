@@ -74,7 +74,7 @@ export function StudentAnalytics() {
 
   return (
     <div className="space-y-8">
-      <PageHeader eyebrow="Your learning" title="My Progress" description="How you’re doing across your courses. Each number says exactly what it counts." />
+      <PageHeader title="My Progress" description="How you’re doing across your courses. Each number says exactly what it counts." />
 
       {loading ? (
         <LoadingState label="Loading your progress…" rows={4} />
@@ -91,7 +91,7 @@ export function StudentAnalytics() {
               hint={ratioHint(metrics.learningCompletion, 'lessons planned up to today.', 'No lessons planned for you yet.')} />
             <KpiTile label="Assignments submitted" value={pct(metrics.submissionRate.percentage)} suffix={metrics.submissionRate.percentage === null ? undefined : '%'} icon={ClipboardCheck} tone="teal"
               hint={`${ratioHint(metrics.submissionRate, 'with a passed deadline.', 'No deadline has passed yet.')} ${metrics.upcomingAssignments} upcoming.`} />
-            <KpiTile label="Average mark" value={pct(metrics.assessment.percentage)} suffix={metrics.assessment.percentage === null ? undefined : '%'} icon={Trophy} tone="lavender"
+            <KpiTile label="Average mark" value={pct(metrics.assessment.percentage)} suffix={metrics.assessment.percentage === null ? undefined : '%'} icon={Trophy} tone="info"
               hint={`From ${metrics.assessment.gradedCount} graded piece${metrics.assessment.gradedCount === 1 ? '' : 's'} of work.`} />
             <KpiTile label="Overdue" value={metrics.overdueLessons.length + metrics.overdueAssignments.length} icon={Clock3} tone="coral"
               hint={`${metrics.overdueLessons.length} lesson${metrics.overdueLessons.length === 1 ? '' : 's'}, ${metrics.overdueAssignments.length} assignment${metrics.overdueAssignments.length === 1 ? '' : 's'} past due.`} />
@@ -99,19 +99,19 @@ export function StudentAnalytics() {
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <Card className="p-5 sm:p-6">
-              <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-ink"><Activity className="h-4 w-4 text-brand" /> Your activity, last 14 days</h2>
+              <h2 className="font-sans tracking-normal flex items-center gap-2 text-base font-semibold text-ink"><Activity className="h-4 w-4 text-brand" /> Your activity, last 14 days</h2>
               <p className="text-xs text-ink-3">Lessons completed plus assignments submitted, per day.</p>
               <div className="mt-5"><ColumnChart label="Learning activity per day" data={days} /></div>
             </Card>
             <Card className="p-5 sm:p-6">
-              <h2 className="text-[16px] font-extrabold text-ink">Course completion</h2>
+              <h2 className="font-sans tracking-normal text-base font-semibold text-ink">Course completion</h2>
               <ul className="mt-4 space-y-4">
                 {overviews.map((o) => (
                   <li key={o.course.id}>
                     <Link href={`/courses/${o.course.id}`} className="group flex items-center gap-3">
                       <CourseIcon course={o.course} size="sm" />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-bold text-ink group-hover:text-brand-ink">{o.course.title}</span>
+                        <span className="block truncate text-sm font-semibold text-ink group-hover:text-brand-ink">{o.course.title}</span>
                         <span className="block text-xs text-ink-3">{o.courseCompletion.completed} of {o.courseCompletion.total} lessons</span>
                       </span>
                     </Link>
@@ -141,13 +141,13 @@ export function StudentAnalytics() {
                 {graded.map(({ s, a, course }) => (
                   <Link key={s.id} href={`/courses/${course.id}/assignments/${a!.id}`} className="flex flex-col gap-2 px-4 py-3.5 hover:bg-canvas sm:flex-row sm:items-center sm:px-5">
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-ink">{a!.title}</div>
+                      <div className="truncate text-sm font-semibold text-ink">{a!.title}</div>
                       <div className="text-xs text-ink-3">{course.title} · submitted {formatDateTime(s.submittedAt)}</div>
                     </div>
                     {s.status === 'graded' ? (
                       <span className="flex items-center gap-2">
                         <StatusPill tone="success" icon={CircleCheck} size="sm">Graded</StatusPill>
-                        <span className="text-sm font-extrabold tabular-nums text-ink">{s.score}<span className="text-ink-3">/{a!.totalPoints}</span></span>
+                        <span className="text-sm font-semibold tabular-nums text-ink">{s.score}<span className="text-ink-3">/{a!.totalPoints}</span></span>
                       </span>
                     ) : s.status === 'resubmit_requested' ? (
                       <StatusPill tone="coral" icon={MessageSquareWarning} size="sm">Correction requested</StatusPill>

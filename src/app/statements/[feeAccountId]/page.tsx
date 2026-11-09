@@ -18,17 +18,17 @@ function Statement({ id }: { id: string }) {
   if (error) return <ErrorState>{error}</ErrorState>;
   if (!data) return <LoadingState label="Loading…" />;
   const a = data.account;
-  const th = 'border-b border-[#1d1d1f] p-1.5 text-left';
-  const td = 'border-b border-[#e5e5ea] p-1.5';
+  const th = 'border-b border-ink p-1.5 text-left';
+  const td = 'border-b border-line p-1.5';
   return (
     <PrintFrame back={`/dashboard/finance/accounts/${a.id}`} title="Fee statement">
       <DocHeader academy="Strynkix Coding Academy" branch={`Branch ${a.branchId}`} title="Fee statement" meta={<>{a.admissionNumber}<br />As of {formatDate(new Date().toISOString())}</>} />
       <p><strong>{a.studentName}</strong> · {a.courseTitle}</p>
       <p className="mt-1">Standard fee {formatMoney(a.grossFee)}{a.discount.status === 'approved' && a.discount.amount ? ` · discount ${formatMoney(a.discount.amount)}` : ''}{a.totals.adjustments ? ` · adjustments ${formatMoney(a.totals.adjustments)}` : ''} · <strong>amount due {formatMoney(a.due)}</strong> · paid {formatMoney(a.collected)} · <strong>balance {formatMoney(a.balance)}</strong></p>
-      <h2 className="mb-1 mt-5 font-bold">Installments</h2>
+      <h2 className="mb-1 mt-5 font-semibold">Installments</h2>
       <table className="w-full border-collapse"><thead><tr><th className={th}>#</th><th className={th}>Due</th><th className={th}>Amount</th><th className={th}>Paid</th><th className={th}>Remaining</th><th className={th}>Status</th></tr></thead>
         <tbody>{a.allocation.map((i) => <tr key={i.number}><td className={td}>{i.number}</td><td className={td}>{formatDate(i.dueDate)}</td><td className={td}>{formatMoney(i.amount)}</td><td className={td}>{formatMoney(i.paid)}</td><td className={td}>{formatMoney(i.remaining)}</td><td className={td}>{i.state.replace('_', ' ')}</td></tr>)}</tbody></table>
-      <h2 className="mb-1 mt-5 font-bold">Transactions</h2>
+      <h2 className="mb-1 mt-5 font-semibold">Transactions</h2>
       <table className="w-full border-collapse"><thead><tr><th className={th}>Date</th><th className={th}>Entry</th><th className={th}>Receipt</th><th className={th}>Amount</th><th className={th}>Details</th></tr></thead>
         <tbody>{data.transactions.map((t) => <tr key={t.id}><td className={td}>{formatDate(t.date)}</td><td className={td}>{t.type}{t.reversed ? ' (reversed)' : ''}</td><td className={td}>{t.receiptNumber ?? ''}</td><td className={td}>{formatMoney(t.amount)}</td><td className={td}>{[t.method, t.reference, t.reason].filter(Boolean).join(' · ')}</td></tr>)}</tbody></table>
     </PrintFrame>

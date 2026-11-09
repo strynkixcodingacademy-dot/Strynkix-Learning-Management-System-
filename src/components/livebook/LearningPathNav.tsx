@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Strynkix Live Books — "Learning Path" sidebar: modules as collapsible groups,
- * lessons numbered "m.l" with their status. Used on the lesson page.
+ * Strynkix Live Books — the book's contents in the margin of a lesson page:
+ * modules as collapsible chapters, lessons numbered "m.l" with their status.
  */
 
 import React, { useState } from 'react';
@@ -10,17 +10,19 @@ import Link from 'next/link';
 import { Lesson, Module, Progress } from '@/types/domain';
 import { lessonStatus, numberCurriculum } from '@/lib/livebook/structure';
 import { cx } from '@/components/ui/tones';
-import { ChevronDown, ListTree } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 
+/** A lesson's place in the sequence: its number, a tick when done, a filled ring while in progress. */
 export function NumberBadge({ number, status, active }: { number: string; status: 'completed' | 'in_progress' | 'not_started'; active?: boolean }) {
   return (
     <span className={cx(
-      'flex h-10 w-10 shrink-0 items-center justify-center text-[12px] font-semibold tabular-nums',
-      status === 'completed' ? 'rounded-md bg-success-ink text-white'
-        : status === 'in_progress' ? 'rounded-md bg-ink-2 text-white'
-          : active ? 'rounded-full border-2 border-brand bg-surface text-brand-ink' : 'rounded-full border border-line bg-surface text-ink-2'
+      'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium',
+      status === 'completed' ? 'bg-success text-white'
+        : active ? 'bg-brand text-white'
+          : status === 'in_progress' ? 'border-2 border-brand bg-surface text-brand-ink'
+            : 'border border-line-strong bg-surface text-ink-3'
     )}>
-      {number}
+      {status === 'completed' ? <><Check className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /><span className="sr-only">{number}, completed</span></> : number}
     </span>
   );
 }
@@ -43,12 +45,9 @@ export function LearningPathNav({
   const [open, setOpen] = useState<Record<string, boolean>>(() => (activeModule ? { [activeModule]: true } : {}));
 
   return (
-    <nav aria-label="Learning Path" className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-dashed border-line-strong px-6 py-5">
-        <ListTree className="h-4 w-4 text-ink-2" aria-hidden="true" />
-        <span className="text-[15px] font-extrabold text-ink">Learning Path</span>
-      </div>
-      <ol className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
+    <nav aria-label="Learning Path">
+      <h2 className="type-section mb-3 text-ink">Contents</h2>
+      <ol className="space-y-1">
         {numbered.map((m) => {
           const isOpen = open[m.module.id] ?? false;
           return (
@@ -57,14 +56,14 @@ export function LearningPathNav({
                 type="button"
                 onClick={() => setOpen((o) => ({ ...o, [m.module.id]: !isOpen }))}
                 aria-expanded={isOpen}
-                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-canvas"
+                className="flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-left transition-colors hover:bg-surface-muted"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-line-strong bg-surface text-sm font-semibold text-ink">{m.number}</span>
-                <span className="min-w-0 flex-1 text-[14px] font-semibold text-ink">{m.module.title}</span>
-                <ChevronDown className={cx('h-4 w-4 text-ink-3 transition-transform', isOpen && 'rotate-180')} aria-hidden="true" />
+                <span className="font-display text-base text-ink-3">{m.number}</span>
+                <span className="min-w-0 flex-1 text-sm font-medium text-ink">{m.module.title}</span>
+                <ChevronDown className={cx('h-3.5 w-3.5 shrink-0 self-center text-ink-3 transition-transform duration-150', isOpen && 'rotate-180')} aria-hidden="true" />
               </button>
               {isOpen && (
-                <ol className="mt-1 space-y-1 border-t border-line pt-2 pl-2">
+                <ol className="mb-2 space-y-px pl-1">
                   {m.lessons.map(({ lesson, number }) => {
                     const active = lesson.id === activeLessonId;
                     return (
@@ -72,10 +71,10 @@ export function LearningPathNav({
                         <Link
                           href={`/courses/${courseId}/units/${lesson.id}`}
                           aria-current={active ? 'page' : undefined}
-                          className="flex items-center gap-3 rounded-lg px-1 py-1.5 hover:bg-canvas"
+                          className={cx('flex items-center gap-2.5 rounded-md px-1.5 py-1.5 transition-colors', active ? 'bg-brand-soft' : 'hover:bg-surface-muted')}
                         >
                           <NumberBadge number={number} status={lessonStatus(progress, lesson.id)} active={active} />
-                          <span className={cx('text-[14px] leading-snug', active ? 'font-semibold text-brand-ink' : 'text-ink-2')}>{lesson.title}</span>
+                          <span className={cx('text-sm leading-snug', active ? 'font-medium text-brand-ink' : 'text-ink-2')}>{lesson.title}</span>
                         </Link>
                       </li>
                     );

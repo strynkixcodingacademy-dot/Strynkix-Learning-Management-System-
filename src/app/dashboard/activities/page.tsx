@@ -45,8 +45,8 @@ function StudentActivities() {
           const registered = a.registration?.status === 'registered';
           return (
             <li key={a.id}><Card className="flex h-full flex-col gap-2 p-4">
-              <div className="flex flex-wrap items-center gap-2"><StatusPill size="sm" tone="lavender">{TYPE_LABEL[a.type]}</StatusPill>{registered && <StatusPill size="sm" tone="success">Registered</StatusPill>}</div>
-              <div className="text-lg font-extrabold text-ink">{a.title}</div>
+              <div className="flex flex-wrap items-center gap-2"><StatusPill size="sm" tone="info">{TYPE_LABEL[a.type]}</StatusPill>{registered && <StatusPill size="sm" tone="success">Registered</StatusPill>}</div>
+              <div className="text-lg font-semibold text-ink">{a.title}</div>
               <div className="text-sm text-ink-3">{formatWhen(a.startsAt)} – {formatWhen(a.endsAt)} · {a.mode === 'online' ? 'Online' : a.location || 'In person'} · by {a.organizerName}</div>
               {a.description && <p className="whitespace-pre-wrap text-sm text-ink-2">{a.description}</p>}
               <div className="text-xs text-ink-3">{a.seatsLeft === null ? 'Open to all eligible students' : `${a.seatsLeft} of ${a.capacity} seats left`} · registration closes {formatWhen(a.registrationDeadline)}</div>
@@ -145,7 +145,7 @@ function StaffActivities() {
       {data.activities.length === 0 ? <EmptyState title="No activities yet">Create the first one with “New activity”.</EmptyState> : (
         <ul className="space-y-3">{data.activities.map((a) => (
           <li key={a.id}><Card className="space-y-2 p-4">
-            <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-ink">{a.title}</span><StatusPill size="sm" tone="lavender">{TYPE_LABEL[a.type]}</StatusPill><StatusPill size="sm" tone={a.status === 'scheduled' ? 'brand' : a.status === 'completed' ? 'success' : 'neutral'}>{a.status}</StatusPill><span className="ml-auto text-xs text-ink-3">{formatWhen(a.startsAt)} · {a.branchId ? 'Branch' : 'Academy-wide'} · {a.registeredCount}{a.capacity ? ` / ${a.capacity}` : ''} registered</span></div>
+            <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-ink">{a.title}</span><StatusPill size="sm" tone="info">{TYPE_LABEL[a.type]}</StatusPill><StatusPill size="sm" tone={a.status === 'scheduled' ? 'brand' : a.status === 'completed' ? 'success' : 'neutral'}>{a.status}</StatusPill><span className="ml-auto text-xs text-ink-3">{formatWhen(a.startsAt)} · {a.branchId ? 'Branch' : 'Academy-wide'} · {a.registeredCount}{a.capacity ? ` / ${a.capacity}` : ''} registered</span></div>
             {a.cancelReason && <p className="text-xs text-ink-3">Cancelled: {a.cancelReason}</p>}
             {a.canManage && (
               <div className="flex flex-wrap gap-2">

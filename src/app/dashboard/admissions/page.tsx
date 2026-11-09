@@ -42,10 +42,10 @@ function Admissions() {
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Student</th><th className="p-3">Admission no.</th><th className="p-3">Contact</th><th className="p-3">{tab === 'draft' ? 'Last saved' : 'Confirmed'}</th><th className="p-3" /></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Student</th><th className="p-3">Admission no.</th><th className="p-3">Contact</th><th className="p-3">{tab === 'draft' ? 'Last saved' : 'Confirmed'}</th><th className="p-3" /></tr></thead>
             <tbody>{data.admissions.map((a) => (
               <tr key={a.id} className="border-b border-line last:border-0">
-                <td className="p-3 font-semibold text-ink">{a.name || 'Unnamed draft'}</td>
+                <td className="p-3 font-medium text-ink">{a.name || 'Unnamed draft'}</td>
                 <td className="p-3">{a.admissionNumber ?? <StatusPill size="sm" tone="warning">Draft</StatusPill>}</td>
                 <td className="p-3 text-ink-2">{a.email}<div className="text-xs text-ink-3">{a.mobile}</div></td>
                 <td className="p-3">{formatDate(a.confirmedAt ?? a.updatedAt)}</td>

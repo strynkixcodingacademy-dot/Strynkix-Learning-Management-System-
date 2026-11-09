@@ -79,7 +79,7 @@ function Portfolio() {
       {editing && <Editor initial={editing.draft} entryId={editing.id} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
       {suggestions.length > 0 && !editing && (
         <Card className="space-y-2 p-4 print:hidden">
-          <h2 className="text-sm font-bold text-ink">Add your evaluated course work</h2>
+          <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">Add your evaluated course work</h2>
           {suggestions.map((w) => (
             <div key={w.attemptId} className="flex flex-wrap items-center gap-3 text-sm">
               <span className="min-w-0 flex-1"><strong>{w.title}</strong> · {w.courseTitle}</span>
@@ -97,7 +97,7 @@ function Portfolio() {
                 <img src={e.imageUrl} alt={`Screenshot of ${e.title}`} className="aspect-video w-full rounded-lg border border-line object-cover" loading="lazy" referrerPolicy="no-referrer" />
               )}
               <div className="flex items-start justify-between gap-2">
-                <h3 className="text-lg font-extrabold text-ink">{e.title}</h3>
+                <h3 className="text-lg font-semibold text-ink">{e.title}</h3>
                 {!e.visible && <StatusPill size="sm">Hidden</StatusPill>}
               </div>
               <p className="whitespace-pre-wrap text-sm text-ink-2">{e.description}</p>

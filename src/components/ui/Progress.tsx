@@ -23,7 +23,7 @@ export function ProgressBar({
       aria-valuemax={100}
       aria-valuenow={value ?? undefined}
       aria-valuetext={value === null ? 'Nothing to measure yet' : `${value}%`}
-      className={cx('w-full overflow-hidden rounded-full bg-surface-sunken', size === 'sm' ? 'h-1.5' : 'h-2', className)}
+      className={cx('w-full overflow-hidden rounded-full bg-surface-sunken', size === 'sm' ? 'h-1' : 'h-1.5', className)}
     >
       <div
         className={cx('h-full rounded-full transition-[width] duration-500 ease-out', TONE_CLASSES[tone].solid)}
@@ -47,7 +47,7 @@ export function ProgressRing({
   label: string;
   children?: React.ReactNode;
 }) {
-  const stroke = 6;
+  const stroke = Math.max(3, Math.round(size / 14));
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, value ?? 0));
@@ -60,7 +60,7 @@ export function ProgressRing({
           strokeDasharray={c} strokeDashoffset={c - (pct / 100) * c}
           className={cx(TONE_CLASSES[tone].ring, 'transition-[stroke-dashoffset] duration-700 ease-out')} />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-ink">{children}</span>
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums text-ink">{children}</span>
     </div>
   );
 }

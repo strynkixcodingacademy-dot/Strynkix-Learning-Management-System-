@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { ModalFrame } from '@/components/ui/Modal';
 import Link from 'next/link';
 import { PageHeader, fieldClasses } from '@/components/ui/Page';
 import { buttonClasses } from '@/components/ui/Button';
@@ -303,7 +304,7 @@ Please sign in and set up your batches and instructors!`;
       <AppShell>
         <div className="space-y-6">
           <PageHeader
-            eyebrow="Academy network"
+           
             title="Branches"
             description="Your academy’s campuses and franchises. Open a branch to see its batches, people and performance."
             actions={<>
@@ -377,42 +378,39 @@ Please sign in and set up your batches and instructors!`;
                 const managers = managersByBranch[b.id]?.length ? managersByBranch[b.id] : linked;
                 return (
                   <article key={b.id} className="group relative flex flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-silver hover:shadow-lift">
-                    <span aria-hidden="true" className="h-1 bg-gradient-to-r from-brand via-teal to-highlight" />
                     <div className="flex flex-1 flex-col gap-4 p-5">
                       <div className="flex items-start justify-between gap-3">
-                        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-line bg-brand-soft text-brand-ink">
-                          {b.location?.isRemote ? <Laptop className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
-                        </span>
+                        <span className="text-ink-3">{b.location?.isRemote ? <Laptop className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" /> : <MapPin className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />}</span>
                         <div className="flex items-center gap-1.5">
-                          {b.code && <span className="rounded-md border border-line bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-ink-2">{b.code}</span>}
-                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold capitalize ${b.status === 'active' ? 'border-success-line bg-success-soft text-success-ink' : 'border-danger-line bg-danger-soft text-danger-ink'}`}>{b.status}</span>
+                          {b.code && <span className="rounded-md border border-line bg-surface-muted px-2 py-0.5 text-xs font-semibold text-ink-2">{b.code}</span>}
+                          <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold capitalize ${b.status === 'active' ? 'border-success-line bg-success-soft text-success-ink' : 'border-danger-line bg-danger-soft text-danger-ink'}`}>{b.status}</span>
                         </div>
                       </div>
                       <div>
-                        <h3 className="text-[17px] font-extrabold tracking-tight text-ink">
+                        <h3 className="text-lg font-semibold text-ink">
                           <Link href={`/dashboard/branches/${b.id}`} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">{b.name}</Link>
                         </h3>
                         <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink-3"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{place}</p>
                       </div>
                       <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
                         <div className="min-w-0">
-                          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-4">Branch managers</div>
+                          <div className="text-xs font-semibold text-ink-4">Branch managers</div>
                           <div className="truncate text-sm font-semibold text-ink-2">
                             {managers.length ? managers.map((m) => m!.displayName).join(', ') : 'None assigned yet'}
                           </div>
                         </div>
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-brand-ink">Open <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-ink">Open <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleOpenAddManager(b)}
-                        className="relative z-10 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-muted px-3 py-2 text-[13px] font-bold text-ink transition hover:border-brand-line hover:bg-brand-soft hover:text-brand-ink"
+                        className="relative z-10 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-muted px-3 py-2 text-sm font-semibold text-ink transition hover:border-brand-line hover:bg-brand-soft hover:text-brand-ink"
                       >
                         <UserPlus className="w-4 h-4 text-brand-ink" />
                         Add Branch Manager
                       </button>
                       <button type="button" onClick={() => setEditingBranch(b)}
-                        className="relative z-10 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-line px-3 py-2 text-[13px] font-bold text-ink-2 transition hover:border-line-strong hover:bg-surface-muted">
+                        className="relative z-10 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-ink-2 transition hover:border-line-strong hover:bg-surface-muted">
                         <Pencil className="w-4 h-4" /> Edit or deactivate
                       </button>
                     </div>
@@ -434,10 +432,10 @@ Please sign in and set up your batches and instructors!`;
 
           {/* Create Branch Modal */}
           {showCreateModal && (
-            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+            <ModalFrame onClose={() => setShowCreateModal(false)}>
               <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
-                  <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
+                  <div className="flex items-center gap-2 text-brand-ink font-semibold text-sm">
                     <Building2 className="w-5 h-5" />
                     <span>Create Branch Campus</span>
                   </div>
@@ -467,7 +465,7 @@ Please sign in and set up your batches and instructors!`;
                         value={targetOrgId}
                         onChange={(e) => setTargetOrgId(e.target.value)}
                         required
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
+                        className="font-mono w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       >
                         {organizations.map((org) => (
                           <option key={org.id} value={org.id}>
@@ -480,7 +478,7 @@ Please sign in and set up your batches and instructors!`;
                         type="text"
                         value={tenant?.orgId || ''}
                         disabled
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink-3 font-mono"
+                        className="font-mono w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink-3"
                       />
                     )}
                   </div>
@@ -496,7 +494,7 @@ Please sign in and set up your batches and instructors!`;
                       onChange={(e) => setBranchId(e.target.value)}
                       placeholder="e.g. branch_mumbai, branch_blr"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
+                      className="font-mono w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -512,7 +510,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Mumbai Campus"
                         required
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                     <div className="space-y-1">
@@ -525,7 +523,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setCode(e.target.value)}
                         placeholder="MUM-01"
                         required
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono uppercase"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                       />
                     </div>
                   </div>
@@ -539,7 +537,7 @@ Please sign in and set up your batches and instructors!`;
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                         placeholder="e.g. Mumbai"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                     <div className="space-y-1">
@@ -549,7 +547,7 @@ Please sign in and set up your batches and instructors!`;
                         value={stateName}
                         onChange={(e) => setStateName(e.target.value)}
                         placeholder="e.g. Maharashtra"
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                   </div>
@@ -565,7 +563,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setCountry(e.target.value)}
                         placeholder="India"
                         required
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                     <div className="pt-5">
@@ -600,15 +598,15 @@ Please sign in and set up your batches and instructors!`;
                   </div>
                 </form>
               </div>
-            </div>
+            </ModalFrame>
           )}
 
           {/* Add Manager Modal */}
           {showAddManagerModal && selectedBranchForManager && (
-            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+            <ModalFrame onClose={() => setShowAddManagerModal(false)}>
               <div className="max-w-md w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
-                  <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
+                  <div className="flex items-center gap-2 text-brand-ink font-semibold text-sm">
                     <UserPlus className="w-5 h-5" />
                     <span>Add Branch Manager</span>
                   </div>
@@ -624,7 +622,7 @@ Please sign in and set up your batches and instructors!`;
                   <div className="font-semibold text-ink">
                     Assigning to: {selectedBranchForManager.name} ({selectedBranchForManager.code})
                   </div>
-                  <div className="text-ink-3 text-[11px]">
+                  <div className="text-ink-3 text-xs">
                     Branch ID: {selectedBranchForManager.id} • Org: {selectedBranchForManager.orgId}
                   </div>
                 </div>
@@ -648,7 +646,7 @@ Please sign in and set up your batches and instructors!`;
                       onChange={(e) => setManagerName(e.target.value)}
                       placeholder="e.g. Priya Sharma"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -663,7 +661,7 @@ Please sign in and set up your batches and instructors!`;
                       onChange={(e) => setManagerEmail(e.target.value)}
                       placeholder="manager@strynkix.com"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -676,7 +674,7 @@ Please sign in and set up your batches and instructors!`;
                       <button
                         type="button"
                         onClick={handleGeneratePassword}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-ink hover:underline"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-ink hover:underline"
                       >
                         <Sparkles className="w-3 h-3" />
                         <span>Generate Strong Password</span>
@@ -689,7 +687,7 @@ Please sign in and set up your batches and instructors!`;
                         onChange={(e) => setManagerPassword(e.target.value)}
                         placeholder="••••••••••••"
                         required
-                        className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
+                        className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                       />
                       <button
                         type="button"
@@ -721,47 +719,47 @@ Please sign in and set up your batches and instructors!`;
                   </div>
                 </form>
               </div>
-            </div>
+            </ModalFrame>
           )}
 
           {/* Credentials Share Modal */}
           {createdCredentials && (
-            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+            <ModalFrame>
               <div className="max-w-md w-full rounded-2xl bg-surface border border-success-line shadow-lift p-6 space-y-5 animate-in fade-in-50 zoom-in-95">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-success-soft border border-success-line flex items-center justify-center text-success-ink">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-ink">Manager Account Created!</h3>
+                    <h3 className="text-base font-semibold text-ink">Manager Account Created!</h3>
                     <p className="text-xs text-ink-3">Share these credentials directly with your branch manager.</p>
                   </div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-surface-muted border border-line space-y-2.5 text-xs">
-                  <div className="flex items-center justify-between pb-2 border-b border-line text-[11px] text-ink-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-line text-xs text-ink-3">
                     <span>Role:</span>
                     <span className="font-semibold text-brand-ink">Branch Manager</span>
                   </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-line text-[11px] text-ink-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-line text-xs text-ink-3">
                     <span>Campus:</span>
                     <span className="text-ink font-semibold">{createdCredentials.branchName}</span>
                   </div>
                   <div className="space-y-1 pt-1">
-                    <span className="text-[11px] text-ink-3">Login URL:</span>
-                    <div className="p-2 rounded bg-surface border border-line text-ink break-all select-all text-[11px]">
+                    <span className="text-xs text-ink-3">Login URL:</span>
+                    <div className="p-2 rounded bg-surface border border-line text-ink break-all select-all text-xs">
                       {createdCredentials.loginUrl}
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[11px] text-ink-3">Email:</span>
+                    <span className="text-xs text-ink-3">Email:</span>
                     <div className="p-2 rounded bg-surface border border-line text-ink select-all">
                       {createdCredentials.email}
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[11px] text-ink-3">Temporary Password:</span>
-                    <div className="p-2 rounded bg-surface border border-line text-ink font-bold select-all flex items-center justify-between">
+                    <span className="text-xs text-ink-3">Temporary Password:</span>
+                    <div className="p-2 rounded bg-surface border border-line text-ink font-semibold select-all flex items-center justify-between">
                       <span>{createdCredentials.password}</span>
                     </div>
                   </div>
@@ -786,7 +784,7 @@ Please sign in and set up your batches and instructors!`;
                   </button>
                 </div>
               </div>
-            </div>
+            </ModalFrame>
           )}
         </div>
       </AppShell>

@@ -105,7 +105,7 @@ export function QuizResultsTable({ rows, contextLabel, scopeFor, emptyText, show
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3">
+          <thead className="text-xs font-semibold text-ink-3">
             <tr className="border-b border-line">
               <th className="px-4 py-2.5" scope="col"><span className="sr-only">Expand</span></th>
               <th className="px-2 py-2.5" scope="col">Lesson</th>
@@ -130,10 +130,10 @@ export function QuizResultsTable({ rows, contextLabel, scopeFor, emptyText, show
                         {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </button>
                     </td>
-                    <td className="px-2 py-2.5 font-semibold text-ink">{r.lessonTitle}</td>
+                    <td className="px-2 py-2.5 font-medium text-ink">{r.lessonTitle}</td>
                     <td className="px-2 py-2.5 text-ink-2">{r.context}</td>
                     <td className="px-2 py-2.5 text-ink-2">{q.attemptCount}</td>
-                    <td className="px-2 py-2.5 font-semibold text-ink">{q.bestPercent}%</td>
+                    <td className="px-2 py-2.5 font-medium text-ink">{q.bestPercent}%</td>
                     <td className="px-2 py-2.5 text-ink-2">{q.lastPercent}%</td>
                     <td className="px-2 py-2.5">
                       {q.passed ? <StatusPill tone="success" size="sm" icon={CircleCheck}>Passed</StatusPill> : <StatusPill tone="warning" size="sm" icon={RotateCcw}>Not passed yet</StatusPill>}

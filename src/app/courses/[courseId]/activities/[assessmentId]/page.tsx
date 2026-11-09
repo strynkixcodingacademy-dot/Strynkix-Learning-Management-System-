@@ -37,7 +37,7 @@ function Timer({ deadlineAt, onExpire }: { deadlineAt: string; onExpire: () => v
   }, [deadlineAt, onExpire]);
   const m = Math.floor(left / 60), s = left % 60;
   return (
-    <div role="timer" aria-live={left < 60 ? 'assertive' : 'off'} className={cx('inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-bold tabular-nums', left < 120 ? 'border-danger-line bg-danger-soft text-danger-ink' : 'border-line bg-surface text-ink')}>
+    <div role="timer" aria-live={left < 60 ? 'assertive' : 'off'} className={cx('inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium tabular-nums', left < 120 ? 'bg-coral-soft text-coral-ink' : 'bg-surface-muted text-ink')}>
       <Clock className="h-4 w-4" aria-hidden="true" /> {m}:{String(s).padStart(2, '0')} left
     </div>
   );
@@ -120,8 +120,8 @@ function AttemptForm({ assessment, attempt, onDone }: { assessment: Assessment; 
           {assessment.questions.map((q, i) => (
             <li key={q.id} className="space-y-3 border-b border-line pb-6 last:border-0">
               <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-ink"><span className="mr-1 text-ink-3">{i + 1}.</span> <span className="whitespace-pre-wrap">{q.prompt}</span></p>
-                <span className="shrink-0 text-xs font-semibold text-ink-3">{q.marks} mark{q.marks === 1 ? '' : 's'}{q.negativeMarks ? ` · −${q.negativeMarks} if wrong` : ''}</span>
+                <p className="font-reading text-[1.0625rem] font-medium leading-snug text-ink"><span className="mr-1 text-ink-3">{i + 1}.</span> <span className="whitespace-pre-wrap">{q.prompt}</span></p>
+                <span className="shrink-0 pt-1 text-xs text-ink-3">{q.marks} mark{q.marks === 1 ? '' : 's'}{q.negativeMarks ? ` · −${q.negativeMarks} if wrong` : ''}</span>
               </div>
               {isAutoQuestion(q) ? (
                 <fieldset className="space-y-2">
@@ -131,7 +131,7 @@ function AttemptForm({ assessment, attempt, onDone }: { assessment: Assessment; 
                     const chosen = responses[q.id]?.optionIds ?? [];
                     const checked = chosen.includes(o.id);
                     return (
-                      <label key={o.id} className={cx('flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm', checked ? 'border-brand bg-brand-soft' : 'border-line hover:bg-surface-muted')}>
+                      <label key={o.id} className={cx('flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-2.5 text-sm transition-colors duration-150', checked ? 'border-brand bg-brand-soft' : 'border-line-strong hover:border-silver hover:bg-surface-muted/50')}>
                         <input
                           type={q.type === 'mcq_single' ? 'radio' : 'checkbox'} name={`q_${q.id}`} value={o.id} checked={checked}
                           onChange={() => setResponse(q.id, { optionIds: q.type === 'mcq_single' ? [o.id] : checked ? chosen.filter((x) => x !== o.id) : [...chosen, o.id] })}
@@ -174,16 +174,16 @@ function PastAttempt({ assessment, attempt }: { assessment: Assessment; attempt:
   return (
     <Card className="space-y-4 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="font-bold text-ink">Attempt {attempt.attemptNumber}</div>
+        <div className="font-semibold text-ink">Attempt {attempt.attemptNumber}</div>
         <AttemptStatusPill status={attempt.status} late={attempt.late} resubmission={attempt.resubmission} />
       </div>
       <div className="text-xs text-ink-3">Submitted {formatWhen(attempt.submittedAt)}{attempt.overTime ? ' · after the time limit' : ''}</div>
       {attempt.released ? (
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-2xl font-extrabold text-ink">{attempt.score} / {assessment.totalMarks}</span>
+          <span className="type-figure text-[1.625rem] text-ink">{attempt.score}<span className="font-sans text-base text-ink-3"> / {assessment.totalMarks}</span></span>
           <span className="text-sm text-ink-3">{attempt.percent}%</span>
-          {attempt.passed ? <span className="inline-flex items-center gap-1 text-sm font-bold text-success-ink"><CheckCircle2 className="h-4 w-4" /> Passed</span>
-            : <span className="inline-flex items-center gap-1 text-sm font-bold text-danger-ink"><XCircle className="h-4 w-4" /> Not passed</span>}
+          {attempt.passed ? <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-ink"><CheckCircle2 className="h-4 w-4" /> Passed</span>
+            : <span className="inline-flex items-center gap-1 text-sm font-semibold text-danger-ink"><XCircle className="h-4 w-4" /> Not passed</span>}
           <span className="text-xs text-ink-3">Final result</span>
         </div>
       ) : attempt.status === 'evaluated' ? (
@@ -201,7 +201,7 @@ function PastAttempt({ assessment, attempt }: { assessment: Assessment; attempt:
         </div>
       )}
       {(attempt.released || review.size > 0) && assessment.questions.length > 0 && (
-        <details className="rounded-xl border border-line p-3">
+        <details className="border-t border-line pt-3">
           <summary className="cursor-pointer text-sm font-semibold text-ink-2">Your answers{review.size ? ' and the correct answers' : ''}</summary>
           <ol className="mt-3 space-y-4">
             {assessment.questions.map((q, i) => {
@@ -257,20 +257,20 @@ function ActivityView({ courseId, assessmentId }: { courseId: string; assessment
 
   const kindLabel = a.kind === 'exam' && a.examType ? EXAM_TYPE_LABELS[a.examType] : KIND_LABELS[a.kind];
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <PageHeader
         breadcrumbs={[{ label: 'My Courses', href: '/courses' }, { label: 'Course', href: `/courses/${courseId}` }, { label: a.title }]}
         eyebrow={kindLabel} title={a.title} description={a.description || undefined}
       />
-      <Card className="grid grid-cols-2 gap-4 p-5 text-sm sm:grid-cols-4">
-        <div><div className="text-xs text-ink-3">Total marks</div><div className="font-bold text-ink">{a.totalMarks}</div></div>
-        <div><div className="text-xs text-ink-3">Pass mark</div><div className="font-bold text-ink">{a.passingPercent}%</div></div>
-        <div><div className="text-xs text-ink-3">Attempts</div><div className="font-bold text-ink">{past.length + (inProgress ? 1 : 0)} of {a.maxAttempts || 'unlimited'}</div></div>
-        <div><div className="text-xs text-ink-3">{a.timeLimitMinutes ? 'Time limit' : 'Due'}</div><div className="font-bold text-ink">{a.timeLimitMinutes ? `${a.timeLimitMinutes} min` : formatWhen(a.closesAt)}</div></div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 border-b border-line pb-5 text-sm sm:grid-cols-4">
+        <div><div className="text-xs text-ink-3">Total marks</div><div className="font-semibold text-ink">{a.totalMarks}</div></div>
+        <div><div className="text-xs text-ink-3">Pass mark</div><div className="font-semibold text-ink">{a.passingPercent}%</div></div>
+        <div><div className="text-xs text-ink-3">Attempts</div><div className="font-semibold text-ink">{past.length + (inProgress ? 1 : 0)} of {a.maxAttempts || 'unlimited'}</div></div>
+        <div><div className="text-xs text-ink-3">{a.timeLimitMinutes ? 'Time limit' : 'Due'}</div><div className="font-semibold text-ink">{a.timeLimitMinutes ? `${a.timeLimitMinutes} min` : formatWhen(a.closesAt)}</div></div>
         {a.opensAt && <div className="col-span-2"><div className="text-xs text-ink-3">Opens</div><div className="font-semibold text-ink">{formatWhen(a.opensAt)}</div></div>}
         {a.closesAt && a.timeLimitMinutes && <div className="col-span-2"><div className="text-xs text-ink-3">Closes</div><div className="font-semibold text-ink">{formatWhen(a.closesAt)}</div></div>}
-      </Card>
-      {a.instructions && <Card className="p-5"><h2 className="mb-2 text-sm font-bold text-ink">Instructions</h2><p className="whitespace-pre-wrap text-sm text-ink-2">{a.instructions}</p></Card>}
+      </div>
+      {a.instructions && <div><h2 className="type-section mb-2 text-ink">Instructions</h2><p className="max-w-[66ch] whitespace-pre-wrap font-reading text-[1.0625rem] leading-relaxed text-ink">{a.instructions}</p></div>}
       {message && <Notice kind="success">{message}</Notice>}
 
       {inProgress ? (
@@ -287,7 +287,7 @@ function ActivityView({ courseId, assessmentId }: { courseId: string; assessment
 
       {past.length > 0 && (
         <section className="space-y-3" aria-labelledby="history">
-          <h2 id="history" className="text-lg font-extrabold text-ink">Submission history</h2>
+          <h2 id="history" className="type-section text-ink">Submission history</h2>
           {past.map((t) => <PastAttempt key={t.id} assessment={a} attempt={t} />)}
         </section>
       )}

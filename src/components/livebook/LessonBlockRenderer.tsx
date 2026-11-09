@@ -45,14 +45,14 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
       // The lesson title is the page's h1, so block headings sit one level below it.
       const id = headingAnchor(validBlock.id, validBlock.text);
       const styles = {
-        1: 'mt-12 mb-4 text-2xl sm:text-[28px] font-extrabold tracking-tight text-ink',
-        2: 'mt-10 mb-3 text-xl sm:text-2xl font-bold tracking-tight text-ink',
-        3: 'mt-8 mb-2 text-lg font-bold text-ink',
-        4: 'mt-6 mb-2 text-base font-bold text-ink-2',
+        1: 'mt-14 mb-4 font-display font-normal text-[1.75rem] sm:text-[2rem] leading-[1.15] text-ink',
+        2: 'mt-12 mb-3 font-display font-normal text-[1.4375rem] sm:text-[1.625rem] leading-[1.2] text-ink',
+        3: 'mt-9 mb-2 font-sans text-lg font-semibold leading-snug text-ink',
+        4: 'mt-7 mb-1.5 font-sans text-base font-semibold text-ink-2',
       } as const;
       const Tag = (['h2', 'h3', 'h4', 'h5'] as const)[validBlock.level - 1] ?? 'h5';
       return (
-        <Tag id={id} className={`scroll-mt-24 ${styles[validBlock.level] ?? styles[4]}`}>
+        <Tag id={id} className={`scroll-mt-20 ${styles[validBlock.level] ?? styles[4]}`}>
           {validBlock.text}
         </Tag>
       );
@@ -80,7 +80,7 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
 
       return (
         <figure className="my-8 space-y-2">
-          <div className="overflow-hidden rounded-xl border border-line bg-surface">
+          <div className="overflow-hidden rounded-lg border border-line bg-surface">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={validBlock.url}
@@ -90,7 +90,7 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
             />
           </div>
           {validBlock.caption && (
-            <figcaption className="text-center text-sm text-ink-3">
+            <figcaption className="font-sans text-sm text-ink-3">
               {validBlock.caption}
             </figcaption>
           )}
@@ -115,7 +115,7 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
       if (!src) return null;
       return (
         <figure className="my-8 space-y-2">
-          <div className="relative aspect-video overflow-hidden rounded-xl border border-line bg-surface-sunken shadow-card">
+          <div className="relative aspect-video overflow-hidden rounded-lg bg-surface-sunken">
             <iframe
               src={src}
               title={validBlock.title}
@@ -126,10 +126,10 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
               className="absolute inset-0 h-full w-full"
             />
           </div>
-          <figcaption className="flex items-center justify-center gap-1.5 text-center text-sm text-ink-3">
-            <PlayCircle className="h-4 w-4 text-coral" aria-hidden="true" />
-            <span className="font-semibold text-ink-2">{validBlock.title}</span>
-            {validBlock.caption && <span>· {validBlock.caption}</span>}
+          <figcaption className="flex flex-wrap items-center gap-1.5 text-sm text-ink-3">
+            <PlayCircle className="h-4 w-4" aria-hidden="true" />
+            <span className="font-medium text-ink-2">{validBlock.title}</span>
+            {validBlock.caption && <span>{validBlock.caption}</span>}
           </figcaption>
         </figure>
       );
@@ -139,18 +139,18 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
       // PDFs are previewed inline (the browser's own viewer); other documents open in a new tab.
       const KIND = { pdf: 'PDF', slides: 'Slides', document: 'Document', other: 'File' } as const;
       return (
-        <figure className="my-8 overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+        <figure className="my-8 overflow-hidden rounded-lg border border-line bg-surface">
           <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-coral-soft text-coral-ink"><FileText className="h-4 w-4" aria-hidden="true" /></span>
+            <FileText className="h-5 w-5 shrink-0 text-ink-3" strokeWidth={1.75} aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold text-ink">{validBlock.title}</div>
               <div className="text-xs text-ink-3">{KIND[validBlock.kind]}{validBlock.description ? ` · ${validBlock.description}` : ''}</div>
             </div>
-            <a href={validBlock.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-semibold text-ink-2 hover:bg-surface-muted">
+            <a href={validBlock.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-xs font-semibold text-ink hover:bg-surface-muted">
               <ExternalLink className="h-4 w-4" aria-hidden="true" /> Open<span className="sr-only"> {validBlock.title} (opens in a new tab)</span>
             </a>
             {validBlock.allowDownload && (
-              <a href={validBlock.url} download className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90">
+              <a href={validBlock.url} download className="inline-flex h-8 items-center gap-1.5 rounded-md bg-brand px-3 text-xs font-semibold text-white hover:bg-brand-strong">
                 <Download className="h-4 w-4" aria-hidden="true" /> Download
               </a>
             )}
@@ -164,14 +164,13 @@ export function LessonBlockRenderer({ block }: LessonBlockRendererProps) {
 
     case 'references':
       return (
-        <section className="my-10">
-          <h3 className="mb-2 text-lg font-extrabold text-ink">{validBlock.title || 'References & further reading'}</h3>
+        <section className="my-10 border-t border-line pt-6">
+          <h3 className="mb-3 font-display text-lg font-[560] text-ink">{validBlock.title || 'References & further reading'}</h3>
           <ul className="space-y-3">
             {validBlock.links.map((l) => (
-              <li key={l.url} className="flex gap-3 text-[15px] leading-relaxed text-ink-2">
-                <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-4" />
-                <span>
-                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-ink underline decoration-brand-line underline-offset-2 hover:decoration-brand">
+              <li key={l.url} className="text-sm leading-relaxed text-ink-2">
+                                <span>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-ink underline decoration-brand-line underline-offset-2 hover:decoration-brand">
                     {l.label}<span className="sr-only"> (opens in a new tab)</span>
                   </a>
                   {l.description && <> {l.description}</>}

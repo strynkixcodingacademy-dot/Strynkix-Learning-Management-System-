@@ -17,7 +17,7 @@ import { QuizSubmitError } from '@/lib/livebook/service';
 import { Button } from '@/components/ui/Button';
 import { Notice } from '@/components/ui/States';
 import { cx } from '@/components/ui/tones';
-import { ArrowRight, Check, Flag, RotateCcw, Timer, Trophy, X } from 'lucide-react';
+import { ArrowRight, Check, RotateCcw, Timer, Trophy, X } from 'lucide-react';
 
 type Phase = 'intro' | 'question' | 'result';
 
@@ -88,31 +88,23 @@ function QuizIntro({ count, canTrackProgress, isCompleted, best, onStart, note }
 }) {
   const minutes = Math.max(2, Math.round(count * 1.5));
   return (
-    <div className="relative flex flex-col gap-6 p-6 sm:flex-row sm:p-9">
+    <div className="flex flex-col gap-6 p-6 sm:flex-row sm:p-8">
       <div className="min-w-0 flex-1 space-y-5">
-        <h2 id="quiz-heading" className="flex items-center gap-3 text-[24px] font-extrabold tracking-tight text-ink">
-          <span aria-hidden="true" className="text-[28px]">🧠</span> It&apos;s Quiz Time
-        </h2>
-        <p className="flex gap-3 text-[16px] leading-relaxed text-ink-2">
-          <Flag className="mt-1 h-5 w-5 shrink-0 text-ink-3" aria-hidden="true" />
+        <h2 id="quiz-heading" className="text-2xl text-ink">It&apos;s Quiz Time</h2>
+        <p className="text-body text-ink-2">
           Let&apos;s lock in what you&apos;ve learned. Take this quiz to review the key ideas{canTrackProgress ? ' and mark this lesson as complete' : ''}.
         </p>
-        <ul className="space-y-3 text-[15px] text-ink-2">
-          <li className="flex items-center gap-3"><Check className="h-5 w-5 text-ink-3" aria-hidden="true" /> Get {QUIZ_PASS_PERCENT}% or more</li>
-          <li className="flex items-center gap-3"><Timer className="h-5 w-5 text-ink-3" aria-hidden="true" /> About {minutes} min · {count} question{count === 1 ? '' : 's'}</li>
+        <ul className="space-y-1.5 text-sm text-ink-2">
+          <li className="flex items-center gap-2"><Check className="h-4 w-4 text-ink-3" aria-hidden="true" /> Get {QUIZ_PASS_PERCENT}% or more</li>
+          <li className="flex items-center gap-2"><Timer className="h-4 w-4 text-ink-3" aria-hidden="true" /> About {minutes} min, {count} question{count === 1 ? '' : 's'}</li>
         </ul>
-        <button type="button" onClick={onStart} className="inline-flex h-11 items-center gap-2 rounded-lg bg-ink px-6 text-sm font-bold text-white hover:bg-ink-2">
-          {best === null ? 'Start Quiz' : 'Retake Quiz'} <ArrowRight className="h-4 w-4" />
-        </button>
+        <Button size="lg" onClick={onStart}>{best === null ? 'Start Quiz' : 'Retake Quiz'} <ArrowRight className="h-4 w-4" /></Button>
         {isCompleted && <p className="text-sm font-semibold text-success-ink">You&apos;ve completed this lesson.</p>}
         {note}
       </div>
-      <div className="flex shrink-0 items-start gap-3 sm:flex-col sm:items-end">
-        <div className="text-right">
-          <div className="text-xs font-semibold text-ink-3">Best score</div>
-          <div className="text-lg font-extrabold text-ink">{best === null ? '–' : `${best}%`}</div>
-        </div>
-        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-highlight-soft"><Trophy className="h-6 w-6 text-warning-ink" aria-hidden="true" /></span>
+      <div className="shrink-0 sm:text-right">
+        <div className="text-sm text-ink-3">Best score</div>
+        <div className="type-figure mt-1 text-[2rem] text-ink">{best === null ? '–' : `${best}%`}</div>
       </div>
     </div>
   );
@@ -178,32 +170,32 @@ function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent, 
   const feedback = new Map((result?.feedback ?? []).map((f) => [f.blockId, f]));
 
   return (
-    <section id="quiz" aria-labelledby="quiz-heading" className="scroll-mt-24 overflow-hidden rounded-card border border-line bg-surface shadow-card">
+    <section id="quiz" aria-labelledby="quiz-heading" className="scroll-mt-20 overflow-hidden rounded-card border border-teal-line bg-surface">
       {phase === 'intro' && (
         <QuizIntro count={questions.length} canTrackProgress={canSubmit} isCompleted={isCompleted} best={best} onStart={start}
           note={!canSubmit ? <p className="text-sm text-ink-3">Preview mode: quizzes are graded only for enrolled students, so you can read the questions but not submit them.</p> : undefined} />
       )}
 
       {phase === 'question' && q && (
-        <div className="p-6 sm:p-9">
+        <div className="p-6 sm:p-8">
           {restored && <div className="mb-4"><Notice kind="info">We restored the answers you had chosen. Nothing has been submitted yet.</Notice></div>}
           <div className="flex items-center justify-between gap-3">
-            <h2 id="quiz-heading" className="text-sm font-bold uppercase tracking-[0.1em] text-ink-3">Question {index + 1} of {questions.length}</h2>
+            <h2 id="quiz-heading" className="font-sans tracking-normal text-sm font-medium tracking-normal text-ink-3">Question {index + 1} of {questions.length}</h2>
             <div className="flex gap-1" aria-hidden="true">
-              {questions.map((x, i) => <span key={x.id} className={cx('h-1.5 w-6 rounded-full', answers[x.id] ? 'bg-brand' : i === index ? 'bg-brand/60' : 'bg-surface-sunken')} />)}
+              {questions.map((x, i) => <span key={x.id} className={cx('h-1 w-5 rounded-full transition-colors duration-150', answers[x.id] ? 'bg-brand' : i === index ? 'bg-brand-line' : 'bg-surface-sunken')} />)}
             </div>
           </div>
-          <p className="mt-4 text-[18px] font-bold leading-snug text-ink">{q.question}</p>
+          <p className="mt-3 font-reading text-xl font-medium leading-snug text-ink">{q.question}</p>
           <fieldset className="mt-5 space-y-2.5" disabled={submitting}>
             <legend className="sr-only">Choose one answer</legend>
             {q.options.map((o) => {
               const chosen = answers[q.id] === o.id;
               return (
                 <label key={o.id} className={cx(
-                  'flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-[15px] transition-colors',
-                  chosen ? 'border-brand bg-brand-soft text-ink' : 'border-line bg-surface text-ink-2 hover:border-silver'
+                  'flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 text-sm transition-colors duration-150',
+                  chosen ? 'border-brand bg-brand-soft text-ink' : 'border-line-strong bg-surface text-ink hover:border-silver hover:bg-surface-muted/50'
                 )}>
-                  <input type="radio" name={`quiz-${q.id}`} value={o.id} checked={chosen} onChange={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))} className="h-4 w-4 accent-[var(--color-brand)]" />
+                  <input type="radio" name={`quiz-${q.id}`} value={o.id} checked={chosen} onChange={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))} className="h-4 w-4 shrink-0" />
                   <span className="flex-1">{o.text}</span>
                 </label>
               );
@@ -225,17 +217,17 @@ function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent, 
       )}
 
       {phase === 'result' && result && (
-        <div className="p-8 sm:p-10">
+        <div className="p-6 sm:p-8">
           <div className="flex flex-col items-center gap-3 text-center" role="status">
-            <span className={cx('flex h-14 w-14 items-center justify-center rounded-full text-white', result.passed ? 'bg-success celebrate animate-pop' : 'bg-coral')}>
-              {result.passed ? <Trophy className="h-7 w-7" /> : <RotateCcw className="h-7 w-7" />}
+            <span className={cx('flex h-12 w-12 items-center justify-center rounded-full text-white', result.passed ? 'bg-success celebrate animate-pop' : 'bg-coral')}>
+              {result.passed ? <Trophy className="h-6 w-6" /> : <RotateCcw className="h-6 w-6" />}
             </span>
-            <h2 id="quiz-heading" className="text-[22px] font-extrabold text-ink">You scored {result.percent}%</h2>
+            <h2 id="quiz-heading" className="text-[1.75rem] text-ink">You scored {result.percent}%</h2>
             <p className="text-sm text-ink-3">{result.correct} of {result.total} correct · pass mark {QUIZ_PASS_PERCENT}%</p>
             {result.passed ? (
-              <p className="text-[15px] font-bold text-success-ink">{completedBefore ? 'Passed — your completion is already recorded.' : 'Lesson complete — nicely done.'}</p>
+              <p className="text-body font-semibold text-success-ink">{completedBefore ? 'Passed — your completion is already recorded.' : 'Lesson complete — nicely done.'}</p>
             ) : (
-              <p className="text-[15px] text-ink-2">
+              <p className="text-body text-ink-2">
                 Review the lesson and try again — you need {QUIZ_PASS_PERCENT}% to complete it.
                 {result.attemptsRemainingToday !== null && ` ${result.attemptsRemainingToday} attempt${result.attemptsRemainingToday === 1 ? '' : 's'} left today.`}
               </p>
@@ -250,8 +242,8 @@ function GradedQuiz({ questions, isCompleted, canSubmit, onSubmit, bestPercent, 
                 if (!f) return null;
                 const correctText = x.options.find((o) => o.id === f.correctOptionId)?.text;
                 return (
-                  <li key={x.id} className={cx('rounded-xl border px-4 py-3 text-sm', f.isCorrect ? 'border-success-line bg-success-soft' : 'border-warning-line bg-warning-soft')}>
-                    <p className="font-bold text-ink">{i + 1}. {x.question}</p>
+                  <li key={x.id} className={cx('rounded-lg px-4 py-3 text-sm', f.isCorrect ? 'bg-success-soft' : 'bg-warning-soft')}>
+                    <p className="font-medium text-ink">{i + 1}. {x.question}</p>
                     <p className="mt-1 flex items-center gap-2 text-ink-2">
                       {f.isCorrect ? <Check className="h-4 w-4 text-success-ink" aria-label="Correct" /> : <X className="h-4 w-4 text-danger-ink" aria-label="Incorrect" />}
                       Correct answer: <strong>{correctText}</strong>

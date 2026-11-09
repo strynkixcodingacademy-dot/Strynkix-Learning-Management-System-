@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { ModalFrame } from '@/components/ui/Modal';
 import { createUniversityAdmin, generateTempPassword, validateProvisionInput } from '@/lib/admin/service';
 import { Button } from '@/components/ui/Button';
 import { Field, fieldClasses } from '@/components/ui/Page';
@@ -45,13 +46,13 @@ export function UniversityAdminDialog({ orgId, orgName, onClose }: { orgId: stri
     : '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" />
+    <ModalFrame onClose={onClose}>
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 cursor-default" />
       <section role="dialog" aria-modal="true" aria-labelledby="uni-admin-title" className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-float animate-rise">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-lavender-soft text-lavender-ink"><ShieldCheck className="h-5 w-5" /></span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-info-soft text-info-ink"><ShieldCheck className="h-5 w-5" /></span>
           <div className="flex-1">
-            <h2 id="uni-admin-title" className="text-[18px] font-extrabold text-ink">{created ? 'Account created' : 'Add University Admin'}</h2>
+            <h2 id="uni-admin-title" className="type-section text-ink">{created ? 'Account created' : 'Add University Admin'}</h2>
             <p className="text-sm text-ink-3">{orgName} · manages branches, managers, instructors and students of this academy.</p>
           </div>
           <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 hover:bg-surface-muted" aria-label="Close"><X className="h-5 w-5" /></button>
@@ -92,6 +93,6 @@ export function UniversityAdminDialog({ orgId, orgName, onClose }: { orgId: stri
           </form>
         )}
       </section>
-    </div>
+    </ModalFrame>
   );
 }

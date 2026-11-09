@@ -20,7 +20,7 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
         <title>Something went wrong · Strynkix Live Books</title>
         <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
           <div className="w-full max-w-md rounded-card border border-line bg-surface p-8 text-center shadow-card">
-            <h1 className="text-xl font-extrabold tracking-tight text-ink">Strynkix Live Books couldn’t load</h1>
+            <h1 className="type-page text-ink">Strynkix Live Books couldn’t load</h1>
             <p className="mt-2 text-sm leading-relaxed text-ink-3">Your saved work is safe. Please try again in a moment.</p>
             <div className="mt-6 flex justify-center gap-2">
               <button type="button" onClick={() => retry()} className="h-10 rounded-xl bg-brand px-4 text-sm font-semibold text-white">Try again</button>

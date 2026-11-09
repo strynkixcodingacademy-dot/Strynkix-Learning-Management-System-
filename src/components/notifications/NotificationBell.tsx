@@ -26,8 +26,7 @@ function when(n: AppNotification): string {
   return t.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-/** `align`: where the panel opens — below and to the left (header) or to the right (desktop rail). */
-export function NotificationBell({ align = 'header' }: { align?: 'header' | 'rail' }) {
+export function NotificationBell() {
   const { user, tenant } = useAuth();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [open, setOpen] = useState(false);
@@ -78,19 +77,19 @@ export function NotificationBell({ align = 'header' }: { align?: 'header' | 'rai
   return (
     <div className="relative" ref={panelRef}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-label={label} aria-expanded={open} aria-haspopup="dialog"
-        className={cx('relative inline-flex items-center justify-center text-ink-3 hover:text-ink', align === 'rail' ? 'h-11 w-11 rounded-xl hover:bg-surface-muted' : 'h-9 w-9 rounded-full hover:bg-surface')}>
-        <Bell className="h-[18px] w-[18px]" />
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-muted hover:text-ink">
+        <Bell className="h-[18px] w-[18px]" strokeWidth={1.75} />
         {badge > 0 && (
-          <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-extrabold text-white">
+          <span aria-hidden="true" className="absolute right-0.5 top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-coral-ink px-1 text-[0.6875rem] font-semibold leading-none text-white">
             {badge > 9 ? '9+' : badge}
           </span>
         )}
       </button>
       {open && (
         <section role="dialog" aria-label="Notifications"
-          className={cx('absolute z-50 w-[min(92vw,380px)] overflow-hidden rounded-card border border-line bg-surface shadow-float animate-rise', align === 'rail' ? 'bottom-0 left-full ml-3' : 'right-0 mt-2')}>
+          className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-card border border-line bg-surface shadow-float animate-rise sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[380px]">
           <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-            <h2 className="text-sm font-extrabold text-ink">Notifications</h2>
+            <h2 className="type-section text-ink">Notifications</h2>
             <div className="flex items-center gap-1">
               {unread.length > 0 && (
                 <button type="button" onClick={() => markAllNotificationsRead(unread.map((n) => n.id)).catch(() => setFailed(true))}
@@ -103,15 +102,15 @@ export function NotificationBell({ align = 'header' }: { align?: 'header' | 'rai
           </header>
           {failed && <p className="px-4 py-2 text-xs text-danger-ink">Notifications couldn’t be updated. Check your connection.</p>}
           {visibleAnnouncements.length > 0 && (
-            <ul aria-label="Announcements" className="divide-y divide-line border-b border-line bg-brand-soft/40">
+            <ul aria-label="Announcements" className="divide-y divide-line border-b border-line bg-surface-muted/50">
               {visibleAnnouncements.map((a) => (
                 <li key={a.id} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-bold text-ink">📣 {a.title}</span>
+                    <span className="text-sm font-medium text-ink">{a.title}</span>
                     <button type="button" onClick={() => dismiss(a.id)} className="shrink-0 text-xs font-semibold text-ink-3 hover:text-ink">Dismiss</button>
                   </div>
                   <p className="mt-0.5 whitespace-pre-wrap text-xs text-ink-2">{a.message}</p>
-                  <span className="mt-1 block text-[11px] text-ink-4">Announcement · {a.from}</span>
+                  <span className="mt-1 block text-xs text-ink-4">Announcement from {a.from}</span>
                 </li>
               ))}
             </ul>
@@ -125,10 +124,10 @@ export function NotificationBell({ align = 'header' }: { align?: 'header' | 'rai
                   <>
                     <span className="flex items-start gap-2">
                       {!n.read && <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand" />}
-                      <span className={cx('text-sm', n.read ? 'text-ink-2' : 'font-bold text-ink')}>{n.title}</span>
+                      <span className={cx('text-sm', n.read ? 'text-ink-2' : 'font-medium text-ink')}>{n.title}</span>
                     </span>
                     <span className="mt-0.5 block text-xs text-ink-3">{n.body}</span>
-                    <span className="mt-1 block text-[11px] text-ink-4">{when(n)}{!n.read && <span className="sr-only"> · unread</span>}</span>
+                    <span className="mt-1 block text-xs text-ink-4">{when(n)}{!n.read && <span className="sr-only"> · unread</span>}</span>
                   </>
                 );
                 const markRead = () => { if (!n.read) markNotificationRead(n.id).catch(() => setFailed(true)); };

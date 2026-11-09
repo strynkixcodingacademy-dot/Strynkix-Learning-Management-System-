@@ -12,7 +12,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/context/AuthContext';
 import { AppShell } from '@/components/dashboard/AppShell';
-import { Breadcrumbs, Card } from '@/components/ui/Page';
+import { Breadcrumbs, Card, fieldClasses } from '@/components/ui/Page';
 import { buttonClasses } from '@/components/ui/Button';
 import { EmptyState, Notice, Skeleton } from '@/components/ui/States';
 import { getStudentCourseEnrollment } from '@/lib/batches/service';
@@ -21,7 +21,7 @@ import { getAssignment, listenToOwnSubmission, submitAssignment } from '@/lib/le
 import { canStudentSubmit, getDeadlineState, isLateSubmission } from '@/lib/learning/submission-state';
 import { DeadlineBadge, formatDateTime } from '@/components/learning/LearningBits';
 import { Assignment, Submission } from '@/types/domain';
-import { CheckCircle2, ClipboardList, Loader2, MessageSquare, Send } from 'lucide-react';
+import { Loader2, MessageSquare, Send } from 'lucide-react';
 
 interface AssignmentPageProps {
   params: Promise<{ courseId: string; assignmentId: string }>;
@@ -29,7 +29,7 @@ interface AssignmentPageProps {
 
 function AssignmentSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto space-y-6" role="status" aria-live="polite">
+    <div className="max-w-3xl space-y-6" role="status" aria-live="polite">
       <Skeleton className="h-4 w-64" />
       <Skeleton className="h-48" />
       <Skeleton className="h-64" />
@@ -143,6 +143,7 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
     return (
       <AppShell>
         <div className="max-w-md mx-auto py-12">
+          <h1 className="sr-only">Assignment</h1>
           <EmptyState
             illustration="lock"
             title="Assignment unavailable"
@@ -189,7 +190,7 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
 
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-3xl space-y-7">
         <Breadcrumbs
           items={[
             { label: isStudent ? 'Home' : 'Batches', href: isStudent ? '/dashboard' : '/dashboard/batches' },
@@ -200,38 +201,33 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
         />
 
         {/* Assignment instructions card */}
-        <Card as="section" className="p-6 sm:p-7 space-y-5 animate-rise">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-brand-ink flex items-center gap-1.5 mb-1">
-                <ClipboardList className="w-4 h-4 text-brand" /> Daily Assignment
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">{assignment.title}</h1>
-            </div>
-            {isStudent && submissionLoaded && <DeadlineBadge state={state} />}
+        <section className="space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <h1 className="type-page text-ink">{assignment.title}</h1>
+            {isStudent && submissionLoaded && <div className="shrink-0 sm:pt-2"><DeadlineBadge state={state} /></div>}
           </div>
 
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 rounded-xl bg-canvas p-4 text-xs border border-line">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-y border-line py-3 sm:grid-cols-3">
             <div>
-              <dt className="text-ink-3">Deadline</dt>
-              <dd className="mt-0.5 font-semibold text-ink">{formatDateTime(assignment.deadline)}</dd>
+              <dt className="text-xs text-ink-3">Deadline</dt>
+              <dd className="mt-0.5 text-sm font-medium text-ink">{formatDateTime(assignment.deadline)}</dd>
             </div>
             <div>
-              <dt className="text-ink-3">Total marks</dt>
-              <dd className="mt-0.5 font-semibold text-ink">{assignment.totalPoints} marks</dd>
+              <dt className="text-xs text-ink-3">Total marks</dt>
+              <dd className="mt-0.5 text-sm font-medium text-ink">{assignment.totalPoints} marks</dd>
             </div>
             <div>
-              <dt className="text-ink-3">Format</dt>
-              <dd className="mt-0.5 font-semibold text-ink">
+              <dt className="text-xs text-ink-3">Format</dt>
+              <dd className="mt-0.5 text-sm font-medium text-ink">
                 {type === 'text' ? 'Written answer' : type === 'code' ? 'Code only' : 'Written answer + code'}
               </dd>
             </div>
           </dl>
 
-          <div className="pt-2 text-[15px] text-ink-2 whitespace-pre-line leading-relaxed border-t border-line">
+          <div className="max-w-[66ch] whitespace-pre-line font-reading text-[1.0625rem] leading-relaxed text-ink">
             {assignment.description}
           </div>
-        </Card>
+        </section>
 
         {!isStudent && (
           <Notice kind="info">
@@ -248,48 +244,44 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
 
             {/* Submission status feedback card */}
             {submission && (
-              <Card as="section" className="p-6 space-y-4 animate-rise" aria-live="polite">
-                <div className="flex items-center justify-between pb-3 border-b border-line">
-                  <h2 className="text-base font-bold text-ink flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-success" /> Your Submission
-                  </h2>
+              <Card as="section" className="p-5 sm:p-6 space-y-4" aria-live="polite">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="type-section text-ink">Your submission</h2>
                   <span className="text-xs text-ink-3">
                     Attempt {submission.attemptCount ?? 1}
                   </span>
                 </div>
 
-                <div className="text-xs text-ink-3 space-y-1">
+                <div className="text-sm text-ink-3 space-y-2">
                   <div>
                     Submitted {submission.submittedAt ? formatDateTime(submission.submittedAt) : '(confirming…)'}
                     {late && (
-                      <span className="ml-2 px-2 py-0.5 rounded-full bg-coral-soft text-coral-ink border border-coral-line text-[10px] font-bold uppercase tracking-[0.06em] font-semibold">
+                      <span className="ml-2 rounded-full bg-coral-soft px-2 py-px text-xs font-medium text-coral-ink">
                         Late
                       </span>
                     )}
                   </div>
                   {submission.status === 'graded' && typeof submission.score === 'number' && (
-                    <div className="text-base text-ink pt-1">
-                      Score: <strong className="text-brand-ink font-extrabold text-lg">{submission.score}</strong> / {assignment.totalPoints} marks
+                    <div className="flex items-baseline gap-1.5 pt-1 text-ink-3">
+                      <span className="type-figure text-[1.625rem] text-ink">{submission.score}</span> of {assignment.totalPoints} marks
                     </div>
                   )}
                   {submission.status === 'submitted' && (
-                    <div className="text-ink-2 italic pt-1">Awaiting evaluation by your instructor.</div>
+                    <div className="text-ink-2">Awaiting evaluation by your instructor.</div>
                   )}
                 </div>
 
                 {submission.feedback && (
                   <div
-                    className={`p-4 rounded-xl text-xs border ${
-                      submission.status === 'resubmit_requested'
-                        ? 'bg-warning-soft border-warning-line text-warning-ink'
-                        : 'bg-brand-soft border-brand-line text-brand-ink'
+                    className={`rounded-lg px-4 py-3 ${
+                      submission.status === 'resubmit_requested' ? 'bg-warning-soft' : 'bg-success-soft'
                     }`}
                   >
-                    <div className="font-bold flex items-center gap-1.5 mb-1.5 text-sm">
+                    <div className={`mb-1 flex items-center gap-1.5 text-sm font-semibold ${submission.status === 'resubmit_requested' ? 'text-warning-ink' : 'text-success-ink'}`}>
                       <MessageSquare className="w-4 h-4" />
                       {submission.status === 'resubmit_requested' ? 'Correction requested' : 'Instructor feedback'}
                     </div>
-                    <p className="whitespace-pre-line leading-relaxed text-xs">{submission.feedback}</p>
+                    <p className="whitespace-pre-line font-reading text-base leading-relaxed text-ink">{submission.feedback}</p>
                   </div>
                 )}
               </Card>
@@ -299,17 +291,17 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
 
             {/* Submission form */}
             {editable ? (
-              <Card as="section" className="p-6 animate-rise">
+              <Card as="section" className="p-5 sm:p-6">
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
-                    <h2 className="text-lg font-bold text-ink">
+                    <h2 className="type-section text-ink">
                       {submission?.status === 'resubmit_requested'
-                        ? 'Resubmit with Corrections'
+                        ? 'Resubmit with corrections'
                         : submission
-                        ? 'Update Your Submission'
+                        ? 'Update your submission'
                         : 'Submit your work'}
                     </h2>
-                    <p className="text-xs text-ink-3 mt-0.5">
+                    <p className="text-sm text-ink-3 mt-1">
                       {submission ? 'You can revise your answers until grading is finalized.' : 'Complete the required work below and submit for review.'}
                     </p>
                   </div>
@@ -324,7 +316,7 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
 
                   {type !== 'code' && (
                     <div className="space-y-1.5">
-                      <label htmlFor="textAnswer" className="text-xs font-semibold text-ink-2">
+                      <label htmlFor="textAnswer" className="text-sm font-medium text-ink-2">
                         Written answer {type === 'text_and_code' && <span className="text-ink-3">(Explanation / narrative)</span>}
                       </label>
                       <textarea
@@ -334,14 +326,14 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
                         rows={6}
                         maxLength={20000}
                         placeholder="Explain your approach, key decisions, and answers here..."
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line text-sm text-ink placeholder-ink-4 focus:outline-none focus:ring-1 focus:ring-brand leading-relaxed"
+                        className={`${fieldClasses} leading-relaxed`}
                       />
                     </div>
                   )}
 
                   {type !== 'text' && (
                     <div className="space-y-1.5">
-                      <label htmlFor="codeContent" className="text-xs font-semibold text-ink-2">
+                      <label htmlFor="codeContent" className="text-sm font-medium text-ink-2">
                         Code
                       </label>
                       <textarea
@@ -353,13 +345,13 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
                         spellCheck={false}
                         wrap="off"
                         placeholder="// Paste your clean, formatted solution code here..."
-                        className="w-full px-3.5 py-3 rounded-xl bg-code text-code-ink border border-code-line text-xs font-mono focus:outline-none focus:ring-1 focus:ring-brand leading-relaxed"
+                        className={`${fieldClasses} !bg-code font-mono !text-[0.8125rem] leading-[1.7] text-code-ink`}
                       />
-                      <p className="text-[11px] text-ink-3">Code is saved securely as text for instructor inspection and feedback.</p>
+                      <p className="text-xs text-ink-3">Code is saved securely as text for instructor inspection and feedback.</p>
                     </div>
                   )}
 
-                  <div className="pt-2 flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                     <span className="text-xs text-ink-3">
                       {submission ? `Previous attempt: ${submission.attemptCount ?? 1}` : 'First submission'}
                     </span>
@@ -375,7 +367,7 @@ function AssignmentView({ courseId, assignmentId }: { courseId: string; assignme
                 </form>
               </Card>
             ) : submission?.status === 'graded' ? (
-              <div className="rounded-xl border border-line bg-surface p-5 text-center text-xs text-ink-3">
+              <div className="rounded-lg bg-surface-muted/60 p-4 text-sm text-ink-3">
                 This assignment has been evaluated and marked. Submissions are now finalized.
               </div>
             ) : !submissionLoaded ? (

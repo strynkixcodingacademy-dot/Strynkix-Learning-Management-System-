@@ -19,11 +19,11 @@ function VerifyPageContent({ params }: { params: Promise<{ code: string }> }) {
     <main className="flex min-h-screen items-center justify-center bg-canvas p-4">
       <div className="w-full max-w-md space-y-5 rounded-card border border-line bg-surface p-6 text-center shadow-card">
         <div className="flex justify-center"><BrandMark size={40} /></div>
-        <h1 className="text-xl font-extrabold text-ink">Certificate verification</h1>
+        <h1 className="type-page text-ink">Certificate verification</h1>
         {!r ? <p className="text-sm text-ink-3" role="status">Checking…</p> : r.valid ? (
           <div className="space-y-2">
             <CheckCircle2 className="mx-auto h-10 w-10 text-success" aria-hidden="true" />
-            <p className="font-bold text-success-ink">This certificate is valid.</p>
+            <p className="font-semibold text-success-ink">This certificate is valid.</p>
             <dl className="space-y-1 text-sm text-ink-2">
               <div><dt className="inline text-ink-3">Awarded to: </dt><dd className="inline font-semibold">{r.studentName}</dd></div>
               <div><dt className="inline text-ink-3">Course: </dt><dd className="inline font-semibold">{r.courseTitle}</dd></div>
@@ -35,7 +35,7 @@ function VerifyPageContent({ params }: { params: Promise<{ code: string }> }) {
         ) : (
           <div className="space-y-2">
             <XCircle className="mx-auto h-10 w-10 text-danger" aria-hidden="true" />
-            <p className="font-bold text-danger-ink">{r.status === 'revoked' ? 'This certificate has been revoked.' : r.message ?? 'No certificate matches this link.'}</p>
+            <p className="font-semibold text-danger-ink">{r.status === 'revoked' ? 'This certificate has been revoked.' : r.message ?? 'No certificate matches this link.'}</p>
           </div>
         )}
       </div>

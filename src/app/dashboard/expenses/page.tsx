@@ -43,7 +43,7 @@ function QuickAdd({ branchId, categories, onSaved }: { branchId: string; categor
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
   return (
     <Card className="space-y-3 p-4 print:hidden">
-      <h2 className="text-sm font-bold text-ink">Add an expense</h2>
+      <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">Add an expense</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="What for" htmlFor="qa-title"><input id="qa-title" value={f.title} placeholder="e.g. October rent" onChange={set('title')} className={fieldClasses} /></Field>
         <Field label="Category" htmlFor="qa-cat"><select id="qa-cat" value={f.categoryId} onChange={set('categoryId')} className={fieldClasses}><option value="">Choose</option>{categories.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
@@ -108,7 +108,7 @@ function History({ scope, categories, version, onChanged }: { scope: FinanceScop
         <Card className="overflow-x-auto">
           <p className="p-3 text-sm font-semibold text-ink">Total {formatMoney(data.total)} across {data.expenses.filter((e) => e.status === 'paid').length} expenses</p>
           <table className="w-full min-w-[720px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Date</th><th className="p-3">Expense</th><th className="p-3">Category</th><th className="p-3 text-right">Amount</th><th className="p-3">Paid</th><th className="p-3 print:hidden" /></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Date</th><th className="p-3">Expense</th><th className="p-3">Category</th><th className="p-3 text-right">Amount</th><th className="p-3">Paid</th><th className="p-3 print:hidden" /></tr></thead>
             <tbody>{data.expenses.map((e) => (
               <tr key={e.id} className={cx('border-b border-line last:border-0', e.status === 'void' && 'text-ink-4')}>
                 <td className="p-3">{formatDate(e.date)}</td>
@@ -151,7 +151,7 @@ function Recurring({ scope, categories, onChanged }: { scope: FinanceScope; cate
       {dialog}
       {scope.branchId && (
         <Card className="space-y-3 p-4">
-          <h2 className="text-sm font-bold text-ink">New recurring expense</h2>
+          <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">New recurring expense</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Title" htmlFor="r-title"><input id="r-title" value={f.title} placeholder="e.g. Classroom rent" onChange={(e) => setF({ ...f, title: e.target.value })} className={fieldClasses} /></Field>
             <Field label="Category" htmlFor="r-cat"><select id="r-cat" value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: e.target.value })} className={fieldClasses}><option value="">Choose</option>{categories.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
@@ -173,10 +173,10 @@ function Recurring({ scope, categories, onChanged }: { scope: FinanceScope; cate
         <Card className="overflow-x-auto">
           <p className="p-3 text-xs text-ink-3">{formatDate(from)} – {formatDate(to)}. Due = within the next 7 days.</p>
           <table className="w-full min-w-[640px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Due date</th><th className="p-3">Expense</th><th className="p-3 text-right">Amount</th><th className="p-3">Status</th><th className="p-3" /></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Due date</th><th className="p-3">Expense</th><th className="p-3 text-right">Amount</th><th className="p-3">Status</th><th className="p-3" /></tr></thead>
             <tbody>{data.occurrences.map((o) => (
               <tr key={`${o.recurringId}-${o.period}`} className="border-b border-line last:border-0">
-                <td className="p-3">{formatDate(o.period)}</td><td className="p-3 font-semibold text-ink">{o.title}<div className="text-xs font-normal text-ink-3">{o.categoryName}</div></td>
+                <td className="p-3">{formatDate(o.period)}</td><td className="p-3 font-medium text-ink">{o.title}<div className="text-xs font-normal text-ink-3">{o.categoryName}</div></td>
                 <td className="p-3 text-right">{formatMoney(o.amount)}</td>
                 <td className="p-3"><StatusPill size="sm" tone={OCC_TONE[o.state]}>{o.state}{o.paidOn ? ` ${formatDate(o.paidOn)}` : ''}</StatusPill></td>
                 <td className="p-3 text-right">{['due', 'overdue', 'scheduled'].includes(o.state) && <span className="inline-flex gap-2">
@@ -223,14 +223,14 @@ function Analysis({ scope, version }: { scope: FinanceScope; version: number }) 
   const max = stats.categories[0]?.[1] ?? 1;
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
         <KpiTile label="Total expenses" value={formatMoney(data.total)} tone="coral" />
-        <KpiTile label="Recurring" value={formatMoney(stats.recurring)} tone="lavender" />
+        <KpiTile label="Recurring" value={formatMoney(stats.recurring)} tone="info" />
         <KpiTile label="One-time" value={formatMoney(data.total - stats.recurring)} tone="teal" />
         <KpiTile label="Highest category" value={stats.categories[0]?.[0] ?? '—'} tone="warning" hint={stats.categories[0] ? formatMoney(stats.categories[0][1]) : undefined} />
       </div>
       <Card className="space-y-2 p-5">
-        <h2 className="text-sm font-bold text-ink">By category</h2>
+        <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">By category</h2>
         {stats.categories.map(([name, amt]) => (
           <div key={name} className="grid grid-cols-[minmax(120px,200px)_1fr_auto] items-center gap-3 text-sm">
             <span className="truncate">{name}</span>
@@ -240,8 +240,8 @@ function Analysis({ scope, version }: { scope: FinanceScope; version: number }) 
         ))}
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5"><h2 className="mb-2 text-sm font-bold text-ink">By month</h2><ul className="space-y-1 text-sm">{stats.months.map(([m, a]) => <li key={m} className="flex justify-between"><span>{m}</span><span className="tabular-nums">{formatMoney(a)}</span></li>)}</ul></Card>
-        {stats.branches.length > 1 && <Card className="p-5"><h2 className="mb-2 text-sm font-bold text-ink">By branch</h2><ul className="space-y-1 text-sm">{stats.branches.map(([b, a]) => <li key={b} className="flex justify-between"><span>{b}</span><span className="tabular-nums">{formatMoney(a)}</span></li>)}</ul></Card>}
+        <Card className="p-5"><h2 className="font-sans tracking-normal mb-2 text-sm font-semibold text-ink">By month</h2><ul className="space-y-1 text-sm">{stats.months.map(([m, a]) => <li key={m} className="flex justify-between"><span>{m}</span><span className="tabular-nums">{formatMoney(a)}</span></li>)}</ul></Card>
+        {stats.branches.length > 1 && <Card className="p-5"><h2 className="font-sans tracking-normal mb-2 text-sm font-semibold text-ink">By branch</h2><ul className="space-y-1 text-sm">{stats.branches.map(([b, a]) => <li key={b} className="flex justify-between"><span>{b}</span><span className="tabular-nums">{formatMoney(a)}</span></li>)}</ul></Card>}
       </div>
     </div>
   );

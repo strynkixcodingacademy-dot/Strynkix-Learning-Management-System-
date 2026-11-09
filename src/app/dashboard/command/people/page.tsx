@@ -56,7 +56,7 @@ function People({ initial }: { initial: { orgId?: string; branchId?: string; rol
       {p.error ? <ErrorState onRetry={p.reload}>{p.error}</ErrorState> : p.loading && !p.rows.length ? <LoadingState label="Searching…" /> : !p.rows.length ? <EmptyState title="Nobody found">No account matches. Try fewer filters, or search by full email.</EmptyState> : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead><tr className="border-b border-line">{['Name', 'Role', 'Academy', 'Branch', 'Status'].map((h) => <th key={h} className="p-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-3">{h}</th>)}</tr></thead>
+            <thead><tr className="border-b border-line">{['Name', 'Role', 'Academy', 'Branch', 'Status'].map((h) => <th key={h} className="p-2.5 text-left text-xs font-semibold text-ink-3">{h}</th>)}</tr></thead>
             <tbody>{p.rows.map((u) => (
               <tr key={u.id} className="border-b border-line last:border-0">
                 <td className="p-2.5"><Link href={`/dashboard/people/${u.id}`} className="font-semibold text-brand-ink hover:underline">{u.displayName || 'Unnamed'}</Link><div className="text-xs text-ink-3">{u.email}{u.studentId ? ` · ${u.studentId}` : ''} · {u.id}</div></td>

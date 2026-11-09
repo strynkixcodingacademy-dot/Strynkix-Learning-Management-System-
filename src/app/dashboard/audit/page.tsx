@@ -126,14 +126,14 @@ export default function AuditLogPage() {
     <AppShell>
       <RequireRole allowedRoles={['super_admin', 'university_admin']}>
         <div className="space-y-6">
-          <PageHeader eyebrow="Academy administration" title="Audit log"
+          <PageHeader title="Audit log"
             description="Every account, membership, review, publishing, content and academy change, with who made it and when. Entries can’t be edited or deleted." />
           <Card className="overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
               <div role="tablist" aria-label="Filter by category" className="flex gap-1 overflow-x-auto rounded-xl bg-surface-muted p-1">
                 {(['all', ...Object.keys(AUDIT_CATEGORIES)] as AuditCategory[]).map((c) => (
                   <button key={c} type="button" role="tab" aria-selected={category === c} onClick={() => setCategory(c)}
-                    className={cx('shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors', category === c ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink')}>
+                    className={cx('shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors', category === c ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink')}>
                     {c === 'all' ? 'Everything' : AUDIT_CATEGORIES[c as Exclude<AuditCategory, 'all'>].label}
                   </button>
                 ))}
@@ -156,7 +156,7 @@ export default function AuditLogPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] text-left text-sm">
-                  <thead className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3">
+                  <thead className="text-xs font-semibold text-ink-3">
                     <tr className="border-b border-line">
                       <th scope="col" className="px-4 py-2.5">When</th>
                       <th scope="col" className="px-2 py-2.5">What</th>
@@ -172,8 +172,8 @@ export default function AuditLogPage() {
                       return (
                         <tr key={r.id} className="border-b border-line align-top">
                           <td className="whitespace-nowrap px-4 py-2.5 text-xs text-ink-3">{r.at ? r.at.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</td>
-                          <td className="px-2 py-2.5 font-semibold text-ink">{AUDIT_ACTION_LABELS[r.action] ?? r.action}</td>
-                          <td className="px-2 py-2.5 text-ink-2">{name(r.actorId)}{r.actorRole && r.actorRole !== 'system' ? <span className="block text-[11px] text-ink-4">{ROLE_LABELS[r.actorRole as UserRole] ?? r.actorRole}</span> : null}</td>
+                          <td className="px-2 py-2.5 font-medium text-ink">{AUDIT_ACTION_LABELS[r.action] ?? r.action}</td>
+                          <td className="px-2 py-2.5 text-ink-2">{name(r.actorId)}{r.actorRole && r.actorRole !== 'system' ? <span className="block text-xs text-ink-4">{ROLE_LABELS[r.actorRole as UserRole] ?? r.actorRole}</span> : null}</td>
                           <td className="px-2 py-2.5 text-ink-2">{link ? <Link href={link} className="text-brand-ink hover:underline">{target}</Link> : target}</td>
                           <td className="px-2 py-2.5 pr-4 text-xs text-ink-3">{details(r)}</td>
                         </tr>

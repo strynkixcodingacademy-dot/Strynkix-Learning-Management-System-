@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Strynkix Live Books — catalog. Tracks (by level) on the left; the selected
- * track's subjects as cards on the right, each with modules, lessons and the
- * learner's progress. Students see the courses they are enrolled in; staff see
- * every published course.
+ * Strynkix Live Books — catalogue: the academy's shelves. Courses stand as bound
+ * volumes, grouped by track, each with its modules, lessons and the learner's
+ * progress. Students see the courses they are enrolled in; staff see every
+ * published course.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -18,13 +18,13 @@ import { getCourseWithCurriculum, getStudentCourseProgress } from '@/lib/liveboo
 import { getCourseDesignCourses } from '@/lib/courses/service';
 import { Course, CourseLevel } from '@/types/domain';
 import { AppShell } from '@/components/dashboard/AppShell';
-import { LiveBooksFrame } from '@/components/livebook/LiveBooksFrame';
-import { CourseIcon } from '@/components/ui/CourseIcon';
-import { ProgressRing } from '@/components/ui/Progress';
+import { CourseCover } from '@/components/ui/CourseIcon';
+import { PageHeader, SearchInput } from '@/components/ui/Page';
+import { ProgressBar } from '@/components/ui/Progress';
 import { buttonClasses } from '@/components/ui/Button';
 import { EmptyState, ErrorState, Notice, Skeleton } from '@/components/ui/States';
-import { cx } from '@/components/ui/tones';
-import { Check, Folder, Layers, Search } from 'lucide-react';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { Check } from 'lucide-react';
 
 interface CourseStats {
   modules: number;
@@ -40,26 +40,34 @@ const TRACKS: Array<{ level: CourseLevel; label: string; hint: string }> = [
 
 const pctOf = (s?: CourseStats) => (s && s.lessons ? Math.round((s.completed / s.lessons) * 100) : 0);
 
-function CourseCard({ course, stats }: { course: Course; stats?: CourseStats }) {
+function Book({ course, stats }: { course: Course; stats?: CourseStats }) {
   const pct = pctOf(stats);
+  const started = pct > 0;
   return (
-    <Link href={`/courses/${course.id}`} className="group flex h-full flex-col rounded-xl border border-line bg-surface p-6 shadow-card transition-[box-shadow,border-color] hover:border-silver hover:shadow-lift">
-      <CourseIcon course={course} size="md" />
-      <h3 className="mt-5 text-[17px] font-extrabold leading-snug text-ink group-hover:text-brand-ink">{course.title}</h3>
-      {(course.tagline || course.description) && (
-        <p className="mt-1.5 line-clamp-3 text-[14px] leading-relaxed text-ink-3">{course.tagline || course.description}</p>
-      )}
-      <span aria-hidden="true" className="min-h-6 flex-1" />
-      <div className="flex items-center gap-5 border-t border-line pt-4 text-[14px] text-ink-2">
-        <span className="inline-flex items-center gap-1.5" title="Modules"><Folder className="h-4 w-4 text-ink-3" aria-hidden="true" />{stats ? stats.modules : '–'}<span className="sr-only"> modules</span></span>
-        <span className="inline-flex items-center gap-1.5" title="Lessons"><Layers className="h-4 w-4 text-ink-3" aria-hidden="true" />{stats ? stats.lessons : '–'}<span className="sr-only"> lessons</span></span>
-        <span className="ml-auto inline-flex items-center gap-2" title="Completed">
-          <ProgressRing value={stats ? pct : null} tone="success" size={20} label={`${course.title} progress`}>{''}</ProgressRing>
-          {stats ? `${pct}%` : '–'}
+    <li className="min-w-0">
+      <Link href={`/courses/${course.id}`} className="group flex h-full flex-col rounded-md">
+        <CourseCover course={course} level={course.level} className="shadow-[0_14px_24px_-16px_rgb(10_14_40/0.5)] transition-transform duration-200 ease-out group-hover:-translate-y-0.5" />
+        <span className="mt-3 text-body font-medium leading-snug text-ink group-hover:text-brand-ink">{course.title}</span>
+        {(course.tagline || course.description) && (
+          <span className="mt-1 line-clamp-2 text-sm text-ink-3">{course.tagline || course.description}</span>
+        )}
+        <span className="mt-auto pt-2.5 text-xs text-ink-3">
+          {stats ? `${stats.modules} module${stats.modules === 1 ? '' : 's'}, ${stats.lessons} lesson${stats.lessons === 1 ? '' : 's'}` : ' '}
+          {course.estimatedWeeks ? `, ${course.estimatedWeeks} weeks` : ''}
         </span>
-      </div>
-    </Link>
+      </Link>
+      {started && (
+        <div className="mt-2 flex items-center gap-2">
+          <ProgressBar value={pct} tone={pct === 100 ? 'success' : 'brand'} size="sm" label={`${course.title} progress`} />
+          <span className="text-xs tabular-nums text-ink-3">{pct}%</span>
+        </div>
+      )}
+    </li>
   );
+}
+
+function ShelfGrid({ children }: { children: React.ReactNode }) {
+  return <ul className="grid grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">{children}</ul>;
 }
 
 export default function CoursesPage() {
@@ -171,82 +179,60 @@ export default function CoursesPage() {
   }, [courseIds, tenant?.orgId, user?.uid]);
 
   const [q, setQ] = useState('');
-  const [picked, setPicked] = useState<CourseLevel | null>(null);
   const groups = useMemo(() => TRACKS.map((t) => ({ ...t, courses: courses.filter((c) => c.level === t.level) })).filter((g) => g.courses.length), [courses]);
   const isCurrent = (cs: Course[]) => cs.some((c) => { const p = pctOf(stats[c.id]); return p > 0 && p < 100; });
-  const current = groups.find((g) => isCurrent(g.courses))?.level ?? groups[0]?.level ?? null;
-  const active = groups.find((g) => g.level === (picked ?? current)) ?? groups[0];
   const needle = q.trim().toLowerCase();
-  const shown = needle ? courses.filter((c) => `${c.title} ${c.tagline} ${(c.tags ?? []).join(' ')}`.toLowerCase().includes(needle)) : active?.courses ?? [];
-
-  const search = (
-    <div className="relative w-full max-w-[260px]">
-      <label htmlFor="lb-search" className="sr-only">Search Live Books</label>
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-4" aria-hidden="true" />
-      <input id="lb-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search subjects"
-        className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-sm text-ink placeholder-ink-4 shadow-card focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/15" />
-    </div>
-  );
+  const matches = needle ? courses.filter((c) => `${c.title} ${c.tagline} ${(c.tags ?? []).join(' ')}`.toLowerCase().includes(needle)) : [];
+  const ungrouped = courses.filter((c) => !TRACKS.some((t) => t.level === c.level));
 
   return (
-    <AppShell fit>
-      <LiveBooksFrame actions={search} className="grid grid-cols-1 md:grid-cols-[300px_minmax(0,1fr)]">
-        {/* Tracks */}
-        <nav aria-label="Tracks" className="border-b border-line bg-surface md:border-b-0 md:border-r md:overflow-y-auto">
-          {isLoading ? (
-            <div className="space-y-3 p-5">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" />)}</div>
-          ) : groups.map((g) => {
-            const selected = !needle && g.level === active?.level;
-            const cur = g.level === current && isCurrent(g.courses);
-            return (
-              <button key={g.level} type="button" onClick={() => { setPicked(g.level); setQ(''); }} aria-pressed={selected}
-                className={cx('block w-full border-b border-dashed border-line px-6 py-5 text-left transition-colors', selected ? 'bg-highlight-soft' : 'hover:bg-canvas')}>
-                <span className="flex items-center justify-between gap-2">
-                  <span className={cx('text-[13.5px]', selected ? 'font-semibold text-warning-ink' : 'text-ink-3')}>{g.label} · {g.courses.length} subject{g.courses.length === 1 ? '' : 's'}</span>
-                  {cur ? <span className="rounded-full bg-highlight px-2.5 py-0.5 text-[12px] font-bold text-warning-ink">Current</span>
-                    : g.courses.every((c) => pctOf(stats[c.id]) === 100) ? <Check className="h-4 w-4 text-ink-3" aria-label="All complete" /> : null}
-                </span>
-                <span className="mt-3 flex -space-x-2">
-                  {g.courses.slice(0, 4).map((c) => (
-                    <span key={c.id} className="rounded-full ring-[3px] ring-surface [&>*]:rounded-full"><CourseIcon course={c} size="sm" /></span>
-                  ))}
-                  {g.courses.length > 4 && <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-muted text-[12px] font-bold text-ink-3 ring-[3px] ring-surface">+{g.courses.length - 4}</span>}
-                </span>
-              </button>
-            );
-          })}
-        </nav>
+    <AppShell>
+      <div className="space-y-10">
+        <PageHeader
+          title="Live Books"
+          description={isStudent ? 'Your interactive textbooks: read, try the code and check your understanding as you go.' : 'Every published Live Book. Open one to read it as a student would.'}
+          actions={<SearchInput id="lb-search" label="Search Live Books" value={q} onChange={setQ} placeholder="Search subjects" className="w-full sm:w-64" />}
+        />
 
-        {/* Subjects */}
-        <section className="min-w-0 overflow-y-auto px-5 py-8 sm:px-9">
-          {unpublishedEnrollments > 0 && (
-            <Notice kind="warning" className="mb-6">
-              You are enrolled in {unpublishedEnrollments} course{unpublishedEnrollments === 1 ? '' : 's'} that {unpublishedEnrollments === 1 ? 'is' : 'are'} still being prepared.
-            </Notice>
-          )}
-          {isLoading ? (
-            <div className="grid gap-6 lg:grid-cols-2 2xl:grid-cols-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-60" />)}</div>
-          ) : error ? (
-            <ErrorState title="Live Books didn’t load" onRetry={reload}>{error}</ErrorState>
-          ) : courses.length === 0 ? (
-            <EmptyState illustration="book" title={isStudent ? 'No courses enrolled yet' : 'No published courses yet'}
-              action={isStudent ? <Link href="/dashboard" className={buttonClasses('primary')}>Back to Home</Link> : <Link href="/dashboard/courses" className={buttonClasses('primary')}>Open Course Authoring</Link>}>
-              {isStudent ? 'Your academy adds you to courses through batches. Once you’re enrolled, your Live Books appear here.' : 'Publish a course in Course Authoring to see it here.'}
-            </EmptyState>
-          ) : (
-            <>
-              <h2 className="mb-6 text-[22px] font-extrabold tracking-tight text-ink">{needle ? `Results for “${q.trim()}”` : active?.label}</h2>
-              {shown.length === 0 ? (
-                <p className="text-sm text-ink-3">No subjects match that search.</p>
-              ) : (
-                <ul className="grid gap-6 lg:grid-cols-2 2xl:grid-cols-3">
-                  {shown.map((c) => <li key={c.id}><CourseCard course={c} stats={stats[c.id]} /></li>)}
-                </ul>
-              )}
-            </>
-          )}
-        </section>
-      </LiveBooksFrame>
+        {unpublishedEnrollments > 0 && (
+          <Notice kind="warning">
+            You are enrolled in {unpublishedEnrollments} course{unpublishedEnrollments === 1 ? '' : 's'} that {unpublishedEnrollments === 1 ? 'is' : 'are'} still being prepared.
+          </Notice>
+        )}
+
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="aspect-[3/4]" />)}</div>
+        ) : error ? (
+          <ErrorState title="Live Books didn’t load" onRetry={reload}>{error}</ErrorState>
+        ) : courses.length === 0 ? (
+          <EmptyState illustration="book" title={isStudent ? 'No courses enrolled yet' : 'No published courses yet'}
+            action={isStudent ? <Link href="/dashboard" className={buttonClasses('primary')}>Back to Home</Link> : <Link href="/dashboard/courses" className={buttonClasses('primary')}>Open Course Authoring</Link>}>
+            {isStudent ? 'Your academy adds you to courses through batches. Once you’re enrolled, your Live Books appear here.' : 'Publish a course in Course Authoring to see it here.'}
+          </EmptyState>
+        ) : needle ? (
+          <section className="space-y-5">
+            <h2 className="type-section text-ink">Results for “{q.trim()}”</h2>
+            {matches.length === 0 ? <p className="text-sm text-ink-3">No subjects match that search.</p> : (
+              <ShelfGrid>{matches.map((c) => <Book key={c.id} course={c} stats={stats[c.id]} />)}</ShelfGrid>
+            )}
+          </section>
+        ) : (
+          <div className="space-y-12">
+            {groups.map((g) => (
+              <section key={g.level} aria-labelledby={`track-${g.level}`} className="space-y-5">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-2.5">
+                  <h2 id={`track-${g.level}`} className="type-section text-ink">{g.label}</h2>
+                  <span className="text-sm text-ink-3">{g.hint}</span>
+                  {isCurrent(g.courses) ? <StatusPill tone="warning" size="sm">Current</StatusPill>
+                    : Object.keys(stats).length > 0 && g.courses.every((c) => pctOf(stats[c.id]) === 100) ? <StatusPill tone="success" icon={Check} size="sm">All complete</StatusPill> : null}
+                </div>
+                <ShelfGrid>{g.courses.map((c) => <Book key={c.id} course={c} stats={stats[c.id]} />)}</ShelfGrid>
+              </section>
+            ))}
+            {ungrouped.length > 0 && <ShelfGrid>{ungrouped.map((c) => <Book key={c.id} course={c} stats={stats[c.id]} />)}</ShelfGrid>}
+          </div>
+        )}
+      </div>
     </AppShell>
   );
 }

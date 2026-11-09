@@ -49,7 +49,7 @@ function Marker({ assessment, keyItems, attempt, onSaved }: { assessment: Assess
     <Card className="space-y-5 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="font-bold text-ink">{attempt.studentName}</div>
+          <div className="font-semibold text-ink">{attempt.studentName}</div>
           <div className="text-xs text-ink-3">Attempt {attempt.attemptNumber} · submitted {formatWhen(attempt.submittedAt)}{attempt.overTime ? ' · after the time limit' : ''}</div>
         </div>
         <AttemptStatusPill status={attempt.status} late={attempt.late} resubmission={attempt.resubmission} />
@@ -175,7 +175,7 @@ function Submissions({ assessmentId, focus }: { assessmentId: string; focus?: st
               {shown.map((t) => (
                 <li key={t.id}>
                   <button type="button" onClick={() => setSelected(t.id)} aria-pressed={selected === t.id} className={cx('w-full rounded-xl border p-3 text-left', selected === t.id ? 'border-brand bg-brand-soft' : 'border-line bg-surface hover:bg-surface-muted')}>
-                    <div className="text-sm font-bold text-ink">{t.studentName}</div>
+                    <div className="text-sm font-semibold text-ink">{t.studentName}</div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-3">Attempt {t.attemptNumber} <AttemptStatusPill status={t.status} late={t.late} size="sm" /> {t.score !== undefined && t.status === 'evaluated' ? `${t.score}/${t.totalMarks}` : ''}</div>
                   </button>
                 </li>

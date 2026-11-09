@@ -18,25 +18,27 @@ export function EmptyState({
   compact?: boolean;
 }) {
   return (
-    <div className={cx('flex flex-col items-center text-center rounded-card border border-dashed border-line-strong bg-surface', compact ? 'px-6 py-8 gap-2' : 'px-6 py-12 gap-3')}>
-      <Illustration name={illustration} size={compact ? 84 : 120} />
-      <h3 className="text-base font-bold text-ink">{title}</h3>
-      {children && <div className="text-sm text-ink-3 max-w-md">{children}</div>}
-      {action && <div className="pt-2">{action}</div>}
+    <div className={cx('flex flex-col items-center rounded-card bg-surface-muted/60 text-center', compact ? 'gap-1.5 px-6 py-7' : 'gap-2 px-6 py-12')}>
+      <Illustration name={illustration} size={compact ? 24 : 32} className="mb-1 text-ink-4" />
+      <h3 className={cx('font-semibold text-ink', compact ? 'text-body' : 'text-lg')}>{title}</h3>
+      {children && <div className="max-w-md text-sm text-ink-3">{children}</div>}
+      {action && <div className="pt-3">{action}</div>}
     </div>
   );
 }
 
 export function ErrorState({ title = 'Something went wrong', children, onRetry }: { title?: string; children?: React.ReactNode; onRetry?: () => void }) {
   return (
-    <div role="alert" className="flex flex-col items-center text-center gap-3 rounded-card border border-danger-line bg-danger-soft px-6 py-10">
-      <AlertCircle className="w-8 h-8 text-danger-ink" aria-hidden="true" />
-      <h3 className="text-base font-bold text-ink">{title}</h3>
-      {children && <div className="text-sm text-ink-2 max-w-md">{children}</div>}
+    <div role="alert" className="flex flex-col items-center gap-2 rounded-card border border-danger-line bg-danger-soft px-6 py-10 text-center">
+      <AlertCircle className="mb-1 h-7 w-7 text-danger-ink" aria-hidden="true" />
+      <h3 className="text-lg font-semibold text-ink">{title}</h3>
+      {children && <div className="max-w-md text-sm text-ink-2">{children}</div>}
       {onRetry && (
-        <Button variant="secondary" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={onRetry}>
-          Try again
-        </Button>
+        <div className="pt-3">
+          <Button variant="secondary" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -49,15 +51,18 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function LoadingState({ label, rows = 3 }: { label: string; rows?: number }) {
   return (
-    <div role="status" aria-live="polite" className="space-y-4">
+    <div role="status" aria-live="polite" className="space-y-6">
       <span className="sr-only">{label}</span>
-      <Skeleton className="h-8 w-1/3" />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {Array.from({ length: rows }, (_, i) => (
-          <Skeleton key={i} className="h-28" />
+      <div className="space-y-3 border-b border-line pb-6">
+        <Skeleton className="h-9 w-72 max-w-full" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+      </div>
+      <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+        {Array.from({ length: Math.min(rows, 4) }, (_, i) => (
+          <div key={i} className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-8 w-16" /></div>
         ))}
       </div>
-      <Skeleton className="h-40" />
+      <Skeleton className="h-56" />
     </div>
   );
 }
@@ -66,7 +71,7 @@ const NOTICE = {
   success: { tone: 'success' as const, Icon: CheckCircle2 },
   error: { tone: 'danger' as const, Icon: AlertCircle },
   warning: { tone: 'warning' as const, Icon: TriangleAlert },
-  info: { tone: 'brand' as const, Icon: Info },
+  info: { tone: 'info' as const, Icon: Info },
 };
 
 /** Inline feedback (success / error / warning / info). Errors are announced assertively. */
@@ -86,7 +91,7 @@ export function Notice({
   return (
     <div
       role={kind === 'error' ? 'alert' : 'status'}
-      className={cx('flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-sm animate-rise', t.soft, t.line, 'text-ink-2', className)}
+      className={cx('flex items-start gap-2.5 rounded-lg border px-3.5 py-3 text-sm text-ink-2', t.soft, t.line, className)}
     >
       <Icon className={cx('w-4 h-4 mt-0.5 shrink-0', t.ink)} aria-hidden="true" />
       <div className="flex-1 min-w-0">{children}</div>

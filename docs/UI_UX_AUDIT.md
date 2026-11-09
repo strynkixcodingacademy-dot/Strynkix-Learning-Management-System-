@@ -122,3 +122,14 @@ A follow-up review re-ran the suites and the rendered app before trusting §6. I
 - **Dead ends removed.** Branch cards open the branch; staff home "Shortcuts" replaced by KPIs and "Next steps"; profile reachable from the sidebar.
 - **Verification.** Browser QA on emulators: new features, roles, daily learning, batches/enrollment; survey of every route at 1280/820/390 with no overflow or console errors.
 
+
+## 9. Product-wide redesign: "The academy press" (2026-11)
+
+Replaces §8. The current rules are in [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md); sections 1 to 8 above are history.
+
+- **Identity.** Strynkix as a university press: ivory paper, blue-black ink, cobalt for action, and cloth-bound covers that give each course its own identity.
+- **Type.** Young Serif for titles, Schibsted Grotesk for the interface, Literata for reading, JetBrains Mono for code.
+- **Navigation.** The unlabelled 76px icon rail became a labelled sidebar grouped per role, with a top bar, plus a bottom bar for students on phones.
+- **Home.** The "My Apps" tile grid and side sheets are gone. Students get a study desk (next step, today's plan, attention, coming up, shelf); staff get a roster of the day.
+- **Dialogs.** Hand-rolled overlays moved to native `<dialog>`, which adds a focus trap, Esc and an inert background. Screens that show one-time credentials ignore Esc on purpose.
+- **Verification.** See the implementation report for what ran. The Firestore rules tests and browser e2e suite were not run for this work because no Java runtime was available; run `npm run test:emulator` and `npm run test:e2e` on a machine with Java.

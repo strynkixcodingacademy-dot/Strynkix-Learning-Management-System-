@@ -7,36 +7,25 @@
  */
 
 import React, { useState } from 'react';
+import { Modal } from '@/components/ui/Modal';
 import { changeAcademy } from '@/lib/admin/service';
 import { ApiError } from '@/lib/api/authed';
 import { Branch, Organization } from '@/types/domain';
 import { Button } from '@/components/ui/Button';
 import { Field, fieldClasses } from '@/components/ui/Page';
 import { Notice } from '@/components/ui/States';
-import { X } from 'lucide-react';
 
 const message = (err: unknown) => (err instanceof ApiError ? err.message : (err as Error).message || 'The change couldn’t be saved.');
 
 function Shell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" />
-      <section role="dialog" aria-modal="true" aria-label={title} className="relative w-full max-w-md rounded-card border border-line bg-surface p-6 shadow-float animate-rise">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-[18px] font-extrabold text-ink">{title}</h2>
-          <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 hover:bg-surface-muted" aria-label="Close"><X className="h-5 w-5" /></button>
-        </div>
-        {children}
-      </section>
-    </div>
-  );
+  return <Modal title={title} onClose={onClose}>{children}</Modal>;
 }
 
 function StatusSection({ active, kind, busy, onToggle }: { active: boolean; kind: 'academy' | 'branch'; busy: boolean; onToggle: (reason: string) => void }) {
   const [reason, setReason] = useState('');
   return (
     <div className="mt-6 space-y-3 border-t border-line pt-4">
-      <h3 className="text-sm font-bold text-ink">{active ? `Deactivate this ${kind}` : `Reactivate this ${kind}`}</h3>
+      <h3 className="text-sm font-semibold text-ink">{active ? `Deactivate this ${kind}` : `Reactivate this ${kind}`}</h3>
       <p className="text-xs text-ink-3">
         {active
           ? `A deactivated ${kind} keeps all its people, batches and history, but no new accounts${kind === 'branch' ? ' or batches' : ''} can be added to it.`

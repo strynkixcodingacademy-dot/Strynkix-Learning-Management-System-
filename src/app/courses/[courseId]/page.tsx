@@ -2,8 +2,8 @@
 
 /**
  * Strynkix Live Books — Course page.
- * A "book cover" header with progress and a resume action, then Learning Path,
- * Schedule, Assignments and About.
+ * A title page (the cover, what the book is, how far along you are, where to
+ * pick up), then its Contents, Schedule, Assignments and About.
  */
 
 import { Breadcrumbs } from '@/components/ui/Page';
@@ -18,6 +18,7 @@ import { getBatchById, getStudentCourseEnrollment } from '@/lib/batches/service'
 import { getStudentAssignments, getStudentPlans, getStudentSubmissions } from '@/lib/learning/service';
 import { toLocalDateKey } from '@/lib/learning/metrics';
 import { grantsContentAccess } from '@/lib/batches/scope';
+import { lessonNumber } from '@/lib/livebook/structure';
 import {
   CourseAboutPanel,
   CourseAssignmentsPanel,
@@ -25,20 +26,20 @@ import {
   StudentCourseLearningData,
 } from '@/components/learning/CoursePanels';
 import { CoursePath } from '@/components/livebook/CoursePath';
-import { LiveBooksFrame } from '@/components/livebook/LiveBooksFrame';
 import { AppShell } from '@/components/dashboard/AppShell';
-import { CourseIcon } from '@/components/ui/CourseIcon';
+import { CourseCover } from '@/components/ui/CourseIcon';
+import { ProgressBar } from '@/components/ui/Progress';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { Tabs } from '@/components/ui/Tabs';
 import { buttonClasses } from '@/components/ui/Button';
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States';
-import { cx } from '@/components/ui/tones';
-import { CalendarDays, ClipboardList, Info, Route, Timer } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 const TABS = [
-  { id: 'path', label: 'Learning Path', icon: Route },
-  { id: 'schedule', label: 'Schedule', icon: CalendarDays },
-  { id: 'assignments', label: 'Assignments', icon: ClipboardList },
-  { id: 'about', label: 'About', icon: Info },
+  { id: 'path', label: 'Contents' },
+  { id: 'schedule', label: 'Schedule' },
+  { id: 'assignments', label: 'Assignments' },
+  { id: 'about', label: 'About' },
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
@@ -48,11 +49,13 @@ interface CoursePageProps {
 
 function CourseSkeleton() {
   return (
-    <div className="space-y-6" role="status" aria-live="polite">
+    <div className="space-y-8" role="status" aria-live="polite">
       <span className="sr-only">Loading course…</span>
-      <Skeleton className="h-4 w-48" />
-      <Skeleton className="h-44" />
-      <Skeleton className="h-10 w-96" />
+      <div className="flex gap-7">
+        <Skeleton className="hidden aspect-[3/4] w-40 sm:block" />
+        <div className="flex-1 space-y-3"><Skeleton className="h-4 w-48" /><Skeleton className="h-10 w-2/3" /><Skeleton className="h-4 w-1/2" /></div>
+      </div>
+      <Skeleton className="h-10 w-96 max-w-full" />
       <Skeleton className="h-24" />
       <Skeleton className="h-24" />
     </div>
@@ -157,11 +160,14 @@ function CourseDetailView({ courseId }: { courseId: string }) {
   if (error || !course) {
     if (error?.kind === 'failed') return <ErrorState title="Course didn’t load" onRetry={() => setReloadKey((k) => k + 1)}>{error.message}</ErrorState>;
     return (
-      <EmptyState illustration={error?.kind === 'not_enrolled' ? 'lock' : 'compass'}
-        title={error?.kind === 'not_enrolled' ? 'Not enrolled in this course' : 'Course not available'}
-        action={<Link href="/dashboard" className={buttonClasses('primary')}>Back to Home</Link>}>
-        {error?.message}
-      </EmptyState>
+      <>
+        <h1 className="sr-only">Live Books</h1>
+        <EmptyState illustration={error?.kind === 'not_enrolled' ? 'lock' : 'compass'}
+          title={error?.kind === 'not_enrolled' ? 'Not enrolled in this course' : 'Course not available'}
+          action={<Link href="/dashboard" className={buttonClasses('primary')}>Back to Home</Link>}>
+          {error?.message}
+        </EmptyState>
+      </>
     );
   }
 
@@ -170,72 +176,82 @@ function CourseDetailView({ courseId }: { courseId: string }) {
   const resumeLesson = getResumeLesson(modules, lessons, progressList);
   const totalMinutes = lessons.reduce((n, l) => n + (l.estimatedMinutes || 0), 0);
   const allDone = totalCount > 0 && completedCount === totalCount;
+  const started = progressList.some((p) => p.status !== 'not_started');
+  const resumeNumber = resumeLesson ? lessonNumber(modules, lessons, resumeLesson.id) : null;
 
   return (
-    <LiveBooksFrame>
-      <div className="h-full overflow-y-auto px-5 py-8 sm:px-12 sm:py-10">
-        <div className="mb-4"><Breadcrumbs items={[{ label: 'Live Books', href: '/courses' }, { label: course.title }]} /></div>
-        {/* Course header */}
-        <div className="flex flex-col gap-5 md:flex-row md:items-center">
-          <CourseIcon course={course} size="lg" />
-          <div className="min-w-0 flex-1">
-            <Link href="/courses" className="text-[13px] font-semibold text-ink-3 hover:text-ink">← All Live Books</Link>
-            <h2 className="text-[26px] font-extrabold leading-tight tracking-tight text-ink sm:text-[30px]">{course.title}</h2>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
-              <span className="font-semibold capitalize">{course.level}</span>
-              <span aria-hidden="true">·</span>
-              <span className="inline-flex items-center gap-1"><Timer className="h-3.5 w-3.5" aria-hidden="true" /> {course.estimatedWeeks} weeks · {Math.max(1, Math.round(totalMinutes / 60))} h of lessons</span>
-              {course.status !== 'published' && <span className="rounded-md bg-warning-soft px-1.5 py-0.5 font-semibold text-warning-ink">Preview — {course.status}</span>}
+    <div className="space-y-8">
+      <Breadcrumbs items={[{ label: 'Live Books', href: '/courses' }, { label: course.title }]} />
+
+      <header className="flex gap-6 sm:gap-8">
+        <CourseCover course={course} level={course.level} className="hidden w-36 shrink-0 self-start shadow-[0_18px_30px_-18px_rgb(10_14_40/0.55)] sm:flex md:w-40" />
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-5">
+          <div className="space-y-2.5">
+            <h1 className="type-page text-ink">{course.title}</h1>
+            {course.tagline && <p className="max-w-[58ch] text-body text-ink-2">{course.tagline}</p>}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-3">
+              <span className="capitalize">{course.level}</span>
+              <span>{course.estimatedWeeks} weeks</span>
+              <span>{Math.max(1, Math.round(totalMinutes / 60))} h of lessons</span>
+              {course.status !== 'published' && <StatusPill tone="warning" size="sm">Preview, {course.status}</StatusPill>}
             </div>
           </div>
-          <div className="w-full max-w-[300px] md:text-right">
-            <div className="h-2.5 overflow-hidden rounded-full border border-line bg-surface-muted" role="progressbar" aria-label="Course progress" aria-valuenow={percentage} aria-valuemin={0} aria-valuemax={100}>
-              <div className={cx('h-full rounded-full', allDone ? 'bg-success' : 'bg-brand')} style={{ width: `${totalCount ? percentage : 0}%` }} />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-7">
+            {resumeLesson && !allDone && (
+              <Link href={`/courses/${course.id}/units/${resumeLesson.id}`} className={buttonClasses('primary', 'lg', 'group min-h-12 min-w-0 self-start !h-auto !whitespace-normal py-2.5 text-left leading-snug')}>
+                <span className="min-w-0">
+                  {started ? 'Continue' : 'Start'} with {resumeNumber ? `${resumeNumber} ` : ''}<span className="font-normal">{resumeLesson.title}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+            )}
+            <div className="min-w-0 flex-1 sm:max-w-72">
+              <ProgressBar value={totalCount ? percentage : 0} tone={allDone ? 'success' : 'brand'} label="Course progress" />
+              <p className="mt-1.5 text-xs text-ink-3">{totalCount ? percentage : 0}% complete, {completedCount} of {totalCount} lessons</p>
             </div>
-            <div className="mt-2 text-[13px] text-ink-3">{totalCount ? percentage : 0}% Completed · {completedCount} of {totalCount} lessons</div>
           </div>
         </div>
+      </header>
 
-        <div className="mt-8">
-      <Tabs
-        idPrefix="course"
-        label="Course sections"
-        value={tab}
-        onChange={selectTab}
-        items={TABS.map((t) => ({
-          ...t,
-          count: t.id === 'assignments' && learningData ? learningData.assignments.length : undefined,
-        }))}
-      />
+      <div>
+        <Tabs
+          idPrefix="course"
+          label="Course sections"
+          value={tab}
+          onChange={selectTab}
+          items={TABS.map((t) => ({
+            ...t,
+            count: t.id === 'assignments' && learningData ? learningData.assignments.length : undefined,
+          }))}
+        />
 
-      <div id="course-panel" role="tabpanel" aria-labelledby={`course-tab-${tab}`} className="mt-8 animate-fade" key={tab}>
-        {tab === 'path' && (
-          modules.length === 0 ? (
-            <EmptyState illustration="book" title="Lessons are on the way">This course doesn&apos;t have published modules yet.</EmptyState>
-          ) : (
-            <CoursePath courseId={course.id} modules={modules} lessons={lessons} progress={progressList}
-              resumeLessonId={allDone ? null : resumeLesson?.id ?? null} todayLessonIds={todayLessonIds} />
-          )
-        )}
-        {tab === 'schedule' && (
-          <CourseSchedulePanel courseId={course.id} data={learningData} lessons={lessons} progress={progressList}
-            today={today} isStudent={isStudent} error={learningError} />
-        )}
-        {tab === 'assignments' && (
-          <CourseAssignmentsPanel courseId={course.id} data={learningData} now={now} isStudent={isStudent} error={learningError} />
-        )}
-        {tab === 'about' && <CourseAboutPanel course={course} batch={batch} lessonCount={lessons.length} />}
-      </div>
+        <div id="course-panel" role="tabpanel" aria-labelledby={`course-tab-${tab}`} className="mt-7" key={tab}>
+          {tab === 'path' && (
+            modules.length === 0 ? (
+              <EmptyState illustration="book" title="Lessons are on the way">This course doesn&apos;t have published modules yet.</EmptyState>
+            ) : (
+              <CoursePath courseId={course.id} modules={modules} lessons={lessons} progress={progressList}
+                resumeLessonId={allDone ? null : resumeLesson?.id ?? null} todayLessonIds={todayLessonIds} />
+            )
+          )}
+          {tab === 'schedule' && (
+            <CourseSchedulePanel courseId={course.id} data={learningData} lessons={lessons} progress={progressList}
+              today={today} isStudent={isStudent} error={learningError} />
+          )}
+          {tab === 'assignments' && (
+            <CourseAssignmentsPanel courseId={course.id} data={learningData} now={now} isStudent={isStudent} error={learningError} />
+          )}
+          {tab === 'about' && <CourseAboutPanel course={course} batch={batch} lessonCount={lessons.length} />}
         </div>
       </div>
-    </LiveBooksFrame>
+    </div>
   );
 }
 
 function CoursePageContent({ params }: CoursePageProps) {
   const { courseId } = use(params);
   return (
-    <AppShell fit>
+    <AppShell>
       <CourseDetailView courseId={courseId} />
     </AppShell>
   );

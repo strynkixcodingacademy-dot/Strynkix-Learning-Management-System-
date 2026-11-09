@@ -121,7 +121,7 @@ function Builder({ initial, suggestions, onSaved, onClose }: { initial: Resume |
               <Button size="sm" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={() => set({ certifications: [...d.certifications, { name: '', issuer: '' }] })}>Add other certification</Button>
               {suggestions.certificates.filter((c) => !d.certifications.some((x) => x.certificateId === c.certificateId)).map((c) => <Button key={c.certificateId} size="sm" variant="ghost" onClick={() => set({ certifications: [...d.certifications, c] })}>+ Verified: {c.name}</Button>)}
             </div>
-            <h3 className="pt-2 text-sm font-bold text-ink">Achievements</h3>
+            <h3 className="pt-2 text-sm font-semibold text-ink">Achievements</h3>
             {d.achievements.map((a, i) => <div key={i} className="grid grid-cols-[1fr_auto] gap-2"><input aria-label={`Achievement ${i + 1}`} value={a} onChange={(e) => set({ achievements: d.achievements.map((x, j) => (j === i ? e.target.value : x)) })} className={fieldClasses} />{removeBtn('achievements', i)}</div>)}
             <Button size="sm" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={() => set({ achievements: [...d.achievements, ''] })}>Add achievement</Button>
           </>}
@@ -134,7 +134,7 @@ function Builder({ initial, suggestions, onSaved, onClose }: { initial: Resume |
         <div className="flex flex-wrap gap-2"><Button onClick={save} loading={busy}>Save</Button><Button variant="secondary" onClick={() => window.print()}>Print / Save as PDF</Button><Button variant="ghost" onClick={onClose}>Close</Button></div>
       </div>
       <div className="xl:sticky xl:top-6 xl:self-start">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-3 print:hidden">Live preview</p>
+        <p className="mb-2 text-xs font-semibold text-ink-3 print:hidden">Live preview</p>
         <div className="rounded-xl border border-line bg-white p-8 shadow-card print:border-0 print:p-0 print:shadow-none">
           <ResumePreview data={{ ...d, skills: skills.split(',').map((s) => s.trim()).filter(Boolean) }} template={template} />
         </div>
@@ -164,7 +164,7 @@ function ResumeBuilder() {
       {list.data.resumes.length === 0 ? <EmptyState title="No resumes yet">Start one — your name, contact, education, portfolio projects and verified certificates can be added for you.</EmptyState> : (
         <div className="grid gap-3 md:grid-cols-2">{list.data.resumes.map((r) => (
           <Card key={r.id} className="flex items-center gap-3 p-4">
-            <div className="min-w-0 flex-1"><div className="font-bold text-ink">{r.name}</div><div className="text-xs text-ink-3">{r.template} template · updated {new Date(r.updatedAt).toLocaleDateString('en-IN')}</div></div>
+            <div className="min-w-0 flex-1"><div className="font-semibold text-ink">{r.name}</div><div className="text-xs text-ink-3">{r.template} template · updated {new Date(r.updatedAt).toLocaleDateString('en-IN')}</div></div>
             <Button size="sm" onClick={() => setOpen(r)}>Open</Button>
             <Button size="sm" variant="ghost" onClick={async () => { if (await confirm({ title: `Delete “${r.name}”?`, confirmLabel: 'Delete', tone: 'danger' })) { await careerApi({ action: 'delete_resume', resumeId: r.id }); list.reload(); } }}>Delete</Button>
           </Card>

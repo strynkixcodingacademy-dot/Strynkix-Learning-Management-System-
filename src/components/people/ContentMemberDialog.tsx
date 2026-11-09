@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { ModalFrame } from '@/components/ui/Modal';
 import { createContentMember, generateTempPassword, validateProvisionInput } from '@/lib/admin/service';
 import { MembershipInput } from '@/lib/admin/course-design';
 import { courseDesignInputSchema } from '@/types/validation';
@@ -63,13 +64,13 @@ export function ContentMemberDialog({ orgId, onClose, onCreated }: { orgId: stri
     : '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-ink/20 backdrop-blur-[3px] animate-fade" />
+    <ModalFrame onClose={onClose}>
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 cursor-default" />
       <section role="dialog" aria-modal="true" aria-labelledby="content-member-title" className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-float animate-rise">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-coral-soft text-coral-ink"><PenTool className="h-5 w-5" /></span>
           <div className="flex-1">
-            <h2 id="content-member-title" className="text-[18px] font-extrabold text-ink">{created ? 'Account created' : 'Add content team member'}</h2>
+            <h2 id="content-member-title" className="type-section text-ink">{created ? 'Account created' : 'Add content team member'}</h2>
             <p className="text-sm text-ink-3">Course Design department · access only to the courses you choose.</p>
           </div>
           <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 hover:bg-surface-muted" aria-label="Close"><X className="h-5 w-5" /></button>
@@ -96,7 +97,7 @@ export function ContentMemberDialog({ orgId, onClose, onCreated }: { orgId: stri
                 {(Object.keys(ROLE_INFO) as ContentRole[]).map((r) => (
                   <label key={r} className={cx('cursor-pointer rounded-xl border p-3 transition-colors', role === r ? 'border-brand bg-brand-soft' : 'border-line hover:border-silver')}>
                     <input type="radio" name="content-role" value={r} checked={role === r} onChange={() => setRole(r)} className="sr-only" />
-                    <span className="block text-sm font-bold text-ink">{ROLE_INFO[r].label}</span>
+                    <span className="block text-sm font-semibold text-ink">{ROLE_INFO[r].label}</span>
                     <span className="mt-0.5 block text-xs leading-relaxed text-ink-3">{ROLE_INFO[r].body}</span>
                   </label>
                 ))}
@@ -124,6 +125,6 @@ export function ContentMemberDialog({ orgId, onClose, onCreated }: { orgId: stri
           </form>
         )}
       </section>
-    </div>
+    </ModalFrame>
   );
 }

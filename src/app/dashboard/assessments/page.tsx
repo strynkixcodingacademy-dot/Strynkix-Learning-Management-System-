@@ -16,7 +16,7 @@ import { getEvaluationQueue, listStudentAssessments, type StudentAssessmentSumma
 import { EXAM_TYPE_LABELS, KIND_LABELS } from '@/lib/assessments/grading';
 import type { AssessmentAttempt } from '@/types/academy';
 import { buttonClasses } from '@/components/ui/Button';
-import { Card, PageHeader } from '@/components/ui/Page';
+import { PageHeader } from '@/components/ui/Page';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { AttemptStatusPill, formatWhen } from '@/components/assessments/AttemptStatusPill';
@@ -43,21 +43,19 @@ function StudentAssessments({ initial }: { initial: StudentTab }) {
       <Tabs<StudentTab> idPrefix="sa" label="Show" value={tab} onChange={setTab}
         items={[{ id: 'activities', label: 'Lesson activities', count: items.filter((a) => a.kind !== 'exam' && pending(a)).length }, { id: 'exams', label: 'Examinations', count: items.filter((a) => a.kind === 'exam' && pending(a)).length }]} />
       {shown.length === 0 ? <EmptyState title="Nothing here yet">Your instructors haven’t published any {tab === 'exams' ? 'examinations' : 'activities'} for your courses.</EmptyState> : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-line rounded-card border border-line bg-surface">
           {shown.map((a) => (
             <li key={a.id}>
-              <Link href={`/courses/${a.courseId}/activities/${a.id}`} className="block">
-                <Card interactive className="flex flex-wrap items-center gap-3 p-4">
+              <Link href={`/courses/${a.courseId}/activities/${a.id}`} className="group flex flex-wrap items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-muted/50">
                   <div className="min-w-0 flex-1">
-                    <div className="font-bold text-ink">{a.title}</div>
+                    <div className="text-body font-medium text-ink group-hover:text-brand-ink">{a.title}</div>
                     <div className="text-xs text-ink-3">
-                      {a.kind === 'exam' && a.examType ? EXAM_TYPE_LABELS[a.examType] : KIND_LABELS[a.kind]} · {a.totalMarks} marks
-                      {a.closesAt ? ` · ${a.kind === 'exam' ? 'closes' : 'due'} ${formatWhen(a.closesAt)}` : ''}{a.timeLimitMinutes ? ` · ${a.timeLimitMinutes} min` : ''}
+                      {a.kind === 'exam' && a.examType ? EXAM_TYPE_LABELS[a.examType] : KIND_LABELS[a.kind]}, {a.totalMarks} marks
+                      {a.closesAt ? `, ${a.kind === 'exam' ? 'closes' : 'due'} ${formatWhen(a.closesAt)}` : ''}{a.timeLimitMinutes ? `, ${a.timeLimitMinutes} min` : ''}
                     </div>
                   </div>
                   <AttemptStatusPill status={a.status} late={a.late} size="sm" />
-                  {a.score !== undefined && <span className="text-sm font-bold text-ink">{a.score}/{a.totalMarks}</span>}
-                </Card>
+                  {a.score !== undefined && <span className="text-sm font-medium tabular-nums text-ink">{a.score}/{a.totalMarks}</span>}
               </Link>
             </li>
           ))}
@@ -81,17 +79,15 @@ function EvaluationQueue() {
     <div className="space-y-6">
       <PageHeader title="Evaluate submissions" description="Written answers, practical work and mixed exams waiting for marks, oldest first. Open a course’s Activities & exams to create new ones." />
       {items.length === 0 ? <EmptyState title="All caught up">No submissions are waiting for evaluation.</EmptyState> : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-line rounded-card border border-line bg-surface">
           {items.map((t) => (
-            <li key={t.id}>
-              <Card className="flex flex-wrap items-center gap-3 p-4">
+            <li key={t.id} className="flex flex-wrap items-center gap-3 px-4 py-3.5">
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold text-ink">{t.studentName}</div>
-                  <div className="text-xs text-ink-3">{t.title} · attempt {t.attemptNumber} · submitted {formatWhen(t.submittedAt)}</div>
+                  <div className="text-body font-medium text-ink">{t.studentName}</div>
+                  <div className="text-xs text-ink-3">{t.title}, attempt {t.attemptNumber}, submitted {formatWhen(t.submittedAt)}</div>
                 </div>
                 <AttemptStatusPill status={t.status} late={t.late} resubmission={t.resubmission} size="sm" />
                 <Link href={`/dashboard/assessments/${t.assessmentId}?attempt=${t.id}`} className={buttonClasses('primary', 'sm')}>Evaluate</Link>
-              </Card>
             </li>
           ))}
         </ul>
