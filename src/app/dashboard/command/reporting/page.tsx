@@ -30,7 +30,7 @@ import type { Tone } from '@/components/ui/tones';
 type Tab = 'snapshots' | 'reviews' | 'pending' | 'jobs';
 const STATUS_TONE: Record<string, Tone> = { reconciled: 'success', generated: 'brand', mismatched: 'danger', stale: 'warning', failed: 'danger', succeeded: 'success', running: 'brand', skipped: 'neutral', open: 'danger', resolved: 'success' };
 const pill = (s: string) => <StatusPill size="sm" tone={STATUS_TONE[s] ?? 'neutral'}>{s}</StatusPill>;
-const th = 'p-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-3';
+const th = 'p-2.5 text-left text-xs font-semibold text-ink-3';
 const td = 'p-2.5';
 const METRIC_LABELS: Record<string, string> = { collected: 'Collected', payments: 'Payments', paymentReversals: 'Payment reversals', refunds: 'Refunds (net)', charges: 'Extra charges', waivers: 'Waivers', discounts: 'Discounts', expenses: 'Expenses', net: 'Net (collected − expenses)', expectedAtEnd: 'Fees expected at period end', collectedToEnd: 'Collected to period end', outstandingAtEnd: 'Outstanding at period end' };
 
@@ -77,7 +77,7 @@ function SnapshotDetail({ id, onChanged }: { id: string; onChanged: () => void }
   return (
     <Card className="space-y-4 p-5">
       {dialog}
-      <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold text-ink">{id}</h3>{pill(s.status)}<span className="text-xs text-ink-3">v{s.version} · {s.from} – {s.to} · {s.calcVersion} · generated {formatWhen(s.generatedAt)} by {s.jobId}</span></div>
+      <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-ink">{id}</h3>{pill(s.status)}<span className="text-xs text-ink-3">v{s.version} · {s.from} – {s.to} · {s.calcVersion} · generated {formatWhen(s.generatedAt)} by {s.jobId}</span></div>
       {s.staleReasons && s.staleReasons.length > 0 && <Notice kind="warning">Needs recalculation: {s.staleReasons.join('; ')}</Notice>}
       {s.recalcReason && <p className="text-xs text-ink-3">Last recalculated because: {s.recalcReason}</p>}
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
@@ -89,16 +89,16 @@ function SnapshotDetail({ id, onChanged }: { id: string; onChanged: () => void }
         <Button size="sm" variant="secondary" onClick={async () => { if (await confirm({ title: 'Reconcile this snapshot now?', body: 'It is compared with figures recomputed from the ledger. Nothing financial is changed.', confirmLabel: 'Reconcile' })) act({ action: 'reconcile', snapshotId: id }, 'Reconciled'); }}>Reconcile now</Button>
       </div>
       <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead><tr className="border-b border-line"><th className={th}>Metric</th><th className={th}>Snapshot</th>{s.reconciliation?.differences.length ? <><th className={th}>Ledger now</th><th className={th}>Difference</th></> : null}</tr></thead>
-        <tbody>{Object.keys(METRIC_LABELS).map((m) => { const d = s.reconciliation?.differences.find((x) => x.metric === m); return <tr key={m} className="border-b border-line last:border-0"><td className={td}>{METRIC_LABELS[m]}</td><td className={`${td} tabular-nums`}>{formatMoney(s.finance[m])}</td>{s.reconciliation?.differences.length ? <><td className={`${td} tabular-nums`}>{d ? formatMoney(d.source) : '='}</td><td className={`${td} tabular-nums ${d ? 'font-bold text-danger-ink' : ''}`}>{d ? formatMoney(d.difference) : ''}</td></> : null}</tr>; })}</tbody></table></div>
+        <tbody>{Object.keys(METRIC_LABELS).map((m) => { const d = s.reconciliation?.differences.find((x) => x.metric === m); return <tr key={m} className="border-b border-line last:border-0"><td className={td}>{METRIC_LABELS[m]}</td><td className={`${td} tabular-nums`}>{formatMoney(s.finance[m])}</td>{s.reconciliation?.differences.length ? <><td className={`${td} tabular-nums`}>{d ? formatMoney(d.source) : '='}</td><td className={`${td} tabular-nums ${d ? 'font-semibold text-danger-ink' : ''}`}>{d ? formatMoney(d.difference) : ''}</td></> : null}</tr>; })}</tbody></table></div>
       {s.reconciliation && <p className="text-xs text-ink-3">Reconciliation {s.reconciliation.status} at {formatWhen(s.reconciliation.checkedAt)}.{s.reconciliation.inconsistentAccounts ? ` ${s.reconciliation.inconsistentAccounts} fee accounts have stored totals that don’t match their ledger: ${s.reconciliation.inconsistentAccountIds.join(', ')}.` : ''}</p>}
       <p className="text-xs text-ink-3">Academic: {Object.entries(s.academic).map(([k, v]) => `${k} ${v ?? '—'}`).join(' · ')}</p>
       <p className="text-xs text-ink-3">Source watermark: {Object.entries(s.watermark).map(([k, v]) => `${k} ${v ?? '—'}`).join(' · ')}</p>
       {data.versions.length > 0 && (
-        <div><h4 className="mb-1 text-sm font-bold text-ink">Previous versions</h4>
+        <div><h4 className="mb-1 text-sm font-semibold text-ink">Previous versions</h4>
           <ul className="space-y-1 text-xs text-ink-2">{data.versions.map((v) => <li key={v.id}>v{v.id} · generated {formatWhen(v.generatedAt)} · superseded {formatWhen(v.archivedAt)} · collected {formatMoney(v.finance.collected)} · outstanding {formatMoney(v.finance.outstandingAtEnd)}{v.recalcReason ? ` · ${v.recalcReason}` : ''}</li>)}</ul>
         </div>
       )}
-      {data.jobs.length > 0 && <div><h4 className="mb-1 text-sm font-bold text-ink">Recalculation and reconciliation runs</h4><ul className="space-y-1 text-xs text-ink-2">{data.jobs.map((j) => <li key={j.id}>{formatWhen(j.startedAt)} · {j.kind} · {j.status}{j.reason ? ` · ${j.reason}` : ''}</li>)}</ul></div>}
+      {data.jobs.length > 0 && <div><h4 className="mb-1 text-sm font-semibold text-ink">Recalculation and reconciliation runs</h4><ul className="space-y-1 text-xs text-ink-2">{data.jobs.map((j) => <li key={j.id}>{formatWhen(j.startedAt)} · {j.kind} · {j.status}{j.reason ? ` · ${j.reason}` : ''}</li>)}</ul></div>}
     </Card>
   );
 }
@@ -151,7 +151,7 @@ function Reviews({ version, onChanged }: { version: number; onChanged: () => voi
       <p className="text-sm text-ink-3">A review opens when a snapshot disagrees with figures recomputed from the ledger, or when fee accounts’ stored totals don’t match their ledger. Investigate the source records; recalculate the snapshot or correct the records through the normal audited actions, then resolve with a note. Nothing is corrected automatically.</p>
       {!data ? <LoadingState label="Loading reviews…" /> : !data.reviews.length ? <EmptyState title={status === 'open' ? 'Nothing to review' : 'No resolved reviews'}>{status === 'open' ? 'Every reconciled snapshot matches the ledger.' : 'Resolved reviews appear here.'}</EmptyState> : data.reviews.map((r) => (
         <Card key={r.id} className="space-y-2 p-4">
-          <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-ink">{r.level} · {r.scopeId} · {r.periodType} {r.periodKey}</span>{pill(r.status)}<span className="ml-auto text-xs text-ink-3">opened {formatWhen(r.openedAt)}</span></div>
+          <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-ink">{r.level} · {r.scopeId} · {r.periodType} {r.periodKey}</span>{pill(r.status)}<span className="ml-auto text-xs text-ink-3">opened {formatWhen(r.openedAt)}</span></div>
           {r.differences.length > 0 && <ul className="text-sm">{r.differences.map((d) => <li key={d.metric}>{METRIC_LABELS[d.metric] ?? d.metric}: snapshot {formatMoney(d.snapshot ?? 0)} · ledger {formatMoney(d.source)} · difference <strong>{formatMoney(d.difference)}</strong></li>)}</ul>}
           {r.inconsistentAccounts > 0 && <p className="text-sm">{r.inconsistentAccounts} fee account(s) with stored totals that don’t match the ledger: {r.inconsistentAccountIds.map((id) => <a key={id} className="mr-2 text-brand-ink underline" href={`/dashboard/finance/accounts/${id}`}>{id}</a>)}</p>}
           {r.status === 'open' ? (

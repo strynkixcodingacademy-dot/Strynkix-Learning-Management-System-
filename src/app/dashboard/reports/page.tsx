@@ -30,7 +30,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
   return (
     <Card className="overflow-x-auto">
       <table className="w-full min-w-[560px] text-sm">
-        <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3">{head.map((h, i) => <th key={h} className={i ? 'p-2.5 text-right' : 'p-2.5'}>{h}</th>)}</tr></thead>
+        <thead><tr className="border-b border-line text-left text-xs text-ink-3">{head.map((h, i) => <th key={h} className={i ? 'p-2.5 text-right' : 'p-2.5'}>{h}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => <tr key={i} className="border-b border-line last:border-0">{r.map((c, j) => <td key={j} className={j ? 'p-2.5 text-right tabular-nums' : 'p-2.5 font-semibold text-ink'}>{c}</td>)}</tr>)}</tbody>
       </table>
     </Card>
@@ -46,12 +46,12 @@ function OrganizationReport() {
   if (!academies.data || !branches.data) return <LoadingState label="Building the organization report…" />;
   return (
     <div className="space-y-5">
-      <div className="hidden print:block"><h1 className="text-xl font-extrabold">Organization report</h1><p>Generated {new Date().toLocaleString('en-IN')}</p></div>
-      <h2 className="font-bold text-ink">Academy summary{academies.data.total > academies.data.academies.length ? ` (first ${academies.data.academies.length} of ${academies.data.total}; export CSV for all)` : ''}</h2>
+      <div className="hidden print:block"><h1 className="type-page ">Organization report</h1><p>Generated {new Date().toLocaleString('en-IN')}</p></div>
+      <h2 className="font-semibold text-ink">Academy summary{academies.data.total > academies.data.academies.length ? ` (first ${academies.data.academies.length} of ${academies.data.total}; export CSV for all)` : ''}</h2>
       <Table head={['Academy', 'Status', 'Branches', 'Students', 'Instructors', 'Admissions', 'Collected', 'Outstanding', 'Expenses']} rows={academies.data.academies.map((a) => [a.name, a.status, a.stats.branches, a.stats.students, a.stats.instructors, a.stats.admissions, formatMoney(a.stats.collected), formatMoney(a.stats.outstanding), formatMoney(a.stats.expenses)])} />
-      <h2 className="font-bold text-ink">Branch summary{branches.data.total > branches.data.branches.length ? ` (first ${branches.data.branches.length} of ${branches.data.total}; export CSV for all)` : ''}</h2>
+      <h2 className="font-semibold text-ink">Branch summary{branches.data.total > branches.data.branches.length ? ` (first ${branches.data.branches.length} of ${branches.data.total}; export CSV for all)` : ''}</h2>
       <Table head={['Branch', 'Academy', 'Students', 'Instructors', 'Admissions', 'Collected', 'Outstanding', 'Expenses']} rows={branches.data.branches.map((b) => [b.name, b.academy, b.stats.students, b.stats.instructors, b.stats.admissions, formatMoney(b.stats.collected), formatMoney(b.stats.outstanding), formatMoney(b.stats.expenses)])} />
-      {people.data && <><h2 className="font-bold text-ink">User distribution</h2><Table head={['Role', 'Accounts']} rows={[['Students', people.data.stats.students], ['Instructors', people.data.stats.instructors], ['Branch managers', people.data.stats.branchManagers], ['University admins', people.data.stats.universityAdmins], ['Course designers', people.data.stats.courseDesigners]]} /></>}
+      {people.data && <><h2 className="font-semibold text-ink">User distribution</h2><Table head={['Role', 'Accounts']} rows={[['Students', people.data.stats.students], ['Instructors', people.data.stats.instructors], ['Branch managers', people.data.stats.branchManagers], ['University admins', people.data.stats.universityAdmins], ['Course designers', people.data.stats.courseDesigners]]} /></>}
       <p className="text-xs text-ink-3">Growth trends (admissions by month) are in the Academic tab and the Command Centre.</p>
     </div>
   );
@@ -68,7 +68,7 @@ function MonthlyHistory({ scope }: { scope: FinanceScope }) {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold text-ink">Month by month</h2>
+        <h2 className="font-semibold text-ink">Month by month</h2>
         <Button size="sm" variant="secondary" className="print:hidden" onClick={() => downloadCsv(`monthly-history-${from}-${to}.csv`, data.rows, [
           { header: 'Month', value: (r) => r.month }, { header: 'Source', value: (r) => (r.source === 'snapshot' ? 'Reconciled snapshot' : 'Live calculation') }, { header: 'Note', value: (r) => r.note },
           { header: 'Collected (INR)', value: (r) => moneyPlain(r.collected) }, { header: 'Payments (INR)', value: (r) => moneyPlain(r.payments) }, { header: 'Payment reversals (INR)', value: (r) => moneyPlain(r.paymentReversals) },
@@ -90,9 +90,9 @@ function FinanceReport({ scope }: { scope: FinanceScope }) {
   const t = data.totals;
   return (
     <div className="space-y-5">
-      <div className="hidden print:block"><h1 className="text-xl font-extrabold">Financial report</h1><p>{scope.orgId === '*' ? 'All academies' : scope.orgId}{scope.branchId ? ` · branch ${scope.branchId}` : ''} · {formatDate(data.period.from)} – {formatDate(data.period.to)}</p></div>
+      <div className="hidden print:block"><h1 className="type-page ">Financial report</h1><p>{scope.orgId === '*' ? 'All academies' : scope.orgId}{scope.branchId ? ` · branch ${scope.branchId}` : ''} · {formatDate(data.period.from)} – {formatDate(data.period.to)}</p></div>
       <p className="text-sm text-ink-3 print:hidden">{formatDate(data.period.from)} – {formatDate(data.period.to)}. “Collected” is cash received; “expected” is agreed fees. The net position is collections minus expenses — not audited or statutory profit.</p>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
         <KpiTile label="Collected" value={formatMoney(t.collected)} tone="success" />
         <KpiTile label="Expenses" value={formatMoney(t.expenses)} tone="coral" />
         <KpiTile label="Net operating position" value={formatMoney(t.net)} tone={t.net >= 0 ? 'teal' : 'danger'} />
@@ -107,13 +107,13 @@ function FinanceReport({ scope }: { scope: FinanceScope }) {
         { header: 'Section', value: (r) => r.section }, { header: 'Name', value: (r) => r.name }, { header: 'Collected (INR)', value: (r) => moneyPlain(r.collected) },
         { header: 'Expenses (INR)', value: (r) => moneyPlain(r.expenses) }, { header: 'Outstanding (INR)', value: (r) => moneyPlain(r.outstanding) }, { header: 'Net (INR)', value: (r) => moneyPlain(r.net) },
       ], [['Academy', scope.orgId === '*' ? 'All academies' : scope.orgId], ['Branch', scope.branchId || 'All branches'], ['From', data.period.from], ['To', data.period.to], ['Net position', 'Collections minus expenses (cash basis, not audited profit)']])}>Export this report (CSV)</Button>
-      {data.byAcademy.length > 0 && <><h2 className="font-bold text-ink">By academy</h2><Table head={['Academy', 'Students', 'Collected', 'Outstanding', 'Expenses', 'Net']} rows={data.byAcademy.map((a) => [a.name, a.students, formatMoney(a.collected), formatMoney(a.outstanding), formatMoney(a.expenses), formatMoney(a.net)])} /></>}
+      {data.byAcademy.length > 0 && <><h2 className="font-semibold text-ink">By academy</h2><Table head={['Academy', 'Students', 'Collected', 'Outstanding', 'Expenses', 'Net']} rows={data.byAcademy.map((a) => [a.name, a.students, formatMoney(a.collected), formatMoney(a.outstanding), formatMoney(a.expenses), formatMoney(a.net)])} /></>}
       <MonthlyHistory scope={scope} />
-      <h2 className="font-bold text-ink">By month (selected dates)</h2>
+      <h2 className="font-semibold text-ink">By month (selected dates)</h2>
       {data.byMonth.length ? <Table head={['Month', 'Collected', 'Expenses', 'Net']} rows={data.byMonth.map((m) => [m.month, formatMoney(m.collected), formatMoney(m.expenses), formatMoney(m.net)])} /> : <EmptyState title="No activity">Nothing was collected or spent in this period.</EmptyState>}
-      {data.byBranch.length > 0 && <><h2 className="font-bold text-ink">By branch</h2><Table head={['Branch', 'Students', 'Expected', 'Collected', 'Outstanding', 'Expenses', 'Net']} rows={data.byBranch.map((b) => [b.name, b.students, formatMoney(b.expected), formatMoney(b.collected), formatMoney(b.outstanding), formatMoney(b.expenses), formatMoney(b.net)])} /></>}
-      {data.byCourse.length > 0 && <><h2 className="font-bold text-ink">Course-wise revenue</h2><Table head={['Course', 'Students', 'Expected', 'Collected', 'Outstanding', 'Discounts']} rows={data.byCourse.map((c) => [c.name, c.students, formatMoney(c.expected), formatMoney(c.collected), formatMoney(c.outstanding), formatMoney(c.discounts)])} /></>}
-      {data.byCategory.length > 0 && <><h2 className="font-bold text-ink">Expenses by category</h2><Table head={['Category', 'Amount']} rows={data.byCategory.map((c) => [c.name, formatMoney(c.amount)])} /></>}
+      {data.byBranch.length > 0 && <><h2 className="font-semibold text-ink">By branch</h2><Table head={['Branch', 'Students', 'Expected', 'Collected', 'Outstanding', 'Expenses', 'Net']} rows={data.byBranch.map((b) => [b.name, b.students, formatMoney(b.expected), formatMoney(b.collected), formatMoney(b.outstanding), formatMoney(b.expenses), formatMoney(b.net)])} /></>}
+      {data.byCourse.length > 0 && <><h2 className="font-semibold text-ink">Course-wise revenue</h2><Table head={['Course', 'Students', 'Expected', 'Collected', 'Outstanding', 'Discounts']} rows={data.byCourse.map((c) => [c.name, c.students, formatMoney(c.expected), formatMoney(c.collected), formatMoney(c.outstanding), formatMoney(c.discounts)])} /></>}
+      {data.byCategory.length > 0 && <><h2 className="font-semibold text-ink">Expenses by category</h2><Table head={['Category', 'Amount']} rows={data.byCategory.map((c) => [c.name, formatMoney(c.amount)])} /></>}
     </div>
   );
 }
@@ -126,16 +126,16 @@ function AcademicReport({ scope }: { scope: FinanceScope }) {
   if (!data) return <LoadingState label="Building the report…" />;
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
         <KpiTile label="Admissions" value={data.totals.admissions} hint="Confirmed in the period" />
         <KpiTile label="Active students" value={data.totals.activeStudents} tone="teal" />
         <KpiTile label="Completed" value={data.totals.completed} tone="success" />
-        <KpiTile label="Running batches" value={data.totals.runningBatches} tone="lavender" />
+        <KpiTile label="Running batches" value={data.totals.runningBatches} tone="info" />
       </div>
-      {data.admissionsByMonth.length > 0 && <><h2 className="font-bold text-ink">Admissions trend</h2><Table head={['Month', 'Admissions']} rows={data.admissionsByMonth.map((m) => [m.month, m.count])} /></>}
-      <h2 className="font-bold text-ink">Course popularity</h2>
+      {data.admissionsByMonth.length > 0 && <><h2 className="font-semibold text-ink">Admissions trend</h2><Table head={['Month', 'Admissions']} rows={data.admissionsByMonth.map((m) => [m.month, m.count])} /></>}
+      <h2 className="font-semibold text-ink">Course popularity</h2>
       {data.courses.length ? <Table head={['Course', 'Enrolled', 'Active', 'Completed']} rows={data.courses.map((c) => [c.title, c.enrolled, c.active, c.completed])} /> : <EmptyState title="No enrollments">No enrollments in this scope.</EmptyState>}
-      {data.batches.length > 0 && <><h2 className="font-bold text-ink">Batch performance</h2><Table head={['Batch', 'Branch', 'Course', 'Students', 'Classes', 'Attendance']} rows={data.batches.map((b) => [b.name, b.branch, b.courseTitle, b.students, b.classes, b.attendance === null ? '—' : `${b.attendance}%`])} /></>}
+      {data.batches.length > 0 && <><h2 className="font-semibold text-ink">Batch performance</h2><Table head={['Batch', 'Branch', 'Course', 'Students', 'Classes', 'Attendance']} rows={data.batches.map((b) => [b.name, b.branch, b.courseTitle, b.students, b.classes, b.attendance === null ? '—' : `${b.attendance}%`])} /></>}
     </div>
   );
 }
@@ -162,11 +162,11 @@ function CourseReport({ scope }: { scope: FinanceScope }) {
       </div>
       {!courseId ? <EmptyState title="No courses">No courses in this academy.</EmptyState> : error ? <ErrorState onRetry={reload}>{error}</ErrorState> : !data ? <LoadingState label="Analysing the course…" /> : (
         <>
-          <h2 className="text-lg font-extrabold text-ink">{data.course.title}</h2>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <h2 className="type-section text-ink">{data.course.title}</h2>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
             <KpiTile label="Enrolled" value={data.students.enrolled} hint={`${data.students.active} active · ${data.students.completed} completed · ${data.students.dropped} dropped or paused`} />
             <KpiTile label="Average completion" value={pctOr(data.averages.completion)} tone="teal" hint={`${data.totalLessons} published lessons`} />
-            <KpiTile label="Average attendance" value={pctOr(data.averages.attendance)} tone="lavender" />
+            <KpiTile label="Average attendance" value={pctOr(data.averages.attendance)} tone="info" />
             <KpiTile label="Average assessment score" value={pctOr(data.averages.assessments)} tone="brand" />
           </div>
           <Table head={['Examination', 'Attempts evaluated', 'Average', 'Pass rate']} rows={(['demo', 'practice', 'final'] as const).map((k) => [`${k[0].toUpperCase()}${k.slice(1)} exams`, data.exams[k].attempts, pctOr(data.exams[k].average), pctOr(data.exams[k].passRate)])} />
@@ -199,7 +199,7 @@ function Exports({ scope }: { scope: FinanceScope }) {
       <div className="grid gap-3 sm:grid-cols-2">
         {DATASETS.filter((d) => !d.superOnly || tenant?.role === 'super_admin').map((d) => (
           <Card key={d.file} className="flex items-center justify-between gap-3 p-4">
-            <span><span className="block text-[11px] font-bold uppercase tracking-wide text-ink-3">{d.group}</span><span className="font-semibold text-ink">{d.label}</span></span>
+            <span><span className="block text-xs font-semibold text-ink-3">{d.group}</span><span className="font-semibold text-ink">{d.label}</span></span>
             <Button size="sm" variant="secondary" loading={busy === d.file} onClick={async () => {
               setBusy(d.file);
               setMsg(null);

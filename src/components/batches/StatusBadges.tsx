@@ -1,38 +1,31 @@
+/** Batch and enrollment status as the shared pill, so a status reads the same everywhere. */
+
 import React from 'react';
 import { BatchStatus, EnrollmentStatus } from '@/types/domain';
+import { StatusPill } from '@/components/ui/StatusPill';
+import type { Tone } from '@/components/ui/tones';
 
-const BATCH_STYLES: Record<BatchStatus, string> = {
-  upcoming: 'bg-teal-soft text-teal-ink border-teal-line',
-  in_progress: 'bg-success-soft text-success-ink border-success-line',
-  completed: 'bg-brand-soft text-brand-ink border-brand-line',
-  cancelled: 'bg-danger-soft text-danger-ink border-danger-line',
-  archived: 'bg-surface-muted text-ink-3 border-line',
+const BATCH: Record<BatchStatus, { tone: Tone; label: string }> = {
+  upcoming: { tone: 'info', label: 'Upcoming' },
+  in_progress: { tone: 'brand', label: 'In progress' },
+  completed: { tone: 'success', label: 'Completed' },
+  cancelled: { tone: 'danger', label: 'Cancelled' },
+  archived: { tone: 'neutral', label: 'Archived' },
 };
 
-const ENROLLMENT_STYLES: Record<EnrollmentStatus, string> = {
-  active: 'bg-success-soft text-success-ink border-success-line',
-  completed: 'bg-brand-soft text-brand-ink border-brand-line',
-  dropped: 'bg-surface-muted text-ink-3 border-line',
-  suspended: 'bg-warning-soft text-warning-ink border-warning-line',
+const ENROLLMENT: Record<EnrollmentStatus, { tone: Tone; label: string }> = {
+  active: { tone: 'brand', label: 'Active' },
+  completed: { tone: 'success', label: 'Completed' },
+  dropped: { tone: 'neutral', label: 'Withdrawn' },
+  suspended: { tone: 'warning', label: 'Deactivated' },
 };
-
-const ENROLLMENT_LABELS: Record<EnrollmentStatus, string> = {
-  active: 'active',
-  completed: 'completed',
-  dropped: 'withdrawn',
-  suspended: 'deactivated',
-};
-
-const badgeClass = 'text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border whitespace-nowrap';
 
 export function BatchStatusBadge({ status }: { status: BatchStatus }) {
-  return <span className={`${badgeClass} ${BATCH_STYLES[status] || BATCH_STYLES.archived}`}>{status.replace('_', ' ')}</span>;
+  const look = BATCH[status] ?? BATCH.archived;
+  return <StatusPill size="sm" tone={look.tone}>{look.label}</StatusPill>;
 }
 
 export function EnrollmentStatusBadge({ status }: { status: EnrollmentStatus }) {
-  return (
-    <span className={`${badgeClass} ${ENROLLMENT_STYLES[status] || ENROLLMENT_STYLES.dropped}`}>
-      {ENROLLMENT_LABELS[status] || status}
-    </span>
-  );
+  const look = ENROLLMENT[status] ?? ENROLLMENT.dropped;
+  return <StatusPill size="sm" tone={look.tone}>{look.label}</StatusPill>;
 }

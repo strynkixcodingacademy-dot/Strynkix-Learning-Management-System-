@@ -35,7 +35,7 @@ function Search() {
       {hits && (hits.length === 0 ? <EmptyState title="No matches">Nobody in your scope matches “{q}”.</EmptyState> : (
         <ul className="space-y-2">{hits.map((h) => (
           <li key={h.id}><Link href={`/dashboard/people/${h.id}`}><Card interactive className="flex flex-wrap items-center gap-3 p-4">
-            <div className="min-w-0 flex-1"><div className="font-bold text-ink">{h.displayName}</div><div className="text-xs text-ink-3">{h.email}{h.studentId ? ` · ${h.studentId}` : ''}</div></div>
+            <div className="min-w-0 flex-1"><div className="font-semibold text-ink">{h.displayName}</div><div className="text-xs text-ink-3">{h.email}{h.studentId ? ` · ${h.studentId}` : ''}</div></div>
             <span className="text-xs font-semibold text-ink-2">{ROLE_LABELS[h.role]}</span>
           </Card></Link></li>
         ))}</ul>

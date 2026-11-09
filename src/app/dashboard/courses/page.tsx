@@ -7,9 +7,11 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { ModalFrame } from '@/components/ui/Modal';
 import type { QueryDocumentSnapshot } from 'firebase/firestore';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { buttonClasses } from '@/components/ui/Button';
 import { ReviewControls } from '@/components/review/ReviewControls';
 import { courseReviewTarget } from '@/lib/review/workflow';
 import { AppShell } from '@/components/dashboard/AppShell';
@@ -20,7 +22,7 @@ import {
   createCourse,
 } from '@/lib/courses/service';
 import { Course, CourseLevel, EntityStatus } from '@/types/domain';
-import { CourseIcon, courseIdentity, SPINE } from '@/components/ui/CourseIcon';
+import { CourseIcon } from '@/components/ui/CourseIcon';
 import {
   BookOpen,
   Plus,
@@ -263,36 +265,21 @@ export default function CourseAuthoringPage() {
           {!isLoading && filteredCourses.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredCourses.map((c) => {
-                const isPub = c.status === 'published';
-                const { tone } = courseIdentity(c);
                 return (
                   <div
                     key={c.id}
-                    className="relative flex flex-col justify-between overflow-hidden rounded-2xl bg-surface border border-line hover:border-line-strong transition shadow-card"
+                    className="relative flex flex-col justify-between rounded-card border border-line bg-surface transition-colors duration-150 hover:border-line-strong"
                   >
-                    <span aria-hidden="true" className={`h-1.5 w-full shrink-0 ${SPINE[tone]}`} />
                     <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <CourseIcon course={c} size="sm" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full bg-surface-muted border border-line text-ink-2">
-                          {c.level}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border ${
- isPub
- ? 'bg-success-soft text-success-ink border-success-line'
- : c.status === 'draft'
- ? 'bg-warning-soft text-warning-ink border-warning-line'
- : 'bg-surface-muted text-ink-3 border-line'
- }`}
-                        >
-                          {c.status}
-                        </span>
+                        <span className="text-xs capitalize text-ink-3">{c.level}</span>
+                        
                       </div>
 
                       <div>
-                        <h3 className="text-base font-bold text-ink tracking-tight leading-snug">
+                        <h3 className="text-base font-semibold text-ink leading-snug">
                           {c.title}
                         </h3>
                         <p className="text-xs text-ink-3 mt-1 line-clamp-2">
@@ -315,8 +302,8 @@ export default function CourseAuthoringPage() {
                     </div>
 
                     {/* Actions Toolbar */}
-                    <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                         <ReviewControls target={courseReviewTarget(c)} course={c} compact onChanged={refreshCourses} />
 
                         {/* Preview Student Syllabus */}
@@ -332,7 +319,7 @@ export default function CourseAuthoringPage() {
                       {/* Manage Curriculum */}
                       <Link
                         href={`/dashboard/courses/${c.id}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold shadow-card transition"
+                        className={buttonClasses('secondary', 'sm')}
                       >
                         <span>Curriculum</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -356,10 +343,10 @@ export default function CourseAuthoringPage() {
 
           {/* Create Course Modal */}
           {showModal && (
-            <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-[3px] animate-fade flex items-center justify-center p-4">
+            <ModalFrame onClose={() => setShowModal(false)}>
               <div className="max-w-lg w-full rounded-2xl bg-surface border border-line shadow-lift p-6 space-y-5 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between pb-3 border-b border-line">
-                  <div className="flex items-center gap-2 text-brand-ink font-bold text-sm">
+                  <div className="flex items-center gap-2 text-brand-ink font-semibold text-sm">
                     <BookOpen className="w-5 h-5" />
                     <span>Create New Course Track</span>
                   </div>
@@ -389,7 +376,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => handleTitleChange(e.target.value)}
                       placeholder="e.g. Distributed Systems & Cloud Infrastructure"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -403,7 +390,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setSlug(e.target.value)}
                       placeholder="e.g. distributed-systems-cloud"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
                     />
                   </div>
 
@@ -417,7 +404,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setTagline(e.target.value)}
                       placeholder="e.g. Master resilient microservices and real-time event streaming"
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -431,7 +418,7 @@ export default function CourseAuthoringPage() {
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Provide comprehensive pedagogy goals, target competencies, and technical prerequisites..."
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                     />
                   </div>
 
@@ -441,7 +428,7 @@ export default function CourseAuthoringPage() {
                       <select
                         value={level}
                         onChange={(e) => setLevel(e.target.value as CourseLevel)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       >
                         <option value="beginner">Beginner</option>
                         <option value="intermediate">Intermediate</option>
@@ -459,7 +446,7 @@ export default function CourseAuthoringPage() {
                           value={estimatedWeeks}
                           onChange={(e) => setEstimatedWeeks(Number(e.target.value))}
                           required
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono"
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                         />
                         <span className="absolute right-3 top-2 text-xs text-ink-3 pointer-events-none">
                           Weeks
@@ -475,7 +462,7 @@ export default function CourseAuthoringPage() {
                       value={tagsInput}
                       onChange={(e) => setTagsInput(e.target.value)}
                       placeholder="typescript, architecture, cloud, databases"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono text-[11px]"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 text-xs"
                     />
                   </div>
 
@@ -498,7 +485,7 @@ export default function CourseAuthoringPage() {
                   </div>
                 </form>
               </div>
-            </div>
+            </ModalFrame>
           )}
         </div>
       </AppShell>

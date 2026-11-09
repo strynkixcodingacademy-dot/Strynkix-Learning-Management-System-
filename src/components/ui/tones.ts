@@ -1,9 +1,11 @@
 /**
- * Strynkix Live Books — semantic tones.
+ * Strynkix — semantic tones. Each one means something (globals.css):
+ * brand action, success completed, warning today/attention, coral overdue,
+ * danger errors, teal assessments, info administration, neutral everything else.
  * Full class names are spelled out so Tailwind can see them.
  */
 
-export type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'coral' | 'teal' | 'lavender';
+export type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'coral' | 'teal' | 'info';
 
 export const TONE_CLASSES: Record<Tone, { soft: string; ink: string; line: string; solid: string; ring: string }> = {
   neutral: { soft: 'bg-surface-muted', ink: 'text-ink-2', line: 'border-line', solid: 'bg-ink-3', ring: 'stroke-ink-4' },
@@ -13,7 +15,7 @@ export const TONE_CLASSES: Record<Tone, { soft: string; ink: string; line: strin
   danger: { soft: 'bg-danger-soft', ink: 'text-danger-ink', line: 'border-danger-line', solid: 'bg-danger', ring: 'stroke-danger' },
   coral: { soft: 'bg-coral-soft', ink: 'text-coral-ink', line: 'border-coral-line', solid: 'bg-coral', ring: 'stroke-coral' },
   teal: { soft: 'bg-teal-soft', ink: 'text-teal-ink', line: 'border-teal-line', solid: 'bg-teal', ring: 'stroke-teal' },
-  lavender: { soft: 'bg-lavender-soft', ink: 'text-lavender-ink', line: 'border-lavender-line', solid: 'bg-lavender', ring: 'stroke-lavender' },
+  info: { soft: 'bg-info-soft', ink: 'text-info-ink', line: 'border-info-line', solid: 'bg-info', ring: 'stroke-info' },
 };
 
 export function cx(...parts: Array<string | false | null | undefined>): string {

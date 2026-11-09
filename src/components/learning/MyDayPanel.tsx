@@ -1,20 +1,19 @@
 'use client';
 
 /**
- * Strynkix Live Books — "My Day" for students: today's steps as time slots on
- * the left, the selected step (with its plan's targets and the action) on the
- * right. When nothing is planned, a calm empty state points to what's next.
+ * Strynkix Live Books — "Today's learning": the day's plan as a numbered rail,
+ * in the order the instructor set it. The next open step is marked with the
+ * ribbon. When nothing is planned, a calm note points to what's next.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { Course, DailyPlan } from '@/types/domain';
 import { buttonClasses } from '@/components/ui/Button';
-import { ProgressRing } from '@/components/ui/Progress';
+import { SectionLink } from '@/components/ui/Page';
 import { cx } from '@/components/ui/tones';
-import { RestDayArt } from '@/components/home/AppArt';
 import { formatPlanDate, formatTime } from './LearningBits';
-import { ArrowRight, BookOpen, Check, ChevronRight, ClipboardList, Flag } from 'lucide-react';
+import { ArrowRight, Check, ClipboardList, Flag } from 'lucide-react';
 
 export interface MyDayStep {
   key: string;
@@ -36,147 +35,113 @@ export interface MyDayGroup {
   steps: MyDayStep[];
 }
 
-interface Slot {
-  step: MyDayStep;
-  group: MyDayGroup;
+function StepRow({ step, number, isNext, due }: { step: MyDayStep; number: number; isNext: boolean; due?: string }) {
+  return (
+    <li className="relative flex gap-4 pb-6 last:pb-0">
+      <span aria-hidden="true" className="absolute bottom-0 left-[15px] top-8 w-px bg-line-strong [li:last-child>&]:hidden" />
+      <span aria-hidden="true" className={cx(
+        'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums',
+        step.done ? 'bg-success text-white' : isNext ? 'bg-brand text-white' : 'border border-line-strong bg-surface text-ink-2'
+      )}>
+        {step.done ? <Check className="h-4 w-4" strokeWidth={2.5} /> : step.kind === 'assignment' ? <ClipboardList className="h-3.5 w-3.5" /> : number}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-3 pt-0.5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <Link href={step.href} className={cx('text-body font-medium leading-snug hover:text-brand-ink hover:underline', step.done ? 'text-ink-3' : 'text-ink')}>{step.title}</Link>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
+            {step.status}
+            <span>{step.detail}{due && step.kind === 'lesson' ? `, by ${formatTime(due)}` : ''}</span>
+          </div>
+        </div>
+        {!step.done && (
+          <Link href={step.href} aria-label={`${step.actionLabel}: ${step.title}`} className={buttonClasses(isNext ? 'primary' : 'secondary', 'sm', 'self-start')}>
+            {step.actionLabel}
+          </Link>
+        )}
+      </div>
+    </li>
+  );
 }
 
 export function MyDayPanel({
   groups,
   nextPlan,
   fallback,
-  scheduleHref,
+  today,
 }: {
   groups: MyDayGroup[];
   nextPlan?: { plan: DailyPlan; course: Course };
   fallback?: { href: string; label: string };
-  /** Link for "View Schedule". */
-  scheduleHref?: string;
+  today: string;
 }) {
-  const slots: Slot[] = groups.flatMap((group) => group.steps.map((step) => ({ step, group })));
-  const firstOpen = slots.find((s) => s.step.needsAction) ?? slots[0];
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const selected = slots.find((s) => s.step.key === selectedKey) ?? firstOpen;
-
-  const schedule = scheduleHref ?? (groups[0] ? `/courses/${groups[0].course.id}?tab=schedule` : undefined);
   const header = (
-    <div className="flex items-center justify-between gap-3">
-      <h2 id="my-day-heading" className="text-[18px] font-extrabold tracking-tight text-ink">My Day</h2>
-      {schedule && (
-        <Link href={schedule} className="inline-flex items-center gap-1 text-[15px] font-medium text-ink-3 hover:text-ink">
-          View Schedule <ChevronRight className="h-4 w-4" />
-        </Link>
-      )}
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <h2 id="my-day-heading" className="type-section text-ink">Today&apos;s plan</h2>
+      {groups[0] && <SectionLink href={`/courses/${groups[0].course.id}?tab=schedule`}>Full schedule</SectionLink>}
     </div>
   );
-  // Card shell shared by both states; on desktop it fills the remaining height.
-  const card = 'grid min-h-[360px] grid-cols-1 overflow-hidden rounded-card border border-line bg-surface shadow-card md:grid-cols-[240px_minmax(0,1fr)] lg:min-h-0 lg:flex-1';
 
-  if (!selected) {
+  if (groups.length === 0) {
     return (
-      <section aria-labelledby="my-day-heading" className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
+      <section aria-labelledby="my-day-heading" className="space-y-4">
         {header}
-        <div className={card}>
-          <div className="border-b border-line px-4 py-4 text-[13px] text-ink-3 md:border-b-0 md:border-r">
-            {nextPlan ? (
-              <>
-                <div className="font-semibold">Next plan · {formatPlanDate(nextPlan.plan.date)}</div>
-                <div className="mt-0.5 text-[14px] font-bold text-ink-2">{nextPlan.plan.title}</div>
-              </>
-            ) : 'No plan published for today.'}
-          </div>
-        <div className="paper-dots flex flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-          <RestDayArt />
-          <p className="text-[15px] font-semibold text-ink-2">Looks like nothing is planned today</p>
-          <p className="max-w-sm text-sm text-ink-3">
+        <div className="rounded-card border border-line bg-surface p-5 sm:p-6">
+          <p className="text-body font-medium text-ink">No plan for {formatPlanDate(today)}.</p>
+          <p className="mt-1 max-w-[52ch] text-sm text-ink-3">
             {nextPlan
-              ? <>Next up is <strong className="text-ink-2">{nextPlan.plan.title}</strong> ({nextPlan.course.title}) on {formatPlanDate(nextPlan.plan.date)}.</>
+              ? <>Next up is <span className="font-medium text-ink-2">{nextPlan.plan.title}</span> ({nextPlan.course.title}) on {formatPlanDate(nextPlan.plan.date)}.</>
               : 'Your instructor hasn’t published the next plan yet. A good time to read ahead.'}
           </p>
-          {fallback && <Link href={fallback.href} className={buttonClasses('secondary', 'sm', 'mt-1')}>{fallback.label}</Link>}
-        </div>
+          {fallback && (
+            <Link href={fallback.href} className={buttonClasses('secondary', 'sm', 'mt-4')}>
+              {fallback.label} <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
         </div>
       </section>
     );
   }
 
-  const { step, group } = selected;
-  const done = group.steps.filter((s) => s.done).length;
-  const pct = group.steps.length ? Math.round((done / group.steps.length) * 100) : null;
+  const firstOpen = groups.flatMap((g) => g.steps).find((s) => s.needsAction)?.key;
 
   return (
-    <section aria-labelledby="my-day-heading" className="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
+    <section aria-labelledby="my-day-heading" className="space-y-4">
       {header}
-      <div className={card}>
-        {/* Time slots */}
-        <ol aria-label="Today's steps" className="min-w-0 divide-y divide-line border-b border-line md:border-b-0 md:border-r lg:overflow-y-auto">
-          {slots.map(({ step: s, group: g }) => {
-            const active = s.key === step.key;
-            const due = s.due ?? (s.kind === 'lesson' ? g.plan.learningDueAt : undefined);
-            return (
-              <li key={`${g.plan.id}-${s.key}`}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedKey(s.key)}
-                  aria-pressed={active}
-                  className={cx(
-                    'flex w-full items-start gap-3 border-l-[3px] px-4 py-3.5 text-left transition-colors',
-                    active ? 'border-l-brand bg-brand-soft/60' : 'border-l-transparent hover:bg-canvas'
-                  )}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[12px] font-semibold text-ink-3">
-                      {s.kind === 'assignment' ? 'Assignment' : 'Lesson'}{due ? ` · by ${formatTime(due)}` : ''}
-                    </span>
-                    <span className={cx('mt-0.5 block truncate text-[14px] font-bold', s.done ? 'text-ink-3 line-through decoration-ink-4' : 'text-ink')}>{s.title}</span>
-                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5">{s.status}</span>
-                  </span>
-                  <span aria-hidden="true" className={cx(
-                    'mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border',
-                    s.done ? 'border-success bg-success text-white' : 'border-line-strong text-ink-3'
-                  )}>
-                    {s.done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : s.kind === 'assignment' ? <ClipboardList className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+      <div className="space-y-4">
+        {groups.map((group) => {
+          const done = group.steps.filter((s) => s.done).length;
+          return (
+            <article key={group.plan.id} className="rounded-card border border-line bg-surface p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-semibold leading-snug text-ink">{group.plan.title}</h3>
+                  <p className="mt-0.5 text-sm text-ink-3">{group.course.title}</p>
+                </div>
+                <p className="shrink-0 text-sm tabular-nums text-ink-3">{done}/{group.steps.length}</p>
+              </div>
 
-        {/* Selected step */}
-        <div className="paper-dots flex min-w-0 flex-col gap-5 p-5 sm:p-6 lg:overflow-y-auto">
-          <div className="flex items-start gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-semibold text-ink-3">{group.course.title}</div>
-              <h3 className="text-[17px] font-extrabold leading-snug text-ink">{group.plan.title}</h3>
-            </div>
-            <ProgressRing value={pct} tone={pct === 100 ? 'success' : 'brand'} label={`${group.plan.title} progress`} size={48}>
-              {done}/{group.steps.length}
-            </ProgressRing>
-          </div>
+              {group.plan.objectives.length > 0 && (
+                <div className="mt-4 rounded-lg bg-warning-soft px-4 py-3">
+                  <p className="text-sm font-medium text-warning-ink">By the end of today you should be able to</p>
+                  <ul className="mt-1.5 space-y-1">
+                    {group.plan.objectives.map((o, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-ink-2">
+                        <Flag className="mt-[3px] h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" /> {o}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-          {group.plan.objectives.length > 0 && (
-            <div>
-              <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-3">Today&apos;s targets</div>
-              <ul className="flex flex-wrap gap-2">
-                {group.plan.objectives.map((o, i) => (
-                  <li key={i} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs text-ink-2">
-                    <Flag className="h-3 w-3 text-coral" aria-hidden="true" /> {o}
-                  </li>
+              <ol aria-label={`Steps for ${group.plan.title}`} className="mt-5">
+                {group.steps.map((s, i) => (
+                  <StepRow key={`${group.plan.id}-${s.key}`} step={s} number={i + 1} isNext={s.key === firstOpen}
+                    due={s.due ?? (s.kind === 'lesson' ? group.plan.learningDueAt : undefined)} />
                 ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="mt-auto rounded-2xl border border-line bg-surface p-4 shadow-card">
-            <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-brand-ink">{step.done ? 'Done' : step.needsAction ? 'Up next' : step.kind}</div>
-            <div className="mt-1 text-[16px] font-extrabold text-ink">{step.title}</div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-3">{step.status}<span>{step.detail}</span></div>
-            <Link href={step.href} className={buttonClasses(step.done ? 'secondary' : 'primary', 'md', 'mt-4')} aria-label={`${step.actionLabel}: ${step.title}`}>
-              {step.actionLabel} <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
+              </ol>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

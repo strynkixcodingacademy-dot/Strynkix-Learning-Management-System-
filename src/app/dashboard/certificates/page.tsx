@@ -22,7 +22,7 @@ import { Button, buttonClasses } from '@/components/ui/Button';
 import { Card, Field, PageHeader, fieldClasses } from '@/components/ui/Page';
 import { EmptyState, ErrorState, LoadingState, Notice } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { Award, CheckCircle2, Circle } from 'lucide-react';
+import { CheckCircle2, Circle } from 'lucide-react';
 
 interface Eligibility { eligible: boolean; completionPercent: number; attendancePercent: number | null; averagePercent: number | null; finalExamPassed: boolean; unmet: string[] }
 
@@ -38,10 +38,9 @@ function MyCertificates() {
           {data.certificates.map((c) => (
             <Card key={c.id} className="space-y-3 p-5">
               <div className="flex items-start justify-between gap-3">
-                <Award className="h-8 w-8 text-warning-ink" aria-hidden="true" />
+                <div className="font-display text-xl leading-snug text-ink">{c.courseTitle}</div>
                 <StatusPill size="sm" tone={c.status === 'issued' ? 'success' : 'danger'}>{c.status === 'issued' ? 'Valid' : 'Revoked'}</StatusPill>
               </div>
-              <div className="text-lg font-extrabold text-ink">{c.courseTitle}</div>
               <div className="text-sm text-ink-3">{c.certificateNumber} · completed {formatDate(c.completedOn)}</div>
               {c.status === 'issued' && <Link href={`/certificates/${c.id}`} className={buttonClasses('primary', 'sm')}>Open, print or save as PDF</Link>}
             </Card>
@@ -50,10 +49,10 @@ function MyCertificates() {
       )}
       {data.inProgress.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-extrabold text-ink">Working towards</h2>
+          <h2 className="type-section text-ink">Working towards</h2>
           {data.inProgress.map((p) => (
             <Card key={p.courseId} className="space-y-2 p-5">
-              <div className="font-bold text-ink">{p.courseTitle}</div>
+              <div className="font-semibold text-ink">{p.courseTitle}</div>
               {p.eligibility.eligible ? <p className="flex items-center gap-2 text-sm text-success-ink"><CheckCircle2 className="h-4 w-4" /> You meet the requirements. Your branch can now issue your certificate.</p> : (
                 <ul className="space-y-1 text-sm text-ink-2">{p.eligibility.unmet.map((u) => <li key={u} className="flex items-start gap-2"><Circle className="mt-1 h-3 w-3 shrink-0 text-ink-4" />{u}</li>)}</ul>
               )}
@@ -73,7 +72,7 @@ function PolicyForm({ courseId, initial, onSaved }: { courseId: string; initial:
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   return (
     <Card className="space-y-4 p-5">
-      <h2 className="text-sm font-bold text-ink">Certificate rules for this course</h2>
+      <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">Certificate rules for this course</h2>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Lessons completed (%)" htmlFor="pc"><input id="pc" type="number" min={0} max={100} value={p.minCompletionPercent} onChange={(e) => setP({ ...p, minCompletionPercent: Number(e.target.value) })} className={fieldClasses} /></Field>
         <Field label="Attendance (%)" htmlFor="pa" hint="0 = not required"><input id="pa" type="number" min={0} max={100} value={p.minAttendancePercent} onChange={(e) => setP({ ...p, minAttendancePercent: Number(e.target.value) })} className={fieldClasses} /></Field>
@@ -106,10 +105,10 @@ function BatchCertificates({ batch }: { batch: Batch }) {
       {data.students.length === 0 ? <EmptyState title="No students">No active students in this batch.</EmptyState> : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Student</th><th className="p-3 text-right">Lessons</th><th className="p-3 text-right">Attendance</th><th className="p-3 text-right">Average</th><th className="p-3">Final exam</th><th className="p-3">Certificate</th></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Student</th><th className="p-3 text-right">Lessons</th><th className="p-3 text-right">Attendance</th><th className="p-3 text-right">Average</th><th className="p-3">Final exam</th><th className="p-3">Certificate</th></tr></thead>
             <tbody>{data.students.map((s) => (
               <tr key={s.studentId} className="border-b border-line align-top last:border-0">
-                <td className="p-3 font-semibold text-ink">{s.name}{!s.eligibility.eligible && <div className="mt-1 text-xs font-normal text-ink-3">{s.eligibility.unmet.join(' ')}</div>}</td>
+                <td className="p-3 font-medium text-ink">{s.name}{!s.eligibility.eligible && <div className="mt-1 text-xs font-normal text-ink-3">{s.eligibility.unmet.join(' ')}</div>}</td>
                 <td className="p-3 text-right">{s.eligibility.completionPercent}%</td>
                 <td className="p-3 text-right">{s.eligibility.attendancePercent ?? '—'}{s.eligibility.attendancePercent !== null ? '%' : ''}</td>
                 <td className="p-3 text-right">{s.eligibility.averagePercent ?? '—'}{s.eligibility.averagePercent !== null ? '%' : ''}</td>

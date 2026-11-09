@@ -50,38 +50,38 @@ function Overview() {
       {error ? <ErrorState onRetry={reload}>{error}</ErrorState> : !data ? <LoadingState label="Calculating…" rows={4} /> : (
         <>
           <p className="text-sm text-ink-3">Period {formatDate(data.period.from)} – {formatDate(data.period.to)} (defaults to this month). Outstanding and expected are as of today.</p>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
             <KpiTile label="Collected in period" value={formatMoney(data.totals.collected)} icon={Wallet} tone="success" hint="Payments received, less refunds and reversals" />
             <KpiTile label="Outstanding fees" value={formatMoney(data.totals.outstanding)} icon={IndianRupee} tone="warning" hint={`Of ${formatMoney(data.totals.expected)} expected from ${data.totals.students} students`} />
             <KpiTile label="Overdue installments" value={formatMoney(data.totals.overdue)} icon={AlertTriangle} tone="danger" hint={`${data.totals.overdueAccounts} students behind schedule`} />
             <KpiTile label="Net operating position" value={formatMoney(data.totals.net)} tone={data.totals.net >= 0 ? 'teal' : 'danger'} hint="Collections minus expenses in the period (cash basis, not audited profit)" />
             <KpiTile label="Expenses in period" value={formatMoney(data.totals.expenses)} tone="coral" />
             <KpiTile label="Refunds in period" value={formatMoney(data.totals.refunds)} tone="neutral" />
-            <KpiTile label="Discounts given" value={formatMoney(data.totals.discounts)} tone="lavender" hint={data.totals.pendingDiscounts ? `${data.totals.pendingDiscounts} waiting for approval` : 'Approved, on admissions in the period'} />
+            <KpiTile label="Discounts given" value={formatMoney(data.totals.discounts)} tone="info" hint={data.totals.pendingDiscounts ? `${data.totals.pendingDiscounts} waiting for approval` : 'Approved, on admissions in the period'} />
             <KpiTile label="This month" value={formatMoney(data.totals.thisMonthCollected)} tone="brand" hint={`Collected; ${formatMoney(data.totals.thisMonthExpenses)} spent`} />
           </div>
-          {data.byMonth.length > 1 && <Card className="p-5"><h2 className="mb-3 text-sm font-bold text-ink">Collections by month (₹)</h2><ColumnChart data={data.byMonth.map((m) => ({ label: `${m.month}: ${formatMoney(m.collected)}`, short: m.month.slice(5), value: Math.round(m.collected / 100) }))} label="Collections by month" unit="₹" /></Card>}
+          {data.byMonth.length > 1 && <Card className="p-5"><h2 className="font-sans tracking-normal mb-3 text-sm font-semibold text-ink">Collections by month (₹)</h2><ColumnChart data={data.byMonth.map((m) => ({ label: `${m.month}: ${formatMoney(m.collected)}`, short: m.month.slice(5), value: Math.round(m.collected / 100) }))} label="Collections by month" unit="₹" /></Card>}
           {data.byAcademy.length > 0 && (
             <Section title="By academy" icon={IndianRupee}>
-              <Card className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm"><thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Academy</th><th className="p-3 text-right">Students</th><th className="p-3 text-right">Collected</th><th className="p-3 text-right">Outstanding</th><th className="p-3 text-right">Expenses</th><th className="p-3 text-right">Net</th></tr></thead>
-                <tbody>{data.byAcademy.map((a) => <tr key={a.id} className="border-b border-line last:border-0"><td className="p-3 font-semibold"><button type="button" className="text-brand-ink underline" onClick={() => setScope({ ...scope, orgId: a.id, branchId: '' })}>{a.name}</button></td><td className="p-3 text-right">{a.students}</td><td className="p-3 text-right">{formatMoney(a.collected)}</td><td className="p-3 text-right">{formatMoney(a.outstanding)}</td><td className="p-3 text-right">{formatMoney(a.expenses)}</td><td className="p-3 text-right font-bold">{formatMoney(a.net)}</td></tr>)}</tbody></table></Card>
+              <Card className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm"><thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Academy</th><th className="p-3 text-right">Students</th><th className="p-3 text-right">Collected</th><th className="p-3 text-right">Outstanding</th><th className="p-3 text-right">Expenses</th><th className="p-3 text-right">Net</th></tr></thead>
+                <tbody>{data.byAcademy.map((a) => <tr key={a.id} className="border-b border-line last:border-0"><td className="p-3 font-semibold"><button type="button" className="text-brand-ink underline" onClick={() => setScope({ ...scope, orgId: a.id, branchId: '' })}>{a.name}</button></td><td className="p-3 text-right">{a.students}</td><td className="p-3 text-right">{formatMoney(a.collected)}</td><td className="p-3 text-right">{formatMoney(a.outstanding)}</td><td className="p-3 text-right">{formatMoney(a.expenses)}</td><td className="p-3 text-right font-semibold">{formatMoney(a.net)}</td></tr>)}</tbody></table></Card>
             </Section>
           )}
           {data.byBranch.length > 1 && (
             <Section title="By branch" icon={IndianRupee}>
-              <Card className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm"><thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Branch</th><th className="p-3 text-right">Students</th><th className="p-3 text-right">Collected</th><th className="p-3 text-right">Outstanding</th><th className="p-3 text-right">Expenses</th><th className="p-3 text-right">Net</th></tr></thead>
-                <tbody>{data.byBranch.map((b) => <tr key={b.id} className="border-b border-line last:border-0"><td className="p-3 font-semibold"><button type="button" className="text-brand-ink underline" onClick={() => setScope({ ...scope, branchId: b.id })}>{b.name}</button></td><td className="p-3 text-right">{b.students}</td><td className="p-3 text-right">{formatMoney(b.collected)}</td><td className="p-3 text-right">{formatMoney(b.outstanding)}</td><td className="p-3 text-right">{formatMoney(b.expenses)}</td><td className="p-3 text-right font-bold">{formatMoney(b.net)}</td></tr>)}</tbody></table></Card>
+              <Card className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm"><thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Branch</th><th className="p-3 text-right">Students</th><th className="p-3 text-right">Collected</th><th className="p-3 text-right">Outstanding</th><th className="p-3 text-right">Expenses</th><th className="p-3 text-right">Net</th></tr></thead>
+                <tbody>{data.byBranch.map((b) => <tr key={b.id} className="border-b border-line last:border-0"><td className="p-3 font-semibold"><button type="button" className="text-brand-ink underline" onClick={() => setScope({ ...scope, branchId: b.id })}>{b.name}</button></td><td className="p-3 text-right">{b.students}</td><td className="p-3 text-right">{formatMoney(b.collected)}</td><td className="p-3 text-right">{formatMoney(b.outstanding)}</td><td className="p-3 text-right">{formatMoney(b.expenses)}</td><td className="p-3 text-right font-semibold">{formatMoney(b.net)}</td></tr>)}</tbody></table></Card>
             </Section>
           )}
           <div className="grid gap-6 lg:grid-cols-2">
             <Section title="Upcoming dues (next 30 days)" icon={CalendarClock}>
               {data.upcoming.length === 0 ? <EmptyState title="Nothing due soon">No installments fall due in the next 30 days.</EmptyState> : (
-                <ul className="space-y-1.5">{data.upcoming.map((u) => <li key={`${u.feeAccountId}-${u.dueDate}`}><Link href={`/dashboard/finance/accounts/${u.feeAccountId}`} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3 text-sm hover:border-silver"><span><span className="font-semibold text-ink">{u.studentName}</span><span className="block text-xs text-ink-3">{u.courseTitle} · due {formatDate(u.dueDate)}</span></span><span className="font-bold">{formatMoney(u.amount)}</span></Link></li>)}</ul>
+                <ul className="space-y-1.5">{data.upcoming.map((u) => <li key={`${u.feeAccountId}-${u.dueDate}`}><Link href={`/dashboard/finance/accounts/${u.feeAccountId}`} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3 text-sm hover:border-silver"><span><span className="font-semibold text-ink">{u.studentName}</span><span className="block text-xs text-ink-3">{u.courseTitle} · due {formatDate(u.dueDate)}</span></span><span className="font-semibold">{formatMoney(u.amount)}</span></Link></li>)}</ul>
               )}
             </Section>
             <Section title="Recent transactions" icon={History}>
               {data.recent.length === 0 ? <EmptyState title="No transactions yet">Payments and refunds appear here.</EmptyState> : (
-                <ul className="space-y-1.5">{data.recent.map((t) => <li key={t.id}><Link href={`/dashboard/finance/accounts/${t.feeAccountId}`} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3 text-sm hover:border-silver"><span><span className="font-semibold text-ink">{t.studentName}</span><span className="block text-xs text-ink-3">{t.type}{t.receiptNumber ? ` · ${t.receiptNumber}` : ''} · {formatDate(t.date)}</span></span><span className={t.type === 'payment' ? 'font-bold text-success-ink' : 'font-bold text-ink-2'}>{t.type === 'payment' ? '+' : t.type === 'adjustment' ? '' : '−'}{formatMoney(t.amount)}</span></Link></li>)}</ul>
+                <ul className="space-y-1.5">{data.recent.map((t) => <li key={t.id}><Link href={`/dashboard/finance/accounts/${t.feeAccountId}`} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3 text-sm hover:border-silver"><span><span className="font-semibold text-ink">{t.studentName}</span><span className="block text-xs text-ink-3">{t.type}{t.receiptNumber ? ` · ${t.receiptNumber}` : ''} · {formatDate(t.date)}</span></span><span className={t.type === 'payment' ? 'font-semibold text-success-ink' : 'font-semibold text-ink-2'}>{t.type === 'payment' ? '+' : t.type === 'adjustment' ? '' : '−'}{formatMoney(t.amount)}</span></Link></li>)}</ul>
               )}
             </Section>
           </div>
@@ -115,15 +115,15 @@ function StudentFees() {
       {error ? <ErrorState onRetry={reload}>{error}</ErrorState> : !data ? <LoadingState label="Loading fee accounts…" /> : rows.length === 0 ? <EmptyState title="No fee accounts">Fee accounts are opened when an admission is confirmed.</EmptyState> : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Student</th><th className="p-3">Course</th><th className="p-3 text-right">Due</th><th className="p-3 text-right">Paid</th><th className="p-3 text-right">Balance</th><th className="p-3">Next due</th><th className="p-3">Status</th></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Student</th><th className="p-3">Course</th><th className="p-3 text-right">Due</th><th className="p-3 text-right">Paid</th><th className="p-3 text-right">Balance</th><th className="p-3">Next due</th><th className="p-3">Status</th></tr></thead>
             <tbody>{rows.map((r) => (
               <tr key={r.id} className="border-b border-line last:border-0">
-                <td className="p-3"><Link href={`/dashboard/finance/accounts/${r.id}`} className="font-semibold text-ink hover:text-brand-ink">{r.studentName}</Link><div className="text-xs text-ink-3">{r.admissionNumber}</div></td>
+                <td className="p-3"><Link href={`/dashboard/finance/accounts/${r.id}`} className="font-medium text-ink hover:text-brand-ink">{r.studentName}</Link><div className="text-xs text-ink-3">{r.admissionNumber}</div></td>
                 <td className="p-3 text-ink-2">{r.courseTitle}</td>
                 <td className="p-3 text-right tabular-nums">{formatMoney(r.due)}</td><td className="p-3 text-right tabular-nums">{formatMoney(r.collected)}</td>
-                <td className="p-3 text-right font-bold tabular-nums">{formatMoney(r.balance)}</td>
+                <td className="p-3 text-right font-semibold tabular-nums">{formatMoney(r.balance)}</td>
                 <td className="p-3">{r.nextDue ? `${formatMoney(r.nextDue.amount)} on ${formatDate(r.nextDue.dueDate)}` : '—'}</td>
-                <td className="p-3"><PaymentStatusPill status={r.paymentStatus} />{r.discount.status === 'pending' && <div className="mt-1 text-[11px] text-warning-ink">Discount awaiting approval</div>}</td>
+                <td className="p-3"><PaymentStatusPill status={r.paymentStatus} />{r.discount.status === 'pending' && <div className="mt-1 text-xs text-warning-ink">Discount awaiting approval</div>}</td>
               </tr>
             ))}</tbody>
           </table>
@@ -182,8 +182,8 @@ function Pricing() {
       {data.courses.map((c) => (
         <Card key={c.id}>
           <div className="flex flex-wrap items-center gap-3 p-4">
-            <div className="min-w-0 flex-1"><div className="font-bold text-ink">{c.title}</div><div className="text-xs text-ink-3">{c.pricing ? `Version ${c.pricing.version} · installments ${c.pricing.installmentOptions.join(', ')} · discount limits ${c.pricing.discountLimits.branch_admin / 100}% / ${c.pricing.discountLimits.university_admin / 100}%${c.pricing.available ? '' : ' · closed for admissions'}` : 'No price set yet'}</div></div>
-            <span className="font-extrabold text-ink">{c.gross === null ? '—' : formatMoney(c.gross)}</span>
+            <div className="min-w-0 flex-1"><div className="font-semibold text-ink">{c.title}</div><div className="text-xs text-ink-3">{c.pricing ? `Version ${c.pricing.version} · installments ${c.pricing.installmentOptions.join(', ')} · discount limits ${c.pricing.discountLimits.branch_admin / 100}% / ${c.pricing.discountLimits.university_admin / 100}%${c.pricing.available ? '' : ' · closed for admissions'}` : 'No price set yet'}</div></div>
+            <span className="font-semibold text-ink">{c.gross === null ? '—' : formatMoney(c.gross)}</span>
             {data.canEdit && <Button size="sm" variant="secondary" onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? 'Close' : c.pricing ? 'Edit' : 'Set price'}</Button>}
           </div>
           {open === c.id && <PricingEditor course={c} onSaved={reload} />}

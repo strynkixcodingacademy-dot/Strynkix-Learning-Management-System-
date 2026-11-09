@@ -50,7 +50,7 @@ function EditForm({ d, onSaved }: { d: Detail; onSaved: () => void }) {
   const isStaff = d.user.role !== 'student';
   return (
     <Card className="space-y-4 p-5">
-      <h3 className="text-sm font-bold text-ink">Edit contact details</h3>
+      <h3 className="text-sm font-semibold text-ink">Edit contact details</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         {(Object.keys(personal) as (keyof typeof personal)[]).map((k) => (
           <Field key={k} label={k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase())} htmlFor={`e-${k}`}>
@@ -139,8 +139,8 @@ function Person({ userId }: { userId: string }) {
           {data.academic.length === 0 ? <EmptyState title="Not enrolled">No course enrollments yet.</EmptyState> : (
             <Card className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
-                <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Course / batch</th><th className="p-3">Status</th><th className="p-3 text-right">Results</th><th className="p-3 text-right">Average</th><th className="p-3 text-right">Attendance</th></tr></thead>
-                <tbody>{data.academic.map((a) => <tr key={a.courseId} className="border-b border-line last:border-0"><td className="p-3 font-semibold text-ink">{a.courseTitle}<div className="text-xs font-normal text-ink-3">{a.batchName} · since {formatDate(a.enrolledAt)}</div></td><td className="p-3">{a.status}</td><td className="p-3 text-right">{a.evaluated}</td><td className="p-3 text-right">{a.averagePercent ?? '—'}{a.averagePercent !== null ? '%' : ''}</td><td className="p-3 text-right">{a.attendance.scheduled ? `${a.attendance.percent}%` : '—'}</td></tr>)}</tbody>
+                <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Course / batch</th><th className="p-3">Status</th><th className="p-3 text-right">Results</th><th className="p-3 text-right">Average</th><th className="p-3 text-right">Attendance</th></tr></thead>
+                <tbody>{data.academic.map((a) => <tr key={a.courseId} className="border-b border-line last:border-0"><td className="p-3 font-medium text-ink">{a.courseTitle}<div className="text-xs font-normal text-ink-3">{a.batchName} · since {formatDate(a.enrolledAt)}</div></td><td className="p-3">{a.status}</td><td className="p-3 text-right">{a.evaluated}</td><td className="p-3 text-right">{a.averagePercent ?? '—'}{a.averagePercent !== null ? '%' : ''}</td><td className="p-3 text-right">{a.attendance.scheduled ? `${a.attendance.percent}%` : '—'}</td></tr>)}</tbody>
               </table>
             </Card>
           )}
@@ -151,7 +151,7 @@ function Person({ userId }: { userId: string }) {
           {data.fees.length === 0 ? <EmptyState title="No fee account">No fee account is linked to this student.</EmptyState> : data.fees.map((f) => (
             <Card key={f.id} className="flex flex-wrap items-center gap-4 p-4 text-sm">
               <div className="min-w-0 flex-1 font-semibold text-ink">{f.courseTitle}</div>
-              <div>Due {formatMoney(f.due)}</div><div>Paid {formatMoney(f.collected)}</div><div className="font-bold">Balance {formatMoney(f.balance)}</div>
+              <div>Due {formatMoney(f.due)}</div><div>Paid {formatMoney(f.collected)}</div><div className="font-semibold">Balance {formatMoney(f.balance)}</div>
               <StatusPill size="sm" tone={f.paymentStatus === 'paid' ? 'success' : f.paymentStatus === 'overdue' ? 'danger' : 'warning'}>{f.paymentStatus}</StatusPill>
               <Link href={`/dashboard/finance/accounts/${f.id}`} className={buttonClasses('secondary', 'sm')}>Open ledger</Link>
             </Card>

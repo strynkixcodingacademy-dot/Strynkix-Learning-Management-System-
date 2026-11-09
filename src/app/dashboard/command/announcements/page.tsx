@@ -44,7 +44,7 @@ function Composer({ onDone }: { onDone: () => void }) {
   return (
     <Card className="space-y-4 p-5">
       {dialog}
-      <h2 className="text-sm font-bold text-ink">New announcement</h2>
+      <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">New announcement</h2>
       <Field label="Title" htmlFor="an-title" required><input id="an-title" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} className={fieldClasses} /></Field>
       <Field label="Message" htmlFor="an-msg" required><textarea id="an-msg" rows={4} maxLength={2000} value={message} onChange={(e) => setMessage(e.target.value)} className={fieldClasses} /></Field>
       <div className="space-y-2"><div className="text-sm font-semibold text-ink-2">Audience</div>{f.controls({ dates: false })}</div>
@@ -93,7 +93,7 @@ function Announcements() {
       <CommandNav />
       {dialog}
       <Composer onDone={() => setVersion((v) => v + 1)} />
-      <h2 className="text-lg font-extrabold text-ink">Published</h2>
+      <h2 className="type-section text-ink">Published</h2>
       {failure && <Notice kind="error">{failure}</Notice>}
       {p.error ? <ErrorState onRetry={p.reload}>{p.error}</ErrorState> : p.loading && !p.rows.length ? <LoadingState label="Loading announcements…" /> : !p.rows.length ? <EmptyState title="No announcements yet">Publish one above.</EmptyState> : (
         <ul className="space-y-2">
@@ -101,7 +101,7 @@ function Announcements() {
             const state = a.status === 'withdrawn' ? 'Withdrawn' : a.publishAt > now ? 'Scheduled' : a.expiresAt && a.expiresAt <= now ? 'Expired' : 'Live';
             return (
               <li key={a.id}><Card className="space-y-1 p-4">
-                <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-ink">{a.title}</span><StatusPill size="sm" tone={state === 'Live' ? 'success' : state === 'Scheduled' ? 'brand' : 'neutral'}>{state}</StatusPill>
+                <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-ink">{a.title}</span><StatusPill size="sm" tone={state === 'Live' ? 'success' : state === 'Scheduled' ? 'brand' : 'neutral'}>{state}</StatusPill>
                   <span className="ml-auto text-xs text-ink-3">{a.createdByName} · {formatWhen(a.publishAt)}{a.expiresAt ? ` → ${formatWhen(a.expiresAt)}` : ''}</span></div>
                 <p className="whitespace-pre-wrap text-sm text-ink-2">{a.message}</p>
                 <p className="text-xs text-ink-3">Audience: {a.audience.scope === 'all' ? 'all academies' : a.audience.scope === 'academy' ? `academy ${a.audience.orgId}` : `branch ${a.audience.branchId}`}{a.audience.roles.length ? ` · ${a.audience.roles.map((r) => ROLE_LABELS[r as UserRole]).join(', ')}` : ' · everyone'}{a.audience.courseId ? ` · course ${a.audience.courseId}` : ''}{a.audience.batchId ? ` · batch ${a.audience.batchId}` : ''}</p>

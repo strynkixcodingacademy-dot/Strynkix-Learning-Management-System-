@@ -72,7 +72,7 @@ function Listing({ courseId }: { courseId: string }) {
             <li key={a.id}>
               <Card className="flex flex-wrap items-center gap-3 p-4">
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold text-ink">{a.title}</div>
+                  <div className="font-semibold text-ink">{a.title}</div>
                   <div className="text-xs text-ink-3">
                     {a.kind === 'exam' && a.examType ? EXAM_TYPE_LABELS[a.examType] : KIND_LABELS[a.kind]} · {a.totalMarks} marks
                     {lessonTitle(a.lessonId) ? ` · Lesson: ${lessonTitle(a.lessonId)}` : ''}{a.closesAt ? ` · closes ${formatWhen(a.closesAt)}` : ''}

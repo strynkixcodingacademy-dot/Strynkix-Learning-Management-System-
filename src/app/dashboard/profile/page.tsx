@@ -27,7 +27,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ cla
     <div className="flex items-start gap-3 py-3">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-3"><Icon className="h-4 w-4" /></span>
       <div className="min-w-0">
-        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-4">{label}</div>
+        <div className="text-xs font-semibold text-ink-4">{label}</div>
         <div className="truncate text-sm font-semibold text-ink">{value}</div>
       </div>
     </div>
@@ -106,18 +106,15 @@ export default function ProfilePage() {
   return (
     <AppShell>
       <div className="space-y-8">
-        <PageHeader eyebrow="Account" title="My Profile" description="Your details, your access, and your password." />
+        <PageHeader title="My Profile" description="Your details, your access, and your password." />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
-            <Card className="overflow-hidden">
-              <div className="relative h-24 bg-gradient-to-r from-brand-soft via-silver-soft to-highlight-soft">
-                <div aria-hidden="true" className="paper-dots absolute inset-0" />
-              </div>
-              <div className="-mt-10 flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:px-6">
-                <span className="rounded-full bg-surface p-1 shadow-card"><Avatar name={profile.displayName || profile.email} size={76} /></span>
-                <div className="min-w-0 flex-1 pb-1">
-                  <h2 className="truncate font-display text-[24px] font-extrabold text-ink">{profile.displayName}</h2>
+            <Card>
+              <div className="flex items-center gap-4 p-5 sm:p-6">
+                <Avatar name={profile.displayName || profile.email} size={64} />
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate font-display text-2xl text-ink">{profile.displayName}</h2>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <StatusPill tone="brand" icon={ShieldCheck} size="sm">{ROLE_LABELS[tenant.role]}</StatusPill>
                     <StatusPill tone={profile.status === 'active' ? 'success' : 'warning'} icon={BadgeCheck} size="sm">
@@ -129,7 +126,7 @@ export default function ProfilePage() {
             </Card>
 
             <Card className="p-5 sm:p-6">
-              <h2 className="text-[16px] font-extrabold text-ink">Personal details</h2>
+              <h2 className="type-section text-ink">Personal details</h2>
               <p className="mt-1 text-sm text-ink-3">This name appears on rosters, submissions and feedback.</p>
               <form onSubmit={save} className="mt-5 space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -153,7 +150,7 @@ export default function ProfilePage() {
 
           <div className="space-y-6">
             <Card className="p-5">
-              <h2 className="text-[15px] font-extrabold text-ink">Access</h2>
+              <h2 className="font-sans tracking-normal text-body font-semibold text-ink">Access</h2>
               <div className="mt-1 divide-y divide-line">
                 <InfoRow icon={Mail} label="Email" value={profile.email} />
                 <InfoRow icon={ShieldCheck} label="Role" value={ROLE_LABELS[tenant.role]} />
@@ -163,12 +160,12 @@ export default function ProfilePage() {
             </Card>
 
             <Card className="p-5">
-              <h2 className="text-[15px] font-extrabold text-ink">Notifications</h2>
+              <h2 className="font-sans tracking-normal text-body font-semibold text-ink">Notifications</h2>
               <NotificationPreferences />
             </Card>
 
             <Card className="p-5">
-              <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-ink"><KeyRound className="h-4 w-4 text-brand" /> Password</h2>
+              <h2 className="font-sans tracking-normal flex items-center gap-2 text-body font-semibold text-ink"><KeyRound className="h-4 w-4 text-brand" /> Password</h2>
               <p className="mt-1 text-sm text-ink-3">Change it here with your current password.</p>
               <ChangePasswordForm />
               <p className="mt-5 text-sm text-ink-3">Forgot it? We’ll email a secure link to {profile.email}.</p>
@@ -176,7 +173,7 @@ export default function ProfilePage() {
                 {resetState === 'sent' ? (
                   <Notice kind="success">Reset link sent. Check your inbox (and spam folder).</Notice>
                 ) : resetState === 'error' ? (
-                  <Notice kind="error" action={<button type="button" onClick={reset} className="text-xs font-bold text-danger-ink underline">Try again</button>}>We couldn’t send the email right now.</Notice>
+                  <Notice kind="error" action={<button type="button" onClick={reset} className="text-xs font-semibold text-danger-ink underline">Try again</button>}>We couldn’t send the email right now.</Notice>
                 ) : (
                   <Button variant="secondary" loading={resetState === 'sending'} onClick={reset} icon={<KeyRound className="h-4 w-4" />}>Email me a reset link</Button>
                 )}
@@ -184,15 +181,15 @@ export default function ProfilePage() {
             </Card>
 
             <Card className="p-5">
-              <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-ink"><Mail className="h-4 w-4 text-brand" /> Sign-in email</h2>
+              <h2 className="font-sans tracking-normal flex items-center gap-2 text-body font-semibold text-ink"><Mail className="h-4 w-4 text-brand" /> Sign-in email</h2>
               <p className="mt-1 text-sm text-ink-3">You sign in with {profile.email}. We confirm a new address by email before switching.</p>
               <ChangeEmailForm currentEmail={profile.email} />
             </Card>
 
             <Card className="p-5">
-              <h2 className="flex items-center gap-2 text-[15px] font-extrabold text-ink"><LifeBuoy className="h-4 w-4 text-brand" /> Need a change?</h2>
+              <h2 className="font-sans tracking-normal flex items-center gap-2 text-body font-semibold text-ink"><LifeBuoy className="h-4 w-4 text-brand" /> Need a change?</h2>
               <p className="mt-1 text-sm text-ink-3">Your role and branch are set by your administrators. Ask your branch manager or your academy administrator.</p>
-              <Link href="/dashboard/guide#profile" className="mt-3 inline-block text-sm font-bold text-brand-ink hover:underline">Read the profile guide</Link>
+              <Link href="/dashboard/guide#profile" className="mt-3 inline-block text-sm font-semibold text-brand-ink hover:underline">Read the profile guide</Link>
             </Card>
           </div>
         </div>

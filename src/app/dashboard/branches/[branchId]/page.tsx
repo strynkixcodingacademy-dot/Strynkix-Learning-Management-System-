@@ -99,7 +99,7 @@ function BranchDetailContent({ params }: BranchPageProps) {
           <LoadingState label="Loading branch…" rows={4} />
         ) : error || !branch ? (
           <ErrorState title="Branch unavailable" onRetry={() => { setLoading(true); setReloadKey((k) => k + 1); }}>
-            {error} <Link href="/dashboard/branches" className="font-bold text-brand-ink underline">Back to branches</Link>
+            {error} <Link href="/dashboard/branches" className="font-semibold text-brand-ink underline">Back to branches</Link>
           </ErrorState>
         ) : (
           <div className="space-y-8">
@@ -118,7 +118,7 @@ function BranchDetailContent({ params }: BranchPageProps) {
               <KpiTile label="Active students" value={report.totals.activeStudents} icon={GraduationCap} hint={`${students.length} student account${students.length === 1 ? '' : 's'} at this branch.`} />
               <KpiTile label="Learning completion" value={pct(report.metrics.learningCompletion.percentage)} suffix={report.metrics.learningCompletion.percentage === null ? undefined : '%'} icon={BookCheck} tone="success" hint={ratioHint(report.metrics.learningCompletion, 'planned lessons finished.', 'No lessons planned up to today.')} />
               <KpiTile label="Submission rate" value={pct(report.metrics.submissionRate.percentage)} suffix={report.metrics.submissionRate.percentage === null ? undefined : '%'} icon={ClipboardCheck} tone="teal" hint={ratioHint(report.metrics.submissionRate, 'due assignments submitted.', 'No deadline has passed yet.')} />
-              <KpiTile label="Average mark" value={pct(report.metrics.assessment.percentage)} suffix={report.metrics.assessment.percentage === null ? undefined : '%'} icon={Trophy} tone="lavender" hint={`${report.metrics.assessment.gradedCount} graded submissions.`} />
+              <KpiTile label="Average mark" value={pct(report.metrics.assessment.percentage)} suffix={report.metrics.assessment.percentage === null ? undefined : '%'} icon={Trophy} tone="info" hint={`${report.metrics.assessment.gradedCount} graded submissions.`} />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -135,7 +135,7 @@ function BranchDetailContent({ params }: BranchPageProps) {
                         <Link key={b.id} href={`/dashboard/batches/${b.id}`} className="flex flex-col gap-3 px-4 py-3.5 hover:bg-canvas sm:flex-row sm:items-center sm:px-5">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="truncate text-sm font-bold text-ink">{b.name}</span>
+                              <span className="truncate text-sm font-semibold text-ink">{b.name}</span>
                               <BatchStatusBadge status={b.status} />
                             </div>
                             <div className="text-xs text-ink-3">{b.code} · {row ? `${row.activeStudents} active student${row.activeStudents === 1 ? '' : 's'}` : 'closed'}</div>
@@ -151,15 +151,15 @@ function BranchDetailContent({ params }: BranchPageProps) {
               <div className="space-y-6">
                 <Section id="team" title="Team" icon={ShieldCheck}>
                   <Card className="p-4">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-4">Branch managers</div>
+                    <div className="text-xs font-semibold text-ink-4">Branch managers</div>
                     {managers.length === 0 ? (
                       <p className="mt-2 text-sm text-ink-3">No manager yet. Use “Add Branch Manager” on the Branches page.</p>
                     ) : (
                       <ul className="mt-2 space-y-2">{managers.map((m) => (
-                        <li key={m.id} className="flex items-center gap-2.5"><Avatar name={m.displayName} size={30} /><span className="min-w-0"><span className="block truncate text-sm font-bold text-ink">{m.displayName}</span><span className="block truncate text-xs text-ink-3">{m.email}</span></span></li>
+                        <li key={m.id} className="flex items-center gap-2.5"><Avatar name={m.displayName} size={30} /><span className="min-w-0"><span className="block truncate text-sm font-semibold text-ink">{m.displayName}</span><span className="block truncate text-xs text-ink-3">{m.email}</span></span></li>
                       ))}</ul>
                     )}
-                    <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-4">Instructors ({instructors.length})</div>
+                    <div className="mt-4 text-xs font-semibold text-ink-4">Instructors ({instructors.length})</div>
                     {instructors.length === 0 ? (
                       <p className="mt-2 text-sm text-ink-3">Instructors are added from a batch with “Add Lead Instructor”.</p>
                     ) : (
@@ -167,7 +167,7 @@ function BranchDetailContent({ params }: BranchPageProps) {
                         <span key={i.id} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-muted py-0.5 pl-0.5 pr-2.5 text-xs font-semibold text-ink-2"><Avatar name={i.displayName} size={22} />{i.displayName}</span>
                       ))}</div>
                     )}
-                    <Link href="/dashboard/people" className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-brand-ink hover:underline"><Users className="h-4 w-4" /> Manage people</Link>
+                    <Link href="/dashboard/people" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-ink hover:underline"><Users className="h-4 w-4" /> Manage people</Link>
                   </Card>
                 </Section>
 
@@ -179,7 +179,7 @@ function BranchDetailContent({ params }: BranchPageProps) {
                       <ul className="space-y-2.5">{report.students.filter((s) => s.flags.length).slice(0, 6).map((s) => (
                         <li key={`${s.batchId}-${s.studentId}`} className="flex items-start gap-2.5">
                           <Avatar name={s.name} size={28} />
-                          <span className="min-w-0"><span className="block truncate text-sm font-bold text-ink">{s.name}</span><span className="block text-xs font-semibold text-coral-ink">{s.flags[0]}</span></span>
+                          <span className="min-w-0"><span className="block truncate text-sm font-semibold text-ink">{s.name}</span><span className="block text-xs font-semibold text-coral-ink">{s.flags[0]}</span></span>
                         </li>
                       ))}</ul>
                     )}

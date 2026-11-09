@@ -44,7 +44,7 @@ export function ProjectReview({ entry, courses, onChanged }: { entry: PortfolioE
       )}
       {error && <p className="text-xs text-danger-ink" role="alert">{error}</p>}
       {status !== 'draft' && <ReviewHistory entryId={entry.id} />}
-      {status === 'approved' && <p className="text-[11px] text-ink-3">Editing the project’s title, description or links sends it back to draft for a new review.</p>}
+      {status === 'approved' && <p className="text-xs text-ink-3">Editing the project’s title, description or links sends it back to draft for a new review.</p>}
     </div>
   );
 }

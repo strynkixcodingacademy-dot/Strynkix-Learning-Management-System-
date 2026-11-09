@@ -69,12 +69,12 @@ export function MetricRow({
 }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-3">{title}</h3>
+      <h3 className="text-sm font-normal text-ink-3">{title}</h3>
       {ratio.percentage === null ? (
-        <div className="text-base font-semibold text-ink-2">{emptyText}</div>
+        <div className="text-base font-medium text-ink-2">{emptyText}</div>
       ) : (
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-2xl font-extrabold tracking-tight text-ink">{ratio.percentage}%</span>
+          <span className="type-figure text-[1.625rem] text-ink">{ratio.percentage}%</span>
           <span className="text-sm text-ink-3">{ratio.numerator} of {ratio.denominator} {unit}</span>
         </div>
       )}

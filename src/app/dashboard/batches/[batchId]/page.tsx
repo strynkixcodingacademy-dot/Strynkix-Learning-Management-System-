@@ -8,10 +8,15 @@
  * intended home (see docs/ARCHITECTURE.md, Stage 6).
  */
 
-import { Breadcrumbs } from '@/components/ui/Page';
 import React, { use, useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import { ModalFrame } from '@/components/ui/Modal';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { Button, buttonClasses } from '@/components/ui/Button';
+import { KpiTile } from '@/components/ui/DataViz';
+import { ProgressBar } from '@/components/ui/Progress';
+import { EmptyState, Notice } from '@/components/ui/States';
+import { PageHeader, fieldClasses } from '@/components/ui/Page';
 import { AppShell } from '@/components/dashboard/AppShell';
 import { RequireRole } from '@/components/auth/RouteGuards';
 import { BatchStatusBadge, EnrollmentStatusBadge } from '@/components/batches/StatusBadges';
@@ -46,7 +51,6 @@ import {
   Loader2,
   Sparkles,
   UserPlus,
-  Users,
   X,
 } from 'lucide-react';
 
@@ -62,28 +66,21 @@ function formatDate(iso?: string | null): string {
 
 function ProgressCell({ row }: { row: RosterRow }) {
   if (row.state === 'unavailable') {
-    return <span className="text-[11px] text-warning-ink">Progress unavailable</span>;
+    return <span className="text-xs text-warning-ink">Progress unavailable</span>;
   }
   if (row.totalLessons === 0) {
-    return <span className="text-[11px] text-ink-3">No published lessons</span>;
+    return <span className="text-xs text-ink-3">No published lessons</span>;
   }
   if (row.state === 'no_activity') {
-    return <span className="text-[11px] text-ink-3 italic">No activity yet</span>;
+    return <span className="text-xs text-ink-3 italic">No activity yet</span>;
   }
   return (
-    <div className="space-y-1 min-w-[140px]">
-      <div className="flex items-center justify-between text-[11px]">
-        <span className="text-success-ink font-bold">{row.percentage}%</span>
-        <span className="text-ink-3">
-          {row.completedCount}/{row.totalLessons} lessons
-        </span>
+    <div className="min-w-0">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="font-medium tabular-nums text-ink">{row.percentage}%</span>
+        <span className="text-ink-3">{row.completedCount} of {row.totalLessons}{row.inProgressCount > 0 ? `, ${row.inProgressCount} in progress` : ''}</span>
       </div>
-      <div className="h-1.5 w-full bg-surface-muted rounded-full overflow-hidden">
-        <div className="h-full bg-success rounded-full" style={{ width: `${row.percentage}%` }} />
-      </div>
-      {row.inProgressCount > 0 && (
-        <div className="text-[10px] text-ink-3">{row.inProgressCount} in progress</div>
-      )}
+      <ProgressBar value={row.percentage} tone={row.percentage === 100 ? 'success' : 'brand'} size="sm" label={`${row.enrollment.studentDisplayName || 'Student'} progress`} className="mt-1" />
     </div>
   );
 }
@@ -469,7 +466,7 @@ Please log in to start learning!`;
     return (
       <div className="max-w-md mx-auto p-6 rounded-2xl bg-surface border border-line text-center space-y-4">
         <AlertCircle className="w-10 h-10 text-danger-ink mx-auto" />
-        <h2 className="text-lg font-bold text-ink">Batch Unavailable</h2>
+        <h2 className="type-section text-ink">Batch Unavailable</h2>
         <p className="text-xs text-ink-3">{pageError || 'Batch could not be loaded.'}</p>
         <Link
           href="/dashboard/batches"
@@ -485,323 +482,221 @@ Please log in to start learning!`;
   const enrollmentOpen = isBatchOpenForEnrollment(batch.status);
 
   return (
-    <div className="space-y-6">
-      <Breadcrumbs items={[{ label: 'Batches', href: '/dashboard/batches' }, { label: batch.name }]} />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/dashboard/batches" className="inline-flex items-center gap-2 text-xs text-ink-3 hover:text-ink">
-          <ArrowLeft className="w-4 h-4" />
-          <span>All batches</span>
-        </Link>
-        <Link
-          href={`/dashboard/batches/${batch.id}/plans`}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
-        >
-          <CalendarDays className="w-4 h-4" />
-          <span>Daily Plans & Assignments</span>
-        </Link>
+    <div className="space-y-9">
+      <PageHeader
+        breadcrumbs={[{ label: 'Batches', href: '/dashboard/batches' }, { label: batch.name }]}
+        title={batch.name}
+        eyebrow={<span className="inline-flex flex-wrap items-center gap-2"><span>{batch.code}, {course?.title || batch.courseId}</span><BatchStatusBadge status={batch.status} /></span>}
+        actions={<Link href={`/dashboard/batches/${batch.id}/plans`} className={buttonClasses('primary')}><CalendarDays className="h-4 w-4" aria-hidden="true" /> Daily Plans & Assignments</Link>}
+      />
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
+        <KpiTile label="Active students" value={activeCount} suffix={batch.maxStudents ? `of ${batch.maxStudents}` : undefined} />
+        <KpiTile label="Average completion" value={averageCompletion === null ? '—' : averageCompletion} suffix={averageCompletion === null ? undefined : '%'} hint="Active learners only" />
+        <KpiTile label="Published lessons" value={progress === null ? '—' : publishedLessonIds.length} />
+        <div className="min-w-0 border-t border-line-strong pt-3">
+          <div className="text-sm text-ink-3">Schedule</div>
+          <div className="mt-2 text-body font-medium leading-snug text-ink">{formatDate(batch.startDate)} to {formatDate(batch.endDate)}</div>
+        </div>
       </div>
 
-      {/* Batch summary */}
-      <section className="p-5 sm:p-6 rounded-2xl bg-surface border border-line space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="font-display text-[28px] sm:text-[34px] font-extrabold leading-tight tracking-tight text-ink">{batch.name}</h1>
-            <div className="text-xs text-brand-ink mt-1">
-              {batch.code} • {course?.title || batch.courseId}
-            </div>
-          </div>
-          <BatchStatusBadge status={batch.status} />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 rounded-xl bg-surface border border-line">
-            <div className="text-ink-3">Schedule</div>
-            <div className="text-ink mt-1">
-              {formatDate(batch.startDate)} → {formatDate(batch.endDate)}
-            </div>
-          </div>
-          <div className="p-3 rounded-xl bg-surface border border-line">
-            <div className="text-ink-3">Active students</div>
-            <div className="text-ink mt-1">
-              {activeCount}
-              {batch.maxStudents ? ` / ${batch.maxStudents}` : ''}
-            </div>
-          </div>
-          <div className="p-3 rounded-xl bg-surface border border-line">
-            <div className="text-ink-3">Published lessons</div>
-            <div className="text-ink mt-1">{progress === null ? '—' : publishedLessonIds.length}</div>
-          </div>
-          <div className="p-3 rounded-xl bg-surface border border-line">
-            <div className="text-ink-3">Avg. completion (active learners)</div>
-            <div className="text-ink mt-1">
-              {averageCompletion === null ? '—' : `${averageCompletion}%`}
-            </div>
-          </div>
-        </div>
-        {course && course.status !== 'published' && (
-          <p className="text-[11px] text-warning-ink">
-            This course is {course.status}. Enrolled students cannot open it until it is published.
-          </p>
-        )}
-      </section>
-
-      {/* Lead Instructors Section */}
-      <section className="p-5 rounded-2xl bg-surface border border-line space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="w-4 h-4 text-brand-ink" />
-            <h3 className="text-sm font-bold text-ink">Lead Instructors</h3>
-            <span className="text-xs text-ink-3">({assignedInstructors.length})</span>
-          </div>
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => {
-                setInstructorName('');
-                setInstructorEmail('');
-                setInstructorPassword('');
-                setInstructorFormError(null);
-                handleGenerateInstructorPassword();
-                setShowCreateInstructorModal(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-xs font-semibold text-brand-ink border border-line transition-colors"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Add Instructor</span>
-            </button>
-          )}
-        </div>
-
-        {assignedInstructors.length === 0 ? (
-          <p className="text-xs text-ink-3">No instructors have been assigned to this cohort yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {assignedInstructors.map((inst) => (
-              <div key={inst.id} className="p-3 rounded-xl bg-surface-muted border border-line flex items-center justify-between gap-2 text-xs">
-                <Avatar name={inst.displayName} size={34} />
-                <div className="min-w-0 flex-1 pr-2">
-                  <div className="font-semibold text-ink truncate">{inst.displayName}</div>
-                  <div className="text-[11px] text-ink-3 truncate">{inst.email}</div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] bg-brand/10 text-brand-ink border border-brand/20 shrink-0">
-                  Instructor
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {successMsg && (
-        <div className="p-4 rounded-xl bg-success-soft border border-success-line flex items-center gap-2.5 text-success-ink text-xs">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-success-ink" />
-          <span>{successMsg}</span>
-        </div>
+      {course && course.status !== 'published' && (
+        <Notice kind="warning">This course is {course.status}. Enrolled students cannot open it until it is published.</Notice>
       )}
-      {actionError && (
-        <div className="p-4 rounded-xl bg-danger-soft border border-danger-line flex items-center gap-2.5 text-danger-ink text-xs">
-          <AlertCircle className="w-4 h-4 shrink-0 text-danger-ink" />
-          <span>{actionError}</span>
-        </div>
-      )}
+      {successMsg && <Notice kind="success">{successMsg}</Notice>}
+      {actionError && <Notice kind="error">{actionError}</Notice>}
 
-      {/* Enrollment form (administrators only) */}
-      {canManage && (
-        <section className="p-5 rounded-2xl bg-surface border border-line space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-brand-ink" />
-              <span>Enroll a Student</span>
-            </h3>
-            {enrollmentOpen && (
-              <button
-                type="button"
-                onClick={() => {
-                  setStudentName('');
-                  setStudentEmail('');
-                  setStudentPassword('');
-                  setStudentFormError(null);
-                  handleGenerateStudentPassword();
-                  setShowCreateStudentModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-xs font-semibold text-brand-ink border border-line transition-colors"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>+ Create & Enroll New Student</span>
-              </button>
-            )}
-          </div>
-          {!enrollmentOpen ? (
-            <p className="text-xs text-ink-3">
-              This batch is {batch.status.replace('_', ' ')} and is not accepting enrollments.
-            </p>
-          ) : studentsError ? (
-            <p className="text-xs text-danger-ink">{studentsError}</p>
-          ) : (
-            <form onSubmit={handleEnroll} className="flex flex-col sm:flex-row gap-3">
-              <select
-                value={selectedStudentId}
-                onChange={(e) => setSelectedStudentId(e.target.value)}
-                required
-                className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
-                aria-label="Student to enroll"
-              >
-                <option value="">
-                  {candidates.length === 0 ? 'No eligible students in this branch' : 'Select a student...'}
-                </option>
-                {candidates.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.displayName} — {s.email}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                disabled={isEnrolling || !selectedStudentId}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold"
-              >
-                {isEnrolling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>{isEnrolling ? 'Enrolling...' : 'Enroll'}</span>
-              </button>
-            </form>
-          )}
-          <p className="text-[11px] text-ink-3">
-            Only active students of this batch&apos;s branch are listed. A student can hold one active enrollment per
-            course; withdraw it before moving them to another batch.
-          </p>
-        </section>
-      )}
-
-      {/* Quiz results (milestone G23): server-written summaries for this batch's students */}
-      {batch && progress && (
-        <section aria-labelledby="quiz-results-heading" className="rounded-2xl border border-line bg-surface shadow-card overflow-hidden">
-          <div className="border-b border-line p-4 sm:p-5">
-            <h3 id="quiz-results-heading" className="text-base font-bold text-ink">Quiz results</h3>
-            <p className="text-xs text-ink-3">Every graded quiz attempt by students of this batch. Expand a row for the attempt history.</p>
-          </div>
-          <QuizResultsTable
-            showFilters
-            contextLabel="Student"
-            emptyText="When students in this batch take a lesson quiz, their scores appear here."
-            rows={progress
-              .filter((p) => p.batchId === batch.id && p.quiz && p.quiz.attemptCount > 0)
-              .map((p) => {
-                const e = enrollments.find((x) => x.studentId === p.studentId);
-                return { key: p.id, progress: p, lessonTitle: lessonTitles[p.lessonId] ?? 'Lesson', context: e?.studentDisplayName || e?.studentEmail || p.studentId };
-              })}
-            scopeFor={() => ({ orgId: batch.orgId, batchId: batch.id })}
-          />
-        </section>
-      )}
-
-      {/* Roster */}
-      <section className="rounded-2xl bg-surface border border-line overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-ink flex items-center gap-2">
-            <Users className="w-4 h-4 text-brand-ink" />
-            <span>Roster & Progress</span>
-          </h3>
-          <span className="text-xs text-ink-3">{enrollments.length} enrollment(s)</span>
+      {/* Roster: the working surface of this page */}
+      <section aria-labelledby="roster-heading" className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="roster-heading" className="type-section text-ink">Roster and progress</h2>
+          <span className="text-sm text-ink-3">{enrollments.length} enrollment{enrollments.length === 1 ? '' : 's'}</span>
         </div>
 
         {progressError && (
-          <div className="m-4 p-3 rounded-lg bg-warning-soft border border-warning-line flex items-center justify-between gap-2 text-warning-ink text-xs">
-            <span>{progressError}</span>
-            <button onClick={() => loadRoster(batch)} className="font-semibold shrink-0 hover:text-ink">
-              Retry
-            </button>
-          </div>
+          <Notice kind="warning" action={<button onClick={() => loadRoster(batch)} className="shrink-0 text-sm font-semibold text-warning-ink hover:underline">Retry</button>}>{progressError}</Notice>
         )}
 
         {rosterError ? (
-          <div className="p-6 text-center space-y-2">
-            <p className="text-xs text-danger-ink">{rosterError}</p>
-            <button onClick={() => loadRoster(batch)} className="text-xs font-semibold text-brand-ink hover:text-brand-ink">
-              Retry
-            </button>
-          </div>
+          <Notice kind="error" action={<button onClick={() => loadRoster(batch)} className="shrink-0 text-sm font-semibold text-danger-ink hover:underline">Retry</button>}>{rosterError}</Notice>
         ) : rosterRows.length === 0 ? (
-          <div className="p-10 text-center space-y-2">
-            <Users className="w-8 h-8 text-ink-4 mx-auto" />
-            <p className="text-xs text-ink-3">No students are enrolled in this batch yet.</p>
-          </div>
+          <EmptyState compact illustration="inbox" title="No students yet">No students are enrolled in this batch yet.</EmptyState>
         ) : (
-          <ul className="divide-y divide-line">
-            {rosterRows.map((row) => {
-              const e = row.enrollment;
-              const busy = busyEnrollmentId === e.id;
-              return (
-                <li key={e.id} className="p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
-                  <div className="flex min-w-0 items-center gap-3 lg:w-64">
-                    <Avatar name={e.studentDisplayName || e.studentEmail || '?'} size={36} />
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-ink truncate">
-                        {e.studentDisplayName || e.studentId}
+          <div className="overflow-hidden rounded-card border border-line bg-surface">
+            <div aria-hidden="true" className="hidden gap-4 border-b border-line px-4 py-2.5 text-xs font-semibold text-ink-3 lg:grid lg:grid-cols-[minmax(0,1.4fr)_5.5rem_minmax(8.5rem,1fr)_5.5rem_17.5rem]">
+              <span>Student</span><span>Status</span><span>Progress</span><span>Last active</span><span className="sr-only">Actions</span>
+            </div>
+            <ul className="divide-y divide-line">
+              {rosterRows.map((row) => {
+                const e = row.enrollment;
+                const busy = busyEnrollmentId === e.id;
+                const rowAction = 'rounded-md px-2 py-1 text-xs font-medium transition-colors duration-150';
+                return (
+                  <li key={e.id} className="grid items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-surface-muted/40 lg:grid-cols-[minmax(0,1.4fr)_5.5rem_minmax(8.5rem,1fr)_5.5rem_17.5rem]">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar name={e.studentDisplayName || e.studentEmail || '?'} size={32} />
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-ink">{e.studentDisplayName || e.studentId}</div>
+                        <div className="truncate text-xs text-ink-3">{e.studentEmail || e.studentId}</div>
                       </div>
-                      <div className="text-[11px] text-ink-3 truncate">{e.studentEmail || e.studentId}</div>
                     </div>
-                  </div>
-                  <div className="lg:w-28">
-                    <EnrollmentStatusBadge status={e.status} />
-                  </div>
-                  <div className="flex-1 min-w-0">
+                    <div><EnrollmentStatusBadge status={e.status} /></div>
                     <ProgressCell row={row} />
-                  </div>
-                  <div className="text-[11px] text-ink-3 lg:w-28">
-                    {row.lastAccessedAt ? `Active ${formatDate(row.lastAccessedAt)}` : ''}
-                  </div>
-                  {canManage && (
-                    <div className="flex flex-wrap gap-2 lg:justify-end lg:w-56">
-                      {busy && <Loader2 className="w-4 h-4 animate-spin text-brand-ink" />}
-                      {!busy && e.status === 'active' && (
-                        <>
-                          <button
-                            onClick={() => handleStatusChange(e, 'completed', 'Complete')}
-                            className="px-2.5 py-1 rounded-lg bg-surface-muted hover:bg-surface-sunken text-[11px] font-semibold text-ink"
-                          >
-                            Mark completed
-                          </button>
-                          <button
-                            onClick={() => handleStatusChange(e, 'suspended', 'Deactivate')}
-                            className="px-2.5 py-1 rounded-lg bg-surface-muted hover:bg-surface-sunken text-[11px] font-semibold text-warning-ink"
-                          >
-                            Deactivate
-                          </button>
-                          <button
-                            onClick={() => handleStatusChange(e, 'dropped', 'Withdraw')}
-                            className="px-2.5 py-1 rounded-lg bg-surface-muted hover:bg-surface-sunken text-[11px] font-semibold text-danger-ink"
-                          >
-                            Withdraw
-                          </button>
-                        </>
-                      )}
-                      {!busy && (e.status === 'dropped' || e.status === 'suspended') && enrollmentOpen && (
-                        <button
-                          onClick={() => handleStatusChange(e, 'active', 'Reactivate')}
-                          className="px-2.5 py-1 rounded-lg bg-surface-muted hover:bg-surface-sunken text-[11px] font-semibold text-success-ink"
-                        >
-                          Reactivate
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="text-xs text-ink-3">{row.lastAccessedAt ? <><span className="lg:hidden">Last active </span>{formatDate(row.lastAccessedAt)}</> : null}</div>
+                    {canManage ? (
+                      <div className="-ml-2 flex flex-wrap items-center gap-0.5 lg:ml-0 lg:flex-nowrap lg:justify-end">
+                        {busy && <Loader2 className="h-4 w-4 animate-spin text-ink-3" aria-label="Updating" />}
+                        {!busy && e.status === 'active' && (
+                          <>
+                            <button onClick={() => handleStatusChange(e, 'completed', 'Complete')} className={`${rowAction} text-ink-2 hover:bg-surface-sunken hover:text-ink`}>Mark completed</button>
+                            <button onClick={() => handleStatusChange(e, 'suspended', 'Deactivate')} className={`${rowAction} text-ink-2 hover:bg-warning-soft hover:text-warning-ink`}>Deactivate</button>
+                            <button onClick={() => handleStatusChange(e, 'dropped', 'Withdraw')} className={`${rowAction} text-ink-2 hover:bg-danger-soft hover:text-danger-ink`}>Withdraw</button>
+                          </>
+                        )}
+                        {!busy && (e.status === 'dropped' || e.status === 'suspended') && enrollmentOpen && (
+                          <button onClick={() => handleStatusChange(e, 'active', 'Reactivate')} className={`${rowAction} text-success-ink hover:bg-success-soft`}>Reactivate</button>
+                        )}
+                      </div>
+                    ) : <span className="hidden lg:block" />}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
       </section>
 
+      <div className="grid gap-x-12 gap-y-9 lg:grid-cols-2">
+        {/* Lead Instructors */}
+        <section aria-labelledby="instructors-heading" className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="instructors-heading" className="type-section text-ink">Lead instructors</h2>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => {
+                  setInstructorName('');
+                  setInstructorEmail('');
+                  setInstructorPassword('');
+                  setInstructorFormError(null);
+                  handleGenerateInstructorPassword();
+                  setShowCreateInstructorModal(true);
+                }}
+                className={buttonClasses('secondary', 'sm')}
+              >
+                <UserPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add Instructor
+              </button>
+            )}
+          </div>
+          {assignedInstructors.length === 0 ? (
+            <p className="border-t border-line pt-3 text-sm text-ink-3">No instructors have been assigned to this cohort yet.</p>
+          ) : (
+            <ul className="divide-y divide-line border-y border-line">
+              {assignedInstructors.map((inst) => (
+                <li key={inst.id} className="flex items-center gap-3 py-2.5">
+                  <Avatar name={inst.displayName} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-ink">{inst.displayName}</div>
+                    <div className="truncate text-xs text-ink-3">{inst.email}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Enrollment form (administrators only) */}
+        {canManage && (
+          <section aria-labelledby="enroll-heading" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="enroll-heading" className="type-section text-ink">Enroll a student</h2>
+              {enrollmentOpen && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStudentName('');
+                    setStudentEmail('');
+                    setStudentPassword('');
+                    setStudentFormError(null);
+                    handleGenerateStudentPassword();
+                    setShowCreateStudentModal(true);
+                  }}
+                  className={buttonClasses('secondary', 'sm')}
+                >
+                  <UserPlus className="h-3.5 w-3.5" aria-hidden="true" /> Create & Enroll New Student
+                </button>
+              )}
+            </div>
+            {!enrollmentOpen ? (
+              <p className="border-t border-line pt-3 text-sm text-ink-3">
+                This batch is {batch.status.replace('_', ' ')} and is not accepting enrollments.
+              </p>
+            ) : studentsError ? (
+              <Notice kind="error">{studentsError}</Notice>
+            ) : (
+              <form onSubmit={handleEnroll} className="flex flex-col gap-2 sm:flex-row">
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  required
+                  className={`${fieldClasses} h-10 min-w-0 flex-1`}
+                  aria-label="Student to enroll"
+                >
+                  <option value="">
+                    {candidates.length === 0 ? 'No eligible students in this branch' : 'Select a student...'}
+                  </option>
+                  {candidates.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.displayName} — {s.email}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" loading={isEnrolling} disabled={!selectedStudentId}>{isEnrolling ? 'Enrolling...' : 'Enroll'}</Button>
+              </form>
+            )}
+            <p className="text-xs text-ink-3">
+              Only active students of this batch&apos;s branch are listed. A student can hold one active enrollment per
+              course; withdraw it before moving them to another batch.
+            </p>
+          </section>
+        )}
+      </div>
+
+      {/* Quiz results (milestone G23): server-written summaries for this batch's students */}
+      {batch && progress && (
+        <section aria-labelledby="quiz-results-heading" className="space-y-3">
+          <div>
+            <h2 id="quiz-results-heading" className="type-section text-ink">Quiz results</h2>
+            <p className="mt-1 text-sm text-ink-3">Every graded quiz attempt by students of this batch. Expand a row for the attempt history.</p>
+          </div>
+          <div className="overflow-hidden rounded-card border border-line bg-surface">
+            <QuizResultsTable
+              showFilters
+              contextLabel="Student"
+              emptyText="When students in this batch take a lesson quiz, their scores appear here."
+              rows={progress
+                .filter((p) => p.batchId === batch.id && p.quiz && p.quiz.attemptCount > 0)
+                .map((p) => {
+                  const e = enrollments.find((x) => x.studentId === p.studentId);
+                  return { key: p.id, progress: p, lessonTitle: lessonTitles[p.lessonId] ?? 'Lesson', context: e?.studentDisplayName || e?.studentEmail || p.studentId };
+                })}
+              scopeFor={() => ({ orgId: batch.orgId, batchId: batch.id })}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Modal: Create & Assign Instructor */}
       {showCreateInstructorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
+        <ModalFrame onClose={() => setShowCreateInstructorModal(false)}>
+          <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-6 space-y-5 shadow-float">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand-ink">
                   <GraduationCap className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-ink">Add Lead Instructor</h3>
+                  <h3 className="text-base font-semibold text-ink">Add Lead Instructor</h3>
                   <p className="text-xs text-ink-3">Set up an instructor account and assign them to this batch</p>
                 </div>
               </div>
@@ -856,7 +751,7 @@ Please log in to start learning!`;
                   <button
                     type="button"
                     onClick={handleGenerateInstructorPassword}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-ink hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-ink hover:underline"
                   >
                     <Sparkles className="w-3 h-3" />
                     Generate Strong
@@ -901,20 +796,20 @@ Please log in to start learning!`;
               </div>
             </form>
           </div>
-        </div>
+        </ModalFrame>
       )}
 
       {/* Modal: Share Instructor Credentials */}
       {createdInstructorCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
+        <ModalFrame>
+          <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-6 space-y-5 shadow-float">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-success/15 border border-success/30 flex items-center justify-center text-success-ink">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-ink">Instructor Assigned Successfully!</h3>
+                  <h3 className="text-base font-semibold text-ink">Instructor Assigned Successfully!</h3>
                   <p className="text-xs text-ink-3">Share these login credentials with the instructor</p>
                 </div>
               </div>
@@ -929,23 +824,23 @@ Please log in to start learning!`;
             <div className="space-y-3 p-4 rounded-xl bg-surface-muted border border-line text-xs font-mono">
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Cohort / Batch:</span>
-                <span className="font-bold text-ink">{createdInstructorCreds.batchName}</span>
+                <span className="font-semibold text-ink">{createdInstructorCreds.batchName}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Full Name:</span>
-                <span className="font-bold text-ink">{createdInstructorCreds.name}</span>
+                <span className="font-semibold text-ink">{createdInstructorCreds.name}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Role:</span>
-                <span className="font-bold text-brand-ink">Lead Instructor</span>
+                <span className="font-semibold text-brand-ink">Lead Instructor</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Email:</span>
-                <span className="font-bold text-brand-ink">{createdInstructorCreds.email}</span>
+                <span className="font-semibold text-brand-ink">{createdInstructorCreds.email}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Password:</span>
-                <span className="font-bold text-ink">{createdInstructorCreds.password}</span>
+                <span className="font-semibold text-ink">{createdInstructorCreds.password}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-ink-3">Login URL:</span>
@@ -980,20 +875,20 @@ Please log in to start learning!`;
               </button>
             </div>
           </div>
-        </div>
+        </ModalFrame>
       )}
 
       {/* Modal: Create & Enroll Student */}
       {showCreateStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
+        <ModalFrame onClose={() => setShowCreateStudentModal(false)}>
+          <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-6 space-y-5 shadow-float">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand-ink">
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-ink">Create & Enroll Student</h3>
+                  <h3 className="text-base font-semibold text-ink">Create & Enroll Student</h3>
                   <p className="text-xs text-ink-3">Set up a student account and enroll them into this cohort</p>
                 </div>
               </div>
@@ -1048,7 +943,7 @@ Please log in to start learning!`;
                   <button
                     type="button"
                     onClick={handleGenerateStudentPassword}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-ink hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-ink hover:underline"
                   >
                     <Sparkles className="w-3 h-3" />
                     Generate Strong
@@ -1093,20 +988,20 @@ Please log in to start learning!`;
               </div>
             </form>
           </div>
-        </div>
+        </ModalFrame>
       )}
 
       {/* Modal: Share Student Credentials */}
       {createdStudentCreds && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/20 backdrop-blur-[3px] animate-fade">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface border border-line shadow-2xl p-6 space-y-5">
+        <ModalFrame>
+          <div className="relative max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-6 space-y-5 shadow-float">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-success/15 border border-success/30 flex items-center justify-center text-success-ink">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-ink">Student Enrolled Successfully!</h3>
+                  <h3 className="text-base font-semibold text-ink">Student Enrolled Successfully!</h3>
                   <p className="text-xs text-ink-3">Share these login credentials with the student</p>
                 </div>
               </div>
@@ -1121,19 +1016,19 @@ Please log in to start learning!`;
             <div className="space-y-3 p-4 rounded-xl bg-surface-muted border border-line text-xs font-mono">
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Cohort / Batch:</span>
-                <span className="font-bold text-ink">{createdStudentCreds.batchName}</span>
+                <span className="font-semibold text-ink">{createdStudentCreds.batchName}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Full Name:</span>
-                <span className="font-bold text-ink">{createdStudentCreds.name}</span>
+                <span className="font-semibold text-ink">{createdStudentCreds.name}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Email:</span>
-                <span className="font-bold text-brand-ink">{createdStudentCreds.email}</span>
+                <span className="font-semibold text-brand-ink">{createdStudentCreds.email}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-line">
                 <span className="text-ink-3">Password:</span>
-                <span className="font-bold text-ink">{createdStudentCreds.password}</span>
+                <span className="font-semibold text-ink">{createdStudentCreds.password}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-ink-3">Login URL:</span>
@@ -1168,7 +1063,7 @@ Please log in to start learning!`;
               </button>
             </div>
           </div>
-        </div>
+        </ModalFrame>
       )}
 
       {dialog}

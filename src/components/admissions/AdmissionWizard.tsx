@@ -136,7 +136,7 @@ export function AdmissionWizard({ initial }: { initial?: Admission }) {
     return (
       <Card className="mx-auto max-w-xl space-y-4 p-6 text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden="true" />
-        <h2 className="text-xl font-extrabold text-ink">Admission confirmed</h2>
+        <h2 className="type-section text-ink">Admission confirmed</h2>
         <p className="text-sm text-ink-2">Admission number <strong>{done.admissionNumber}</strong>. {personal.firstName} can sign in with {personal.email}{done.accountExisted ? ' (their existing account was used)' : ' and the initial password you set'}.</p>
         {done.discountPending && <Notice kind="warning">The discount is above your limit and is waiting for approval. Payments are limited to the discounted amount until it is decided.</Notice>}
         <div className="flex flex-wrap justify-center gap-2">
@@ -219,7 +219,7 @@ export function AdmissionWizard({ initial }: { initial?: Admission }) {
                   <div><dt className="text-xs text-ink-3">Course fee</dt><dd className="font-semibold">{formatMoney(course.pricing.standardFee)}</dd></div>
                   <div><dt className="text-xs text-ink-3">Registration</dt><dd className="font-semibold">{formatMoney(course.pricing.registrationFee)}</dd></div>
                   {course.pricing.otherFees.map((f) => <div key={f.label}><dt className="text-xs text-ink-3">{f.label}</dt><dd className="font-semibold">{formatMoney(f.amount)}</dd></div>)}
-                  <div><dt className="text-xs text-ink-3">Total</dt><dd className="font-extrabold text-ink">{formatMoney(course.gross)}</dd></div>
+                  <div><dt className="text-xs text-ink-3">Total</dt><dd className="font-semibold text-ink">{formatMoney(course.gross)}</dd></div>
                 </dl>
                 <p className="mt-2 text-xs text-ink-3">Installments allowed: {course.pricing.installmentOptions.join(', ')}{course.weeks ? ` · about ${course.weeks} weeks` : ''}</p>
               </div>
@@ -254,7 +254,7 @@ export function AdmissionWizard({ initial }: { initial?: Admission }) {
             <div className="rounded-xl border border-line p-4 text-sm">
               <div className="flex justify-between"><span>Standard fee</span><span>{formatMoney(gross)}</span></div>
               {dAmount > 0 && <div className="flex justify-between text-success-ink"><span>Discount</span><span>− {formatMoney(dAmount)}</span></div>}
-              <div className="mt-1 flex justify-between border-t border-line pt-1 font-extrabold text-ink"><span>Final payable fee</span><span>{formatMoney(gross - dAmount)}</span></div>
+              <div className="mt-1 flex justify-between border-t border-line pt-1 font-semibold text-ink"><span>Final payable fee</span><span>{formatMoney(gross - dAmount)}</span></div>
               {pending && <p className="mt-2 text-xs text-warning-ink">This discount is above your approval limit. It will be sent for approval; until then the schedule is for the full fee and payments are limited to {formatMoney(gross - dAmount)}.</p>}
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -275,7 +275,7 @@ export function AdmissionWizard({ initial }: { initial?: Admission }) {
             </div>
             {plan === 'installments' && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-ink">Installment schedule</h3><Button size="sm" variant="ghost" onClick={() => setSchedule(equalInstallments(payable, schedule.length || 2, firstDue))}>Split equally</Button></div>
+                <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-ink">Installment schedule</h3><Button size="sm" variant="ghost" onClick={() => setSchedule(equalInstallments(payable, schedule.length || 2, firstDue))}>Split equally</Button></div>
                 {schedule.map((it, i) => (
                   <div key={it.number} className="grid grid-cols-[40px_1fr_1fr] items-center gap-2">
                     <span className="text-sm text-ink-3">#{it.number}</span>

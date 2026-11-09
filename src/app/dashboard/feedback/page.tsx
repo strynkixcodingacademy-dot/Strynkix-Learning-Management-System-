@@ -119,7 +119,7 @@ function StudentFeedback() {
       {tab === 'give' ? <GiveFeedback el={el.data} onDone={mine.reload} /> : mine.data.feedback.length === 0 ? <EmptyState title="No feedback yet">Feedback you send appears here.</EmptyState> : (
         <ul className="space-y-3">{mine.data.feedback.map((f) => (
           <li key={f.id}><Card className="space-y-2 p-4">
-            <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-ink">{f.targetLabel}</span>{f.rating ? <span className="text-sm text-warning-ink">{'★'.repeat(f.rating)}</span> : null}<StatusPill size="sm" tone={f.status === 'submitted' ? 'neutral' : 'success'}>{f.status === 'submitted' ? 'Sent' : f.status === 'acknowledged' ? 'Read by staff' : 'Acted on'}</StatusPill>{f.anonymous && <span className="text-xs text-ink-3">Name hidden from staff</span>}<span className="ml-auto text-xs text-ink-3">{formatDate(f.submittedAt)}</span></div>
+            <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-ink">{f.targetLabel}</span>{f.rating ? <span className="text-sm text-warning-ink">{'★'.repeat(f.rating)}</span> : null}<StatusPill size="sm" tone={f.status === 'submitted' ? 'neutral' : 'success'}>{f.status === 'submitted' ? 'Sent' : f.status === 'acknowledged' ? 'Read by staff' : 'Acted on'}</StatusPill>{f.anonymous && <span className="text-xs text-ink-3">Name hidden from staff</span>}<span className="ml-auto text-xs text-ink-3">{formatDate(f.submittedAt)}</span></div>
             {f.comment && <p className="text-sm text-ink-2">{f.comment}</p>}
             {f.staffNote && <Notice kind="info">Staff response: {f.staffNote}</Notice>}
             {canEdit(f) ? (editing === f.id ? <GiveFeedback el={el.data!} preset={f} onDone={() => { setEditing(null); mine.reload(); }} /> : <Button size="sm" variant="ghost" onClick={() => setEditing(f.id)}>Correct it</Button>)
@@ -164,14 +164,14 @@ function StaffFeedback() {
         <>
           <ul className="grid gap-3 md:grid-cols-2">{data.targets.map((t) => (
             <li key={`${t.targetType}:${t.targetId}`}><Card className="h-full space-y-2 p-4">
-              <div className="font-bold text-ink">{t.label}</div>
+              <div className="font-semibold text-ink">{t.label}</div>
               <div className="text-sm text-ink-2">{t.responses} response{t.responses === 1 ? '' : 's'} · {t.rating.average !== null ? <strong>{t.rating.average} / 5 average</strong> : `average shown from ${data.minResponses} ratings`}</div>
               {t.positive.length > 0 && <p className="text-xs text-success-ink">Went well: {t.positive.map((p) => `${p.tag} (${p.count})`).join(', ')}</p>}
               {t.improve.length > 0 && <p className="text-xs text-warning-ink">Could be better: {t.improve.map((p) => `${p.tag} (${p.count})`).join(', ')}</p>}
             </Card></li>
           ))}</ul>
-          {data.trend.some((m) => m.average !== null) && <Card className="p-4 text-sm"><h2 className="mb-2 font-bold text-ink">Average rating by month</h2><ul className="space-y-0.5">{data.trend.map((m) => <li key={m.month} className="flex justify-between"><span>{m.month}</span><span>{m.average !== null ? `${m.average} / 5 (${m.responses})` : `${m.responses} ratings — too few for an average`}</span></li>)}</ul></Card>}
-          <h2 className="text-lg font-extrabold text-ink">Written comments</h2>
+          {data.trend.some((m) => m.average !== null) && <Card className="p-4 text-sm"><h2 className="mb-2 font-semibold text-ink">Average rating by month</h2><ul className="space-y-0.5">{data.trend.map((m) => <li key={m.month} className="flex justify-between"><span>{m.month}</span><span>{m.average !== null ? `${m.average} / 5 (${m.responses})` : `${m.responses} ratings — too few for an average`}</span></li>)}</ul></Card>}
+          <h2 className="type-section text-ink">Written comments</h2>
           <ul className="space-y-2">{data.comments.map((c) => (
             <li key={c.id}><Card className="space-y-1 p-4 text-sm">
               <div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-ink">{c.targetLabel}</span>{c.rating ? <span className="text-warning-ink">{'★'.repeat(c.rating)}</span> : null}<span className="text-xs text-ink-3">{c.student ? c.student.name : 'Name hidden by the student'} · {formatDate(c.submittedAt)}</span><StatusPill size="sm" tone={c.status === 'submitted' ? 'warning' : 'success'}>{c.status}</StatusPill></div>

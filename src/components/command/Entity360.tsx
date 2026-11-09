@@ -34,7 +34,7 @@ type AcademyTab = 'overview' | 'branches' | 'people' | 'courses' | 'academics' |
 type BranchTab = 'overview' | 'students' | 'staff' | 'courses' | 'academics' | 'finance' | 'reports' | 'audit';
 interface Head { academy: { id: string; name: string; status: string; website: string | null; timezone: string | null; createdAt: string | null } | null; branch: { id: string; name: string; code: string; status: string; city: string | null; managers: { id: string; name: string }[] } | null }
 
-const th = 'p-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-3';
+const th = 'p-2.5 text-left text-xs font-semibold text-ink-3';
 const td = 'p-2.5';
 const pctOr = (v: number | null | undefined) => (v === null || v === undefined ? '—' : `${v}%`);
 
@@ -44,7 +44,7 @@ function Table({ head, children, min = 640 }: { head: string[]; children: React.
 
 function StatsGrid({ s, kind }: { s: Stats; kind: Kind }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4 lg:grid-cols-6">
       {kind === 'academy' && <Metric label="Branches" value={s.branches} hint={`${s.activeBranches} active`} />}
       <Metric label="Students" value={s.students} hint={`${s.activeStudents} active`} />
       <Metric label="Instructors" value={s.instructors} />
@@ -68,7 +68,7 @@ function OverviewTab({ kind, id }: { kind: Kind; id: string }) {
   return (
     <div className="space-y-6">
       <StatsGrid s={data.stats} kind={kind} />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-5">
         <Metric label="Avg completion" value={pctOr(data.academics.averageCompletion)} />
         <Metric label="Avg attendance" value={pctOr(data.academics.averageAttendance)} hint="This year" />
         <Metric label="Avg assessment" value={pctOr(data.academics.averageAssessment)} hint="This year" />
@@ -76,12 +76,12 @@ function OverviewTab({ kind, id }: { kind: Kind; id: string }) {
         <Metric label="Inactive 14+ days" value={data.academics.inactiveStudents} />
       </div>
       <Card className="grid gap-6 p-5 lg:grid-cols-2">
-        <div><h3 className="mb-2 text-sm font-bold text-ink">Admissions by month (this year)</h3>{data.admissions.byMonth.length ? <ColumnChart data={data.admissions.byMonth.map((m) => ({ label: `${m.month}: ${m.count}`, short: m.month.slice(5), value: m.count }))} label="Admissions by month" /> : <p className="text-sm text-ink-3">No admissions this year.</p>}</div>
+        <div><h3 className="mb-2 text-sm font-semibold text-ink">Admissions by month (this year)</h3>{data.admissions.byMonth.length ? <ColumnChart data={data.admissions.byMonth.map((m) => ({ label: `${m.month}: ${m.count}`, short: m.month.slice(5), value: m.count }))} label="Admissions by month" /> : <p className="text-sm text-ink-3">No admissions this year.</p>}</div>
         <PairedColumns title="Collections vs expenses (this year)" aLabel="Collected" bLabel="Expenses" format={formatMoney} rows={data.finance.byMonth.map((m) => ({ label: m.month, a: m.collected, b: m.expenses }))} />
         <BarList title="Course completion" tone="bg-success" format={(n) => `${n}%`} rows={data.academics.completionByCourse.map((c) => ({ id: c.courseId, label: c.title, value: c.completion }))} />
         <BarList title="Admissions by course (this year)" tone="bg-teal" rows={data.admissions.byCourse.map((c) => ({ id: c.id, label: c.name, value: c.count }))} />
       </Card>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-6">
         <Metric label="Collected (year)" value={formatMoney(data.finance.totals.collected)} />
         <Metric label="Expenses (year)" value={formatMoney(data.finance.totals.expenses)} />
         <Metric label="Net position (year)" value={formatMoney(data.finance.totals.net)} hint="Collected − expenses" />
@@ -185,27 +185,27 @@ export interface Intel {
 export function IntelView({ data }: { data: Intel }) {
   return (
     <div className="space-y-6">
-      <h3 className="font-bold text-ink">Course performance</h3>
+      <h3 className="font-semibold text-ink">Course performance</h3>
       {data.coursePerformance.length ? (
         <Table head={['Course', 'Enrolled', 'Active', 'Completed', 'Completion', 'Attendance', 'Quiz', 'Assignment', 'Exam', 'Pending evaluations']} min={980}>
           {data.coursePerformance.map((c) => <tr key={c.courseId}><td className={`${td} font-semibold text-ink`}>{c.title}</td><td className={td}>{c.enrolled}</td><td className={td}>{c.active}</td><td className={td}>{c.completed}</td><td className={td}>{pctOr(c.completion)}</td><td className={td}>{pctOr(c.attendance)}</td><td className={td}>{pctOr(c.quiz)}</td><td className={td}>{pctOr(c.assignment)}</td><td className={td}>{pctOr(c.exam)}</td><td className={td}>{c.pendingEvaluations}</td></tr>)}
         </Table>
       ) : <EmptyState title="No enrollments">No learners in this selection.</EmptyState>}
-      <h3 className="font-bold text-ink">Students who may need attention ({data.attentionTotal})</h3>
+      <h3 className="font-semibold text-ink">Students who may need attention ({data.attentionTotal})</h3>
       <p className="text-sm text-ink-3">Indicators to look into, not judgments: no recent lesson activity, low attendance, assessments not passed yet, overdue activities, low completion.{data.attentionTotal > data.attention.length ? ` Showing the first ${data.attention.length} of ${data.attentionTotal}; narrow by branch or course to see the rest.` : ''}</p>
       {data.attention.length ? (
         <Table head={['Student', 'Course', 'Needs attention because', 'Attendance', 'Completion']} min={760}>
           {data.attention.map((a, i) => <tr key={`${a.studentId}-${i}`} className="align-top"><td className={td}><Link href={`/dashboard/people/${a.studentId}`} className="font-semibold text-brand-ink hover:underline">{a.name}</Link></td><td className={td}>{a.course}</td><td className={td}>{a.reasons.join(' · ')}</td><td className={td}>{pctOr(a.attendance)}</td><td className={td}>{a.completion}%</td></tr>)}
         </Table>
       ) : <EmptyState title="Nobody flagged">No learner in this selection shows these indicators.</EmptyState>}
-      <h3 className="font-bold text-ink">Instructor activity</h3>
+      <h3 className="font-semibold text-ink">Instructor activity</h3>
       {data.instructors.length ? (
         <Table head={['Instructor', 'Batches', 'Students', 'Attendance sessions (30 days)', 'Pending evaluations', 'Evaluated (90 days)', 'Avg turnaround', 'Batch completion']} min={960}>
           {data.instructors.map((i) => <tr key={i.id}><td className={td}><Link href={`/dashboard/people/${i.id}`} className="font-semibold text-brand-ink hover:underline">{i.name}</Link></td><td className={td}>{i.batches.map((b) => b.name).join(', ') || '—'}</td><td className={td}>{i.students}</td><td className={td}>{i.attendanceSessions30d}</td><td className={td}>{i.pendingEvaluations}</td><td className={td}>{i.evaluated90d}</td><td className={td}>{i.averageTurnaroundHours === null ? '—' : `${i.averageTurnaroundHours} h`}</td><td className={td}>{pctOr(i.completion)}</td></tr>)}
         </Table>
       ) : <EmptyState title="No instructors">No instructors in this selection.</EmptyState>}
       <p className="text-xs text-ink-3">Operational facts only. There is no student feedback system yet, so no ratings are shown.</p>
-      <h3 className="font-bold text-ink">Assessment monitoring</h3>
+      <h3 className="font-semibold text-ink">Assessment monitoring</h3>
       {data.assessments.length ? (
         <Table head={['Assessment', 'Course', 'Timing', 'Participation', 'Evaluated', 'Pending', 'Average', 'Results']} min={900}>
           {data.assessments.map((a) => <tr key={a.id}><td className={td}><Link href={`/dashboard/assessments/${a.id}`} className="font-semibold text-brand-ink hover:underline">{a.title}</Link><div className="text-xs text-ink-3">{a.kind === 'exam' ? `${a.examType ?? ''} exam` : a.kind.replace('_', ' ')}</div></td><td className={td}>{a.course}</td><td className={td}>{a.timing}{a.closesAt ? <div className="text-xs text-ink-3">closes {formatDate(a.closesAt)}</div> : null}</td><td className={td}>{a.participants} / {a.eligible}</td><td className={td}>{a.evaluated}</td><td className={td}>{a.pending}</td><td className={td}>{pctOr(a.average)}</td><td className={td}>{a.resultsReleased ? 'Published' : <span className="text-warning-ink">Not released</span>}</td></tr>)}
@@ -221,7 +221,7 @@ function AcademicsTab({ kind, id }: { kind: Kind; id: string }) {
   if (!data) return <LoadingState label="Analysing academics…" rows={4} />;
   return (
     <div className="space-y-6">
-      {data.batches.length > 0 && <><h3 className="font-bold text-ink">Batches</h3><Table head={['Batch', 'Status', 'Active students', 'Attendance (90 days)']}>{data.batches.map((b) => <tr key={b.id}><td className={td}><Link href={`/dashboard/batches/${b.id}`} className="font-semibold text-brand-ink hover:underline">{b.name}</Link></td><td className={td}>{b.status.replace('_', ' ')}</td><td className={td}>{b.students}</td><td className={td}>{pctOr(b.attendance)}</td></tr>)}</Table></>}
+      {data.batches.length > 0 && <><h3 className="font-semibold text-ink">Batches</h3><Table head={['Batch', 'Status', 'Active students', 'Attendance (90 days)']}>{data.batches.map((b) => <tr key={b.id}><td className={td}><Link href={`/dashboard/batches/${b.id}`} className="font-semibold text-brand-ink hover:underline">{b.name}</Link></td><td className={td}>{b.status.replace('_', ' ')}</td><td className={td}>{b.students}</td><td className={td}>{pctOr(b.attendance)}</td></tr>)}</Table></>}
       <IntelView data={data} />
     </div>
   );
@@ -242,7 +242,7 @@ function FinanceTab({ kind, id, orgId }: { kind: Kind; id: string; orgId: string
   return (
     <div className="space-y-6">
       <p className="text-sm text-ink-3">This year ({formatDate(summary.period.from)} – {formatDate(summary.period.to)}). Expected and outstanding are as of today; collected is cash received less refunds.</p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-5">
         <Metric label="Fees expected" value={formatMoney(t.expected)} /><Metric label="Collected to date" value={formatMoney(t.collectedToDate)} /><Metric label="Outstanding" value={formatMoney(t.outstanding)} /><Metric label="Overdue" value={formatMoney(t.overdue)} />
         <Metric label="Collected (year)" value={formatMoney(t.collected)} /><Metric label="Discounts (year)" value={formatMoney(t.discounts)} /><Metric label="Refunds (year)" value={formatMoney(t.refunds)} /><Metric label="Expenses (year)" value={formatMoney(t.expenses)} /><Metric label="Net position (year)" value={formatMoney(t.net)} />
       </div>
@@ -253,7 +253,7 @@ function FinanceTab({ kind, id, orgId }: { kind: Kind; id: string; orgId: string
       {kind === 'academy' && summary.byBranch.length > 0 && <Table head={['Branch', 'Students', 'Collected', 'Outstanding', 'Expenses', 'Net']}>{summary.byBranch.map((b) => <tr key={b.id}><td className={`${td} font-semibold`}>{b.name}</td><td className={td}>{b.students}</td><td className={td}>{formatMoney(b.collected)}</td><td className={td}>{formatMoney(b.outstanding)}</td><td className={td}>{formatMoney(b.expenses)}</td><td className={td}>{formatMoney(b.net)}</td></tr>)}</Table>}
       {summary.byCourse.length > 0 && <Table head={['Course', 'Students', 'Expected', 'Collected', 'Outstanding']}>{summary.byCourse.map((c) => <tr key={c.id}><td className={`${td} font-semibold`}>{c.name}</td><td className={td}>{c.students}</td><td className={td}>{formatMoney(c.expected)}</td><td className={td}>{formatMoney(c.collected)}</td><td className={td}>{formatMoney(c.outstanding)}</td></tr>)}</Table>}
       <BarList title="Expenses by category (year)" tone="bg-coral" format={formatMoney} rows={summary.byCategory.map((c) => ({ label: c.name, value: c.amount }))} />
-      <h3 className="font-bold text-ink">Transactions (newest first)</h3>
+      <h3 className="font-semibold text-ink">Transactions (newest first)</h3>
       {!p.rows.length ? <EmptyState title="No transactions">No ledger entries yet.</EmptyState> : (
         <Table head={['Date', 'Entry', 'Student', 'Amount', 'Details']} min={720}>
           {p.rows.map((x) => <tr key={x.id}><td className={td}>{formatDate(x.date)}</td><td className={td}>{x.type}{x.receiptNumber ? <div className="text-xs text-ink-3">{x.receiptNumber}</div> : null}</td><td className={td}><Link href={`/dashboard/finance/accounts/${x.feeAccountId}`} className="text-brand-ink hover:underline">{x.studentName}</Link></td><td className={`${td} tabular-nums`}>{formatMoney(x.amount)}</td><td className={`${td} text-xs text-ink-2`}>{[x.method, x.reason, `by ${x.recordedBy}`].filter(Boolean).join(' · ')}</td></tr>)}

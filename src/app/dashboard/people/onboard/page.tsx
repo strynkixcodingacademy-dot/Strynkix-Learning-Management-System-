@@ -75,14 +75,14 @@ function Onboard({ role }: { role: 'instructor' | 'content_designer' }) {
     <div className="space-y-6">
       <PageHeader breadcrumbs={[{ label: 'People', href: '/dashboard/people' }, { label: role === 'instructor' ? 'Onboard instructor' : 'Onboard course designer' }]} title={role === 'instructor' ? 'Onboard an instructor' : 'Onboard a course designer'} description="Personal details are kept private to managers. The person can change their password after signing in." />
       <Card className="space-y-4 p-5">
-        <h2 className="text-sm font-bold text-ink">Personal and contact information</h2>
+        <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">Personal and contact information</h2>
         <div className="grid gap-4 sm:grid-cols-3">{I('firstName', 'First name', 'text', true)}{I('middleName', 'Middle name')}{I('lastName', 'Surname', 'text', true)}</div>
         <div className="grid gap-4 sm:grid-cols-3">{I('dateOfBirth', 'Date of birth', 'date')}{I('email', 'Email (sign-in)', 'email', true)}{I('mobile', 'Mobile', 'tel', true)}</div>
         <div className="grid gap-4 sm:grid-cols-3">{I('emergencyName', 'Emergency contact')}{I('emergencyPhone', 'Emergency phone', 'tel')}{I('city', 'City')}</div>
         {I('address', 'Address')}
       </Card>
       <Card className="space-y-4 p-5">
-        <h2 className="text-sm font-bold text-ink">Professional details</h2>
+        <h2 className="font-sans tracking-normal text-sm font-semibold text-ink">Professional details</h2>
         <div className="grid gap-4 sm:grid-cols-3">{I('qualification', 'Qualification')}{I('specialization', 'Specialization')}{I('experienceYears', 'Experience (years)', 'number')}</div>
         <div className="grid gap-4 sm:grid-cols-2">{I('skills', 'Skills (comma separated)')}{I('joiningDate', 'Joining date', 'date')}</div>
         {role === 'instructor' ? (

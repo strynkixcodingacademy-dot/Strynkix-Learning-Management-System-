@@ -30,13 +30,13 @@ interface IntelData {
   names: { academies: Record<string, string>; branches: Record<string, string> };
   admissionsByAcademy: { id: string; count: number }[];
 }
-const th = 'p-2.5 text-left text-xs font-bold uppercase tracking-wide text-ink-3';
+const th = 'p-2.5 text-left text-xs font-semibold text-ink-3';
 
 function FlagTable({ title, rows, detail, names }: { title: string; rows: Flag[]; detail: (f: Flag) => React.ReactNode; names: IntelData['names'] }) {
   if (!rows.length) return null;
   return (
     <div className="space-y-2">
-      <h3 className="flex items-center gap-2 text-sm font-bold text-ink"><AlertTriangle className="h-4 w-4 text-warning-ink" /> {title} ({rows.length})</h3>
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-ink"><AlertTriangle className="h-4 w-4 text-warning-ink" /> {title} ({rows.length})</h3>
       <Card className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm"><thead><tr className="border-b border-line"><th className={th}>Student</th><th className={th}>Academy · branch</th><th className={th}>Course</th><th className={th}>Why it’s flagged</th></tr></thead>
         <tbody>{rows.map((f) => <tr key={`${title}-${f.feeAccountId}`} className="border-b border-line last:border-0"><td className="p-2.5"><Link href={`/dashboard/finance/accounts/${f.feeAccountId}`} className="font-semibold text-brand-ink hover:underline">{f.studentName}</Link><div className="text-xs text-ink-3">{f.admissionNumber}</div></td><td className="p-2.5">{names.academies[f.orgId] ?? f.orgId} · {names.branches[f.branchId] ?? f.branchId}</td><td className="p-2.5">{f.courseTitle}</td><td className="p-2.5">{detail(f)}</td></tr>)}</tbody></table></Card>
     </div>
@@ -52,7 +52,7 @@ function Accounts({ orgId, branchId, courseId, status }: { orgId: string; branch
   if (!data.accounts.length) return <EmptyState title="No fee accounts">Nothing matches these filters.</EmptyState>;
   return (
     <Card className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b border-line">{['Student', 'Course', 'Due', 'Paid', 'Balance', 'Next due', 'Status'].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
-      <tbody>{data.accounts.map((a) => <tr key={a.id} className="border-b border-line last:border-0"><td className="p-2.5"><Link href={`/dashboard/finance/accounts/${a.id}`} className="font-semibold text-brand-ink hover:underline">{a.studentName}</Link><div className="text-xs text-ink-3">{a.admissionNumber}</div></td><td className="p-2.5">{a.courseTitle}</td><td className="p-2.5 tabular-nums">{formatMoney(a.due)}</td><td className="p-2.5 tabular-nums">{formatMoney(a.collected)}</td><td className="p-2.5 font-bold tabular-nums">{formatMoney(a.balance)}</td><td className="p-2.5">{a.nextDue ? `${formatMoney(a.nextDue.amount)} on ${formatDate(a.nextDue.dueDate)}` : '—'}</td><td className="p-2.5"><PaymentStatusPill status={a.paymentStatus} /></td></tr>)}</tbody></table></Card>
+      <tbody>{data.accounts.map((a) => <tr key={a.id} className="border-b border-line last:border-0"><td className="p-2.5"><Link href={`/dashboard/finance/accounts/${a.id}`} className="font-semibold text-brand-ink hover:underline">{a.studentName}</Link><div className="text-xs text-ink-3">{a.admissionNumber}</div></td><td className="p-2.5">{a.courseTitle}</td><td className="p-2.5 tabular-nums">{formatMoney(a.due)}</td><td className="p-2.5 tabular-nums">{formatMoney(a.collected)}</td><td className="p-2.5 font-semibold tabular-nums">{formatMoney(a.balance)}</td><td className="p-2.5">{a.nextDue ? `${formatMoney(a.nextDue.amount)} on ${formatDate(a.nextDue.dueDate)}` : '—'}</td><td className="p-2.5"><PaymentStatusPill status={a.paymentStatus} /></td></tr>)}</tbody></table></Card>
   );
 }
 
@@ -83,7 +83,7 @@ function FinanceIntel({ initialOrgId, initialBranchId }: { initialOrgId?: string
       {error ? <ErrorState onRetry={reload}>{error}</ErrorState> : !s || !data ? <LoadingState label="Consolidating the ledger…" rows={5} /> : (
         <>
           <p className="text-sm text-ink-3">{formatDate(s.period.from)} – {formatDate(s.period.to)}. Obligations and balances are as of today. {courseId ? 'Expenses aren’t tied to courses, so they are left out when a course is selected.' : ''}</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-5">
             <Metric label="Fee obligations" value={formatMoney(s.totals.expected)} hint={`${s.totals.students} fee accounts`} />
             <Metric label="Payments received (to date)" value={formatMoney(s.totals.collectedToDate)} />
             <Metric label="Outstanding balances" value={formatMoney(s.totals.outstanding)} />
@@ -103,7 +103,7 @@ function FinanceIntel({ initialOrgId, initialBranchId }: { initialOrgId?: string
             <BarList title="Expenses by branch" tone="bg-coral" format={formatMoney} rows={s.byBranch.map((b) => ({ id: b.id, label: b.name, value: b.expenses }))} />
             <BarList title="Outstanding by branch" tone="bg-warning" format={formatMoney} rows={s.byBranch.map((b) => ({ id: b.id, label: b.name, value: b.outstanding }))} />
             <BarList title="Course-wise revenue (collected in period)" tone="bg-teal" format={formatMoney} rows={s.byCourse.map((c) => ({ id: c.id, label: c.name, value: c.collected }))} />
-            {data.admissionsByAcademy.length > 0 && <BarList title="Admission volume by academy" tone="bg-lavender" rows={data.admissionsByAcademy.map((a) => ({ id: a.id, label: s.byAcademy.find((x) => x.id === a.id)?.name ?? a.id, value: a.count }))} />}
+            {data.admissionsByAcademy.length > 0 && <BarList title="Admission volume by academy" tone="bg-info" rows={data.admissionsByAcademy.map((a) => ({ id: a.id, label: s.byAcademy.find((x) => x.id === a.id)?.name ?? a.id, value: a.count }))} />}
           </Card>
           <Section title="Needs review" icon={AlertTriangle}>
             <p className="text-sm text-ink-3">These are prompts to check, not findings of wrongdoing. Thresholds: overdue installments; balance still ≥ 75% after 60 days; discount ≥ 25% (approved or pending); 2+ reversals or refunds on one account; staff with 3+ reversals; an expense over 3× its category’s median; stored totals that don’t match the ledger.</p>
@@ -115,7 +115,7 @@ function FinanceIntel({ initialOrgId, initialBranchId }: { initialOrgId?: string
             <FlagTable title="Stored totals don’t match the ledger" rows={data.anomalies.inconsistentAccounts} names={data.names} detail={() => 'Open the ledger; the account page shows the mismatch.'} />
             {data.anomalies.reversalsByStaff.length > 0 && <p className="text-sm">Staff with 3+ reversals in scope: {data.anomalies.reversalsByStaff.map((r) => `${r.name} (${r.count})`).join(', ')}.</p>}
             {data.anomalies.unusualExpenses.length > 0 && (
-              <Card className="overflow-x-auto p-3"><h3 className="mb-2 text-sm font-bold text-ink">Unusual expenses</h3><ul className="space-y-1 text-sm">{data.anomalies.unusualExpenses.map((e) => <li key={e.id}>{formatDate(e.date)} · {e.title} ({e.category}) · {formatMoney(e.amount)} vs median {formatMoney(e.median)} · {data.names.branches[e.branchId] ?? e.branchId}</li>)}</ul></Card>
+              <Card className="overflow-x-auto p-3"><h3 className="mb-2 text-sm font-semibold text-ink">Unusual expenses</h3><ul className="space-y-1 text-sm">{data.anomalies.unusualExpenses.map((e) => <li key={e.id}>{formatDate(e.date)} · {e.title} ({e.category}) · {formatMoney(e.amount)} vs median {formatMoney(e.median)} · {data.names.branches[e.branchId] ?? e.branchId}</li>)}</ul></Card>
             )}
             {Object.values(data.anomalies).every((v) => (Array.isArray(v) ? v.length === 0 : !v)) && <EmptyState title="Nothing to review">No record in this selection meets the review thresholds.</EmptyState>}
           </Section>

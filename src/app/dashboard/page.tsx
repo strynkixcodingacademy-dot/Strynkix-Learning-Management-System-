@@ -2,7 +2,7 @@
 
 /**
  * Strynkix Live Books — Home.
- * Students get their learning home (My Day, progress, courses); staff get
+ * Students get their study desk (today's plan, progress, courses); staff get
  * "Today across your batches".
  */
 
@@ -18,7 +18,7 @@ const CONTENT_ROLES = ['content_lead', 'content_designer'];
 export default function DashboardPage() {
   const { tenant } = useAuth();
   return (
-    <AppShell fit>
+    <AppShell>
       {tenant?.role === 'student' ? <StudentDashboard />
         : tenant && CONTENT_ROLES.includes(tenant.role) ? <CourseDesignHome />
           : tenant ? <StaffHome /> : null}

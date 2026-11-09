@@ -1,150 +1,208 @@
 @import "tailwindcss";
 
 /*
- * Strynkix Live Books — design tokens
- * "Paper, ink and colour with meaning" (docs/UI_UX_AUDIT.md §3).
- * Each accent has: base (fills, bars), -soft (tinted backgrounds),
- * -line (borders on tints) and -ink (text on tints, >= 4.5:1).
+ * Strynkix — design tokens. "The academy press": Strynkix as a university press.
+ * Ivory paper and blue-black ink for the page, cobalt for action, and book-cloth
+ * colours that give every course its own cover. docs/DESIGN_SYSTEM.md explains
+ * the rules. Light only.
+ *
+ * Each meaning colour has: base (fills, bars), -soft (tints), -line (borders on
+ * tints) and -ink (text on tints, >= 4.5:1).
  */
 @theme {
-  /*
-   * "Silver Atelier": warm off-white paper, white cards, a silver neutral
-   * system and one electric-cobalt accent. Light only, everywhere.
-   */
-
-  /* Surfaces */
-  --color-canvas: #f7f7f4;
+  /* Paper */
+  --color-canvas: #faf9f6;
   --color-surface: #ffffff;
-  --color-surface-muted: #f3f4f6;
-  --color-surface-sunken: #e9ebef;
+  --color-surface-muted: #f3f2ee;
+  --color-surface-sunken: #e8e6e0;
+  --color-sidebar: #f4f3ef;
 
-  /* Ink (text) */
-  --color-ink: #14171f;
-  --color-ink-2: #363d4c;
-  --color-ink-3: #5d6575;
-  --color-ink-4: #9aa1ae; /* decorative / disabled only */
+  /* Ink */
+  --color-ink: #161a2e;
+  --color-ink-2: #373c52;
+  --color-ink-3: #565b71;
+  --color-ink-4: #686b7f; /* quiet metadata, still >= 4.5:1 on white */
 
-  /* Silver lines */
-  --color-line: #e4e6eb;
-  --color-line-strong: #cfd3db;
-  --color-silver: #c3c8d2;
-  --color-silver-soft: #eef0f4;
+  /* Rules */
+  --color-line: #e7e5df;
+  --color-line-strong: #d2cfc6;
+  --color-silver: #b5b1a7;
+  --color-silver-soft: #efece4;
 
-  /* Brand: electric cobalt (primary action, links, navigation) */
-  --color-brand: #2b59f0;
-  --color-brand-strong: #2449d8;
-  --color-brand-soft: #edf2ff;
-  --color-brand-line: #cbd8ff;
-  --color-brand-ink: #1f45d6;
+  /* Cobalt: primary action, links, the current place in navigation */
+  --color-brand: #2240c4;
+  --color-brand-strong: #1a329e;
+  --color-brand-soft: #e9ecfa;
+  --color-brand-line: #c7cfee;
+  --color-brand-ink: #1d37a8;
 
-  /* Highlighter: the signature marker stroke behind titles and active nav */
-  --color-highlight: #ffe766;
-  --color-highlight-soft: #fff8cc;
+  /* Today: selection tint and the ribbon that marks "you are here" */
+  --color-highlight: #e9b949;
+  --color-highlight-soft: #fbf3dc;
 
-  /* Meaning accents */
-  --color-success: #16a34a; /* completed, progress */
-  --color-success-strong: #15803d;
-  --color-success-soft: #e9f8ef;
-  --color-success-line: #bce8cd;
-  --color-success-ink: #167a4a;
+  /* Sage: completed, passed, positive progress */
+  --color-success: #4d8560;
+  --color-success-strong: #3a6b4c;
+  --color-success-soft: #e9f1e8;
+  --color-success-line: #c4d9c6;
+  --color-success-ink: #2d5a3e;
 
-  --color-warning: #f5b70a; /* today, highlight, due soon */
-  --color-warning-soft: #fff6d6;
-  --color-warning-line: #f6dd94;
-  --color-warning-ink: #8a5a00;
+  /* Amber: today's objectives, due soon, needs a look */
+  --color-warning: #c98a1b;
+  --color-warning-soft: #fbf2dd;
+  --color-warning-line: #ecd8a7;
+  --color-warning-ink: #7a5206;
 
-  --color-danger: #ef4444; /* overdue, errors, destructive */
-  --color-danger-soft: #fff0ef;
-  --color-danger-line: #fbc8c4;
-  --color-danger-ink: #b42318;
+  /* Brick: errors and destructive actions */
+  --color-danger: #b53a2d;
+  --color-danger-soft: #faece9;
+  --color-danger-line: #efc9c2;
+  --color-danger-ink: #992b1f;
 
-  --color-coral: #ff7a59; /* late, attention */
-  --color-coral-soft: #fff1ec;
-  --color-coral-line: #ffd2c4;
-  --color-coral-ink: #b43d22;
+  /* Coral: overdue, late, important warnings */
+  --color-coral: #d4664c;
+  --color-coral-soft: #fbeee9;
+  --color-coral-line: #f1d0c5;
+  --color-coral-ink: #a3412a;
 
-  --color-teal: #12b5a3; /* submissions, review */
-  --color-teal-soft: #e5f8f5;
-  --color-teal-line: #b3e8e0;
-  --color-teal-ink: #0e766a;
+  /* Teal: assessments and submissions */
+  --color-teal: #2a8583;
+  --color-teal-soft: #e3f0ee;
+  --color-teal-line: #bbdad6;
+  --color-teal-ink: #155f5d;
 
-  --color-lavender: #8b6cf6; /* administration */
-  --color-lavender-soft: #f3f0ff;
-  --color-lavender-line: #dcd3fd;
-  --color-lavender-ink: #5a3fd0;
+  /* Slate: neutral information and administration */
+  --color-info: #5a6b8c;
+  --color-info-soft: #edf0f5;
+  --color-info-line: #d2d9e5;
+  --color-info-ink: #3e4d6d;
 
-  /* Code panel: a light "silver sheet" (no dark surfaces anywhere). Syntax >= 4.5:1. */
-  --color-code: #f8f9fb;
-  --color-code-line: #e4e6eb;
-  --color-code-ink: #1f2937;
-  --color-code-muted: #6b7280;
-  --color-syn-keyword: #7a2fb8;
-  --color-syn-string: #0f7a55;
-  --color-syn-number: #b4501a;
-  --color-syn-comment: #6b7280;
-  --color-syn-fn: #1d4ed8;
-  --color-syn-highlight: #fff6c2;
+  /* Book cloth: course identity only, never status. Foil text is >= 4.5:1 on all. */
+  --color-foil: #f6efdc;
+  --color-cloth-cobalt: #20368f;
+  --color-cloth-oxblood: #6b2733;
+  --color-cloth-forest: #2c5240;
+  --color-cloth-ochre: #85591a;
+  --color-cloth-teal: #1a5a63;
+  --color-cloth-ink: #252c49;
+  --color-cloth-rust: #8f4128;
+  --color-cloth-plum: #4d3357;
 
-  /* Type */
-  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  /* Typeset code: light panels, syntax drawn from the same meaning palette. */
+  --color-code: #fbfaf6;
+  --color-code-line: #e4e0d5;
+  --color-code-ink: #20253c;
+  --color-code-muted: #6a6e82;
+  --color-syn-keyword: #1d37a8;
+  --color-syn-string: #16634f;
+  --color-syn-number: #a3412a;
+  --color-syn-comment: #6a6e82;
+  --color-syn-fn: #7a5206;
+  --color-syn-highlight: #fbf3dc;
 
-  /* Shape & depth */
-  --radius-card: 16px;
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 1px 2px rgb(20 23 31 / 0.04), 0 2px 6px -2px rgb(20 23 31 / 0.04);
-  --shadow-lift: 0 14px 32px -14px rgb(20 23 31 / 0.18), 0 3px 8px -2px rgb(20 23 31 / 0.06);
-  --shadow-float: 0 24px 60px -20px rgb(20 23 31 / 0.28), 0 6px 16px -6px rgb(20 23 31 / 0.08);
+  /* Type: display for titles, sans for the interface, Literata for reading,
+     mono only for code and technical identifiers. */
+  --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-literata), Georgia, serif;
+  --font-reading: var(--font-literata), Georgia, serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+
+  --text-xs: 0.78125rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.45;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.55;
+
+  /* Shape: small controls, then cards. Pills are for status only. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-3xl: 14px;
+  --radius-card: 10px;
+
+  /* Depth: borders carry cards; shadow is only for things that float. */
+  --shadow-card: 0 1px 2px rgb(22 26 46 / 0.035);
+  --shadow-lift: 0 10px 24px -12px rgb(22 26 46 / 0.18), 0 2px 5px -2px rgb(22 26 46 / 0.06);
+  --shadow-float: 0 24px 56px -20px rgb(22 26 46 / 0.3), 0 6px 14px -6px rgb(22 26 46 / 0.08);
 
   /* Motion */
-  --animate-rise: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  --animate-pop: pop 260ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
-  --animate-shimmer: shimmer 1.4s linear infinite;
-  --animate-fade: fade 180ms ease-out both;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-rise: rise 220ms var(--ease-out-quint) both;
+  --animate-pop: pop 260ms var(--ease-out-quint) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-fade: fade 160ms ease-out both;
+  --animate-drawer: drawer 240ms var(--ease-out-quint) both;
 
   @keyframes rise {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
   @keyframes pop {
-    0% { transform: scale(0.6); opacity: 0; }
+    0% { transform: scale(0.7); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
   }
   @keyframes shimmer {
-    from { background-position: -200% 0; }
-    to { background-position: 200% 0; }
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
   }
   @keyframes fade {
     from { opacity: 0; }
     to { opacity: 1; }
+  }
+  @keyframes drawer {
+    from { transform: translateX(-16px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
   }
 }
 
 @layer base {
   html {
     color-scheme: light;
+    scrollbar-color: var(--color-line-strong) transparent;
+    font-synthesis: none;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
+    font-size: var(--text-body);
+    line-height: 1.55;
+    caret-color: var(--color-brand);
+    overflow-x: clip;
   }
 
-  h1, h2, h3, h4 {
+  /* Only the page title is set in the book face. Everything below it is the
+     interface face, so the serif stays a moment rather than a texture. */
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 560;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+  h2, h3, h4 {
     text-wrap: balance;
   }
 
+  a {
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+  }
+
   ::selection {
-    background: var(--color-highlight);
+    background: var(--color-brand-line);
     color: var(--color-ink);
   }
 
   :focus-visible {
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
-    border-radius: 6px;
+    border-radius: 4px;
   }
 
   input:focus-visible,
@@ -152,37 +210,111 @@
   select:focus-visible {
     outline-offset: 0;
   }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-brand);
+  }
+
+  ::placeholder {
+    color: var(--color-ink-4);
+    opacity: 1;
+  }
+
+  dialog::backdrop {
+    background: rgb(22 26 46 / 0.32);
+  }
+
+  /* Data tables everywhere share one reading: quiet sentence-case headers, rules
+     between rows, numerals that line up. */
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  thead th {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-ink-3);
+    text-align: left;
+    white-space: nowrap;
+  }
+  tbody tr {
+    transition: background-color 120ms ease-out;
+  }
+  tbody tr:hover {
+    background: rgb(242 239 231 / 0.45);
+  }
+
+  /* Links inside tables and running text read as links without shouting. */
+  td a:not([class*="inline-flex"]) {
+    text-decoration-color: var(--color-line-strong);
+  }
+}
+
+/* Type scale as utilities, so a page never picks an ad-hoc display size. */
+@utility type-page {
+  font-family: var(--font-display);
+  font-weight: 560;
+  font-size: clamp(1.625rem, 1.42rem + 0.85vw, 2.25rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+@utility type-section {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  letter-spacing: -0.006em;
+}
+/* A figure: scores, balances, percentages. Interface face, tabular. */
+@utility type-figure {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Reading measure for Live Book lessons. */
 @utility prose-reading {
-  font-size: 1.0625rem;
-  line-height: 1.75;
-  color: var(--color-ink-2);
+  font-family: var(--font-reading);
+  font-size: 1.125rem;
+  line-height: 1.72;
+  color: var(--color-ink);
   max-width: 68ch;
 }
 
-/* Signature: a highlighter-marker stroke behind a word or title. */
-@utility marker {
-  background-image: linear-gradient(104deg, transparent 0.4em, var(--color-highlight) 0.5em, var(--color-highlight) calc(100% - 0.3em), transparent calc(100% - 0.2em));
-  background-repeat: no-repeat;
-  background-size: 100% 0.42em;
-  background-position: 0 88%;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  padding-inline: 0.08em;
+/*
+ * The ribbon: the amber bookmark that says "you are here". Today's plan and the
+ * current lesson carry it, nothing else does.
+ */
+@utility ribbon {
+  display: inline-block;
+  width: 12px;
+  height: 18px;
+  background: var(--color-highlight);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
 }
 
-/* Brushed-silver hairline used for dividers and the sidebar edge. */
-@utility silver-rule {
-  background-image: linear-gradient(90deg, transparent, var(--color-silver) 18%, var(--color-line-strong) 50%, var(--color-silver) 82%, transparent);
-  height: 1px;
+/* Book cloth: flat colour with the double blind-stamped frame of a bound cover. */
+@utility cloth-frame {
+  position: relative;
+  color: var(--color-foil);
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border: 1px solid color-mix(in srgb, var(--color-foil) 26%, transparent);
+    border-radius: 3px;
+    pointer-events: none;
+  }
 }
 
-/* Soft dotted paper texture for hero areas (very subtle, light only). */
-@utility paper-dots {
-  background-image: radial-gradient(rgb(20 23 31 / 0.07) 1px, transparent 1px);
-  background-size: 18px 18px;
+/* Leader dots between a contents entry and its page figure. */
+@utility leader {
+  flex: 1 1 1.5rem;
+  min-width: 1rem;
+  height: 0.9em;
+  border-bottom: 1px dotted var(--color-line-strong);
 }
 
 /* Skeleton placeholder. */
@@ -193,7 +325,7 @@
   border-radius: 8px;
 }
 
-/* Small celebratory burst for finishing today's targets (CSS only). */
+/* Small celebratory burst for finishing a lesson or today's plan (CSS only). */
 .celebrate {
   position: relative;
 }
@@ -202,13 +334,13 @@
   content: "";
   position: absolute;
   inset: 50% auto auto 50%;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 9999px;
   pointer-events: none;
   box-shadow:
-    -18px -14px 0 var(--color-warning), 16px -18px 0 var(--color-brand), 20px 10px 0 var(--color-coral),
-    -16px 14px 0 var(--color-teal), 0 -22px 0 var(--color-lavender), 0 22px 0 var(--color-success);
+    -18px -14px 0 var(--color-highlight), 16px -18px 0 var(--color-brand), 20px 10px 0 var(--color-coral),
+    -16px 14px 0 var(--color-teal), 0 -22px 0 var(--color-success), 0 22px 0 var(--color-highlight);
   animation: burst 700ms ease-out both;
 }
 .celebrate::after {
@@ -236,9 +368,28 @@
   }
 }
 
-/* Lesson reader: text runs the full column, like the reference layout. */
+/* Lesson reader: Literata measure, with display headings set in the same column. */
+.lesson-flow {
+  font-family: var(--font-reading);
+  font-size: 1.125rem;
+  line-height: 1.72;
+}
 .lesson-flow .prose-reading {
   max-width: none;
-  font-size: 17px;
-  color: var(--color-ink);
+}
+.lesson-flow h2,
+.lesson-flow h3 {
+  scroll-margin-top: 5rem;
+}
+/* Interactive blocks inside the reading column go back to the interface face. */
+.lesson-flow figure,
+.lesson-flow section,
+.lesson-flow aside {
+  font-family: var(--font-sans);
+}
+
+@media print {
+  html, body {
+    background: #fff;
+  }
 }

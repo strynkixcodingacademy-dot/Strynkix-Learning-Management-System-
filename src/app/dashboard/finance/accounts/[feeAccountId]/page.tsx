@@ -79,7 +79,7 @@ function ActionForm({ action, view, onDone, onCancel }: { action: Exclude<Action
   const title = { payment: 'Record a payment', refund: 'Record a refund', charge: 'Add an extra charge', waiver: 'Waive part of the fee', reschedule: 'Change the installment schedule' }[action];
   return (
     <Card className="space-y-4 border-brand-line p-5">
-      <h3 className="text-base font-extrabold text-ink">{title}</h3>
+      <h3 className="text-base font-semibold text-ink">{title}</h3>
       {action !== 'reschedule' && (
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Amount (₹)" htmlFor="ac-amount" required hint={action === 'payment' ? `Balance ${formatMoney(a.balance)}` : action === 'refund' ? `Collected ${formatMoney(a.collected)}` : undefined}><input id="ac-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className={fieldClasses} /></Field>
@@ -141,7 +141,7 @@ function Account({ id }: { id: string }) {
       {dialog}
       <PageHeader breadcrumbs={[{ label: 'Finance', href: '/dashboard/finance' }, { label: a.studentName }]} eyebrow={`Fee account · ${a.admissionNumber}`} title={a.studentName} description={`${a.courseTitle} · ${data.context ? `${data.context.academyName} · ${data.context.branchName} · admitted ${formatDate(data.context.admittedOn)} · ` : ''}pricing version ${a.pricingVersion}`}
         actions={<><PaymentStatusPill status={a.paymentStatus} /><Link href={`/dashboard/people/${a.studentId}`} className={buttonClasses('ghost', 'sm')}>Student profile</Link></>} />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
         <KpiTile label="Amount due" value={formatMoney(a.due)} hint={`Standard ${formatMoney(a.grossFee)}${a.discount.amount ? ` − discount ${formatMoney(a.discount.status === 'approved' ? a.discount.amount : 0)}` : ''}${a.totals.adjustments ? ` ${a.totals.adjustments > 0 ? '+' : '−'} adjustments ${formatMoney(Math.abs(a.totals.adjustments))}` : ''}`} />
         <KpiTile label="Paid" value={formatMoney(a.collected)} tone="success" hint={a.totals.refunded ? `After ${formatMoney(a.totals.refunded)} refunded` : undefined} />
         <KpiTile label="Balance" value={formatMoney(a.balance)} tone={a.balance ? 'warning' : 'success'} />
@@ -169,7 +169,7 @@ function Account({ id }: { id: string }) {
       <Section title="Installments">
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">#</th><th className="p-3">Due date</th><th className="p-3 text-right">Amount</th><th className="p-3 text-right">Paid</th><th className="p-3 text-right">Remaining</th><th className="p-3">Status</th></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">#</th><th className="p-3">Due date</th><th className="p-3 text-right">Amount</th><th className="p-3 text-right">Paid</th><th className="p-3 text-right">Remaining</th><th className="p-3">Status</th></tr></thead>
             <tbody>{a.allocation.map((i) => <tr key={i.number} className="border-b border-line last:border-0"><td className="p-3">{i.number}</td><td className="p-3">{formatDate(i.dueDate)}</td><td className="p-3 text-right">{formatMoney(i.amount)}</td><td className="p-3 text-right">{formatMoney(i.paid)}</td><td className="p-3 text-right font-semibold">{formatMoney(i.remaining)}</td><td className="p-3"><InstallmentPill state={i.state} /></td></tr>)}</tbody>
           </table>
         </Card>
@@ -185,11 +185,11 @@ function Account({ id }: { id: string }) {
       </div>}>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-3"><th className="p-3">Date</th><th className="p-3">Entry</th><th className="p-3 text-right">Amount</th><th className="p-3">Details</th><th className="p-3 text-right">Balance after</th><th className="p-3" /></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-ink-3"><th className="p-3">Date</th><th className="p-3">Entry</th><th className="p-3 text-right">Amount</th><th className="p-3">Details</th><th className="p-3 text-right">Balance after</th><th className="p-3" /></tr></thead>
             <tbody>{data.transactions.length === 0 ? <tr><td colSpan={6} className="p-6 text-center text-ink-3">No entries yet.</td></tr> : data.transactions.map((t) => (
               <tr key={t.id} className={cx('border-b border-line align-top last:border-0', t.reversed && 'text-ink-4 line-through')}>
                 <td className="p-3">{formatDate(t.date)}</td>
-                <td className="p-3"><StatusPill size="sm" tone={t.type === 'payment' ? 'success' : t.type === 'refund' ? 'coral' : t.type === 'reversal' ? 'danger' : 'lavender'}>{t.type}</StatusPill>{t.receiptNumber && <div className="mt-1 text-xs">{t.receiptNumber}</div>}</td>
+                <td className="p-3"><StatusPill size="sm" tone={t.type === 'payment' ? 'success' : t.type === 'refund' ? 'coral' : t.type === 'reversal' ? 'danger' : 'info'}>{t.type}</StatusPill>{t.receiptNumber && <div className="mt-1 text-xs">{t.receiptNumber}</div>}</td>
                 <td className="p-3 text-right tabular-nums">{t.type === 'adjustment' && t.amount < 0 ? '−' : ''}{formatMoney(Math.abs(t.amount))}</td>
                 <td className="p-3 text-xs text-ink-2">{[t.method, t.reference, t.reason].filter(Boolean).join(' · ')}<div className="text-ink-3">by {t.createdByName}</div></td>
                 <td className="p-3 text-right tabular-nums">{t.balanceAfter === undefined ? '—' : formatMoney(t.balanceAfter)}</td>

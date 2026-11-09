@@ -421,7 +421,7 @@ function LessonBlockEditorView({
     return (
       <div className="p-8 max-w-md mx-auto my-12 bg-surface border border-line rounded-2xl text-center space-y-4">
         <AlertCircle className="w-10 h-10 text-danger-ink mx-auto" />
-        <h3 className="text-lg font-bold text-ink">Lesson Not Found</h3>
+        <h3 className="text-lg font-semibold text-ink">Lesson Not Found</h3>
         <p className="text-xs text-ink-3">{loadError || 'Could not load lesson.'}</p>
         <Link
           href={`/dashboard/courses/${courseId}`}
@@ -434,7 +434,6 @@ function LessonBlockEditorView({
     );
   }
 
-  const isPub = lesson.status === 'published';
   const { full, assessmentOnly, editable, reviewed } = editMode(lesson, course);
   const handleDiscardRevision = async () => {
     setError(null);
@@ -471,20 +470,12 @@ function LessonBlockEditorView({
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-[0.06em] text-brand-ink font-semibold">
-                Live Book Block Studio
+              <span className="text-sm text-ink-3">
+              Lesson Block Studio
               </span>
-              <span
-                className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border ${
- isPub
- ? 'bg-success-soft text-success-ink border-success-line'
- : 'bg-warning-soft text-warning-ink border-warning-line'
- }`}
-              >
-                {lesson.status}
-              </span>
+              
             </div>
-            <h2 className="text-xl font-extrabold text-ink">{lesson.title}</h2>
+            <h1 className="type-page mt-0.5 text-ink">{lesson.title}</h1>
           </div>
         </div>
 
@@ -602,7 +593,7 @@ function LessonBlockEditorView({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
               />
             </div>
             <div className="space-y-1">
@@ -613,7 +604,7 @@ function LessonBlockEditorView({
                 max={600}
                 value={estimatedMinutes}
                 onChange={(e) => setEstimatedMinutes(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink font-mono focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
               />
             </div>
           </fieldset>
@@ -671,7 +662,7 @@ function LessonBlockEditorView({
                 onClick={addWorkedExample}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-muted hover:bg-surface-sunken text-ink text-xs font-semibold transition"
               >
-                <Plus className="w-3.5 h-3.5 text-lavender-ink" />
+                <Plus className="w-3.5 h-3.5 text-info-ink" />
                 <span>Worked Example</span>
               </button>
               <button
@@ -738,7 +729,7 @@ function LessonBlockEditorView({
                     <span className="text-xs px-2 py-0.5 rounded bg-surface-muted text-ink-3">
                       Block {idx + 1}
                     </span>
-                    <span className="text-xs font-bold uppercase tracking-[0.06em] text-brand-ink font-bold">
+                    <span className="text-xs font-semibold text-brand-ink font-semibold">
                       {block.type}
                     </span>
                   </div>
@@ -784,7 +775,7 @@ function LessonBlockEditorView({
                       rows={4}
                       value={block.content}
                       onChange={(e) => updateBlockField(idx, 'content', e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-sans"
+                      className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-sans"
                     />
                   </div>
                 )}
@@ -798,7 +789,7 @@ function LessonBlockEditorView({
                           type="text"
                           value={block.language}
                           onChange={(e) => updateBlockField(idx, 'language', e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink font-mono"
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink font-mono"
                         />
                       </div>
                       <div className="space-y-1">
@@ -807,7 +798,7 @@ function LessonBlockEditorView({
                           type="text"
                           value={block.caption || ''}
                           onChange={(e) => updateBlockField(idx, 'caption', e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                         />
                       </div>
                     </div>
@@ -817,7 +808,7 @@ function LessonBlockEditorView({
                         rows={6}
                         value={block.code}
                         onChange={(e) => updateBlockField(idx, 'code', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-success-ink font-mono focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-success-ink font-mono focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
                     </div>
                   </div>
@@ -831,7 +822,7 @@ function LessonBlockEditorView({
                         <select
                           value={block.variant}
                           onChange={(e) => updateBlockField(idx, 'variant', e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                         >
                           <option value="info">Info</option>
                           <option value="tip">Tip</option>
@@ -845,7 +836,7 @@ function LessonBlockEditorView({
                           type="text"
                           value={block.title || ''}
                           onChange={(e) => updateBlockField(idx, 'title', e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                         />
                       </div>
                     </div>
@@ -855,7 +846,7 @@ function LessonBlockEditorView({
                         rows={2}
                         value={block.content}
                         onChange={(e) => updateBlockField(idx, 'content', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                       />
                     </div>
                   </div>
@@ -869,7 +860,7 @@ function LessonBlockEditorView({
                         type="text"
                         value={block.question}
                         onChange={(e) => updateBlockField(idx, 'question', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                       />
                     </div>
 
@@ -905,7 +896,7 @@ function LessonBlockEditorView({
                         rows={2}
                         value={block.explanation ?? ''}
                         onChange={(e) => updateBlockField(idx, 'explanation', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                       />
                       <p className="text-xs text-ink-3">The correct answer and explanation are stored privately; students see them only after passing the quiz.</p>
                     </div>
@@ -917,7 +908,7 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`lvl-${block.id}`} className="text-xs font-medium text-ink-3">Level</label>
                       <select id={`lvl-${block.id}`} value={block.level}
-                        onChange={(e) => updateBlockField(idx, 'level', Number(e.target.value))} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15">
+                        onChange={(e) => updateBlockField(idx, 'level', Number(e.target.value))} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15">
                         <option value={1}>Section</option>
                         <option value={2}>Subsection</option>
                         <option value={3}>Minor heading</option>
@@ -927,7 +918,7 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`hd-${block.id}`} className="text-xs font-medium text-ink-3">Heading text</label>
                       <input id={`hd-${block.id}`} type="text" value={block.text} maxLength={200}
-                        onChange={(e) => updateBlockField(idx, 'text', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                        onChange={(e) => updateBlockField(idx, 'text', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                     </div>
                   </div>
                 )}
@@ -937,19 +928,19 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`img-${block.id}`} className="text-xs font-medium text-ink-3">Image URL</label>
                       <input id={`img-${block.id}`} type="url" value={block.url} maxLength={1000}
-                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
-                      <p className="text-[11px] text-ink-3">Use an https:// address or a site path such as /images/diagram.png. File upload is not available yet.</p>
+                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                      <p className="text-xs text-ink-3">Use an https:// address or a site path such as /images/diagram.png. File upload is not available yet.</p>
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <label htmlFor={`alt-${block.id}`} className="text-xs font-medium text-ink-3">Alt text (required)</label>
                         <input id={`alt-${block.id}`} type="text" value={block.altText} maxLength={300}
-                          onChange={(e) => updateBlockField(idx, 'altText', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                          onChange={(e) => updateBlockField(idx, 'altText', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                       </div>
                       <div className="space-y-1">
                         <label htmlFor={`cap-${block.id}`} className="text-xs font-medium text-ink-3">Caption</label>
                         <input id={`cap-${block.id}`} type="text" value={block.caption || ''} maxLength={300}
-                          onChange={(e) => updateBlockField(idx, 'caption', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                          onChange={(e) => updateBlockField(idx, 'caption', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                       </div>
                     </div>
                   </div>
@@ -960,19 +951,19 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`vid-${block.id}`} className="text-xs font-medium text-ink-3">YouTube link</label>
                       <input id={`vid-${block.id}`} type="url" value={block.url} maxLength={500}
-                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
-                      <p className="text-[11px] text-ink-3">Paste a youtube.com or youtu.be link. Add ?t=90 to start at 1:30. Videos play from YouTube&apos;s privacy-enhanced player.</p>
+                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                      <p className="text-xs text-ink-3">Paste a youtube.com or youtu.be link. Add ?t=90 to start at 1:30. Videos play from YouTube&apos;s privacy-enhanced player.</p>
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <label htmlFor={`vt-${block.id}`} className="text-xs font-medium text-ink-3">Video title (required)</label>
                         <input id={`vt-${block.id}`} type="text" value={block.title} maxLength={160}
-                          onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                          onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                       </div>
                       <div className="space-y-1">
                         <label htmlFor={`vc-${block.id}`} className="text-xs font-medium text-ink-3">Caption</label>
                         <input id={`vc-${block.id}`} type="text" value={block.caption || ''} maxLength={300}
-                          onChange={(e) => updateBlockField(idx, 'caption', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                          onChange={(e) => updateBlockField(idx, 'caption', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                       </div>
                     </div>
                   </div>
@@ -983,18 +974,18 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`doc-${block.id}`} className="text-xs font-medium text-ink-3">Document link (https)</label>
                       <input id={`doc-${block.id}`} type="url" value={block.url} maxLength={1000}
-                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
-                      <p className="text-[11px] text-ink-3">Paste a public link to the file (for example a shared Google Drive PDF or your website). PDFs are shown inside the lesson.</p>
+                        onChange={(e) => updateBlockField(idx, 'url', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                      <p className="text-xs text-ink-3">Paste a public link to the file (for example a shared Google Drive PDF or your website). PDFs are shown inside the lesson.</p>
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <div className="space-y-1 sm:col-span-2">
                         <label htmlFor={`dt-${block.id}`} className="text-xs font-medium text-ink-3">Title (required)</label>
                         <input id={`dt-${block.id}`} type="text" value={block.title} maxLength={160}
-                          onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                          onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                       </div>
                       <div className="space-y-1">
                         <label htmlFor={`dk-${block.id}`} className="text-xs font-medium text-ink-3">Type</label>
-                        <select id={`dk-${block.id}`} value={block.kind} onChange={(e) => updateBlockField(idx, 'kind', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink">
+                        <select id={`dk-${block.id}`} value={block.kind} onChange={(e) => updateBlockField(idx, 'kind', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink">
                           <option value="pdf">PDF</option><option value="slides">Slides</option><option value="document">Document</option><option value="other">Other file</option>
                         </select>
                       </div>
@@ -1002,7 +993,7 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`dd-${block.id}`} className="text-xs font-medium text-ink-3">Short description</label>
                       <input id={`dd-${block.id}`} type="text" value={block.description || ''} maxLength={400}
-                        onChange={(e) => updateBlockField(idx, 'description', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                        onChange={(e) => updateBlockField(idx, 'description', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                     </div>
                     <label className="flex items-center gap-2 text-sm text-ink-2">
                       <input type="checkbox" checked={block.allowDownload} onChange={(e) => updateBlockField(idx, 'allowDownload', e.target.checked)} /> Show a Download button to students
@@ -1015,7 +1006,7 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`rt-${block.id}`} className="text-xs font-medium text-ink-3">Section title</label>
                       <input id={`rt-${block.id}`} type="text" value={block.title || ''} maxLength={100}
-                        onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                        onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                     </div>
                     {block.links.map((link, li) => {
                       const setLink = (patch: Partial<typeof link>) =>
@@ -1023,15 +1014,15 @@ function LessonBlockEditorView({
                       return (
                         <div key={li} className="grid grid-cols-1 gap-2 rounded-xl border border-line p-3 sm:grid-cols-[1fr_1.4fr_auto]">
                           <input aria-label={`Link ${li + 1} title`} type="text" value={link.label} maxLength={160} placeholder="Link title"
-                            onChange={(e) => setLink({ label: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                            onChange={(e) => setLink({ label: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                           <input aria-label={`Link ${li + 1} URL`} type="url" value={link.url} maxLength={1000} placeholder="https://"
-                            onChange={(e) => setLink({ url: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                            onChange={(e) => setLink({ url: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
                           <button type="button" onClick={() => updateBlockField(idx, 'links', block.links.filter((_, j) => j !== li))}
                             disabled={block.links.length === 1} className="inline-flex h-10 items-center justify-center rounded-lg px-2 text-ink-3 hover:bg-danger-soft hover:text-danger-ink disabled:opacity-40" aria-label={`Remove link ${li + 1}`}>
                             <Trash2 className="h-4 w-4" />
                           </button>
                           <input aria-label={`Link ${li + 1} description`} type="text" value={link.description || ''} maxLength={400} placeholder="Why it's worth reading (optional)"
-                            onChange={(e) => setLink({ description: e.target.value })} className={`${'w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15'} sm:col-span-3`} />
+                            onChange={(e) => setLink({ description: e.target.value })} className={`${'w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15'} sm:col-span-3`} />
                         </div>
                       );
                     })}
@@ -1047,34 +1038,34 @@ function LessonBlockEditorView({
                     <div className="space-y-1">
                       <label htmlFor={`pt-${block.id}`} className="text-xs font-medium text-ink-3">Task title</label>
                       <input id={`pt-${block.id}`} type="text" value={block.title} maxLength={160}
-                        onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                        onChange={(e) => updateBlockField(idx, 'title', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                     </div>
                     <div className="space-y-1">
                       <label htmlFor={`pi-${block.id}`} className="text-xs font-medium text-ink-3">Instructions</label>
                       <textarea id={`pi-${block.id}`} rows={3} value={block.instructions}
-                        onChange={(e) => updateBlockField(idx, 'instructions', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                        onChange={(e) => updateBlockField(idx, 'instructions', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-[10rem_1fr]">
                       <div className="space-y-1">
                         <label htmlFor={`pl-${block.id}`} className="text-xs font-medium text-ink-3">Language</label>
                         <input id={`pl-${block.id}`} type="text" value={block.language || ''} maxLength={30}
-                          onChange={(e) => updateBlockField(idx, 'language', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                          onChange={(e) => updateBlockField(idx, 'language', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
                       </div>
                       <div className="space-y-1">
                         <label htmlFor={`ps-${block.id}`} className="text-xs font-medium text-ink-3">Starter code (optional)</label>
                         <textarea id={`ps-${block.id}`} rows={4} value={block.starterCode || ''} spellCheck={false}
-                          onChange={(e) => updateBlockField(idx, 'starterCode', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
+                          onChange={(e) => updateBlockField(idx, 'starterCode', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 font-mono" />
                       </div>
                     </div>
                     <div className="space-y-1">
                       <label htmlFor={`ph-${block.id}`} className="text-xs font-medium text-ink-3">Hints (one per line, up to 10)</label>
                       <textarea id={`ph-${block.id}`} rows={2} value={(block.hints || []).join('\n')}
-                        onChange={(e) => updateBlockField(idx, 'hints', e.target.value.split('\n').slice(0, 10))} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                        onChange={(e) => updateBlockField(idx, 'hints', e.target.value.split('\n').slice(0, 10))} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                     </div>
                     <div className="space-y-1">
                       <label htmlFor={`po-${block.id}`} className="text-xs font-medium text-ink-3">You&apos;re done when (expected outcome)</label>
                       <textarea id={`po-${block.id}`} rows={2} value={block.expectedOutcome}
-                        onChange={(e) => updateBlockField(idx, 'expectedOutcome', e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
+                        onChange={(e) => updateBlockField(idx, 'expectedOutcome', e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15" />
                     </div>
                   </div>
                 )}
@@ -1087,7 +1078,7 @@ function LessonBlockEditorView({
                         type="text"
                         value={block.title}
                         onChange={(e) => updateBlockField(idx, 'title', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1096,7 +1087,7 @@ function LessonBlockEditorView({
                         rows={2}
                         value={block.problem}
                         onChange={(e) => updateBlockField(idx, 'problem', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1105,7 +1096,7 @@ function LessonBlockEditorView({
                         rows={3}
                         value={block.solutionCode || ''}
                         onChange={(e) => updateBlockField(idx, 'solutionCode', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-success-ink font-mono"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-success-ink font-mono"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1114,7 +1105,7 @@ function LessonBlockEditorView({
                         rows={2}
                         value={block.explanation}
                         onChange={(e) => updateBlockField(idx, 'explanation', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink"
+                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink"
                       />
                     </div>
                   </div>
@@ -1126,15 +1117,15 @@ function LessonBlockEditorView({
         </div>
       ) : (
         /* Live Preview Mode */
-        <div className="p-8 rounded-3xl bg-surface border border-line shadow-lift max-w-4xl mx-auto space-y-6">
+        <div className="mx-auto max-w-[44rem] space-y-6 rounded-card border border-line bg-canvas p-6 sm:p-8">
           <div className="pb-4 border-b border-line">
-            <span className="text-xs font-bold uppercase tracking-[0.06em] text-brand-ink font-bold">
-              Student Reader Preview
+            <span className="text-sm text-ink-3">
+              Student reader preview
             </span>
-            <h1 className="text-3xl font-extrabold text-ink mt-1">{title}</h1>
+            <h2 className="type-page mt-1 text-ink">{title}</h2>
           </div>
 
-          <div className="space-y-3">
+          <div className="lesson-flow text-ink">
             {blocks.map((block) => (
               <LessonBlockRenderer key={block.id} block={block} />
             ))}
@@ -1149,7 +1140,7 @@ function LessonEditorContent({ params }: LessonEditorPageProps) {
   const resolved = use(params);
   return (
     <RequireRole allowedRoles={['super_admin', 'university_admin', 'branch_admin', 'instructor', 'content_lead', 'content_designer']}>
-      <AppShell pageTitle="Lesson Block Studio">
+      <AppShell>
         <LessonBlockEditorView courseId={resolved.courseId} lessonId={resolved.lessonId} />
       </AppShell>
     </RequireRole>

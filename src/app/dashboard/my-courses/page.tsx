@@ -24,7 +24,7 @@ function Courses() {
       {data.courses.length === 0 ? (
         <EmptyState title="No courses yet">When your branch enrolls you in a batch, the course appears here.</EmptyState>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{data.courses.map((c) => <MyCourseCard key={c.courseId} course={c} />)}</div>
+        <div className="grid gap-4 xl:grid-cols-2">{data.courses.map((c) => <MyCourseCard key={c.courseId} course={c} />)}</div>
       )}
     </div>
   );

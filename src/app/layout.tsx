@@ -1,24 +1,33 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist_Mono, Manrope } from 'next/font/google';
+import { JetBrains_Mono, Literata, Schibsted_Grotesk } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 
-const manrope = Manrope({
-  variable: '--font-manrope',
+const schibsted = Schibsted_Grotesk({
+  variable: '--font-schibsted',
   subsets: ['latin'],
   display: 'swap',
 });
 
+// One book face for titles, covers and reading; its optical-size axis
+// tightens it at display sizes and opens it up for body text.
+const literata = Literata({
+  variable: '--font-literata',
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  axes: ['opsz'],
+  display: 'swap',
+});
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const jetbrains = JetBrains_Mono({
+  variable: '--font-jetbrains',
   subsets: ['latin'],
   display: 'swap',
 });
 
 export const viewport: Viewport = {
   colorScheme: 'light',
-  themeColor: '#f7f7f4',
+  themeColor: '#faf9f6',
 };
 
 export const metadata: Metadata = {
@@ -32,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${schibsted.variable} ${literata.variable} ${jetbrains.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-canvas text-ink">
         <AuthProvider>{children}</AuthProvider>
       </body>

@@ -78,18 +78,18 @@ function Engagement() {
       {error ? <ErrorState onRetry={reload}>{error}</ErrorState> : !data ? <LoadingState label="Calculating engagement…" rows={4} /> : (
         <>
           <p className="text-sm text-ink-3">{formatDate(data.period.from)} – {formatDate(data.period.to)} (defaults to the last 30 days).</p>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
             <KpiTile label="Active students" value={data.participation.activeStudents} hint={`of ${data.students} enrolled${data.participation.percent !== null ? ` · ${data.participation.percent}%` : ''}`} />
             <KpiTile label="Doubts asked" value={data.doubts.asked} tone="coral" hint={`${data.doubts.resolved} resolved · ${data.doubts.open} open`} />
             <KpiTile label="First response" value={data.doubts.avgFirstResponseHours ?? '—'} suffix={data.doubts.avgFirstResponseHours === null ? undefined : 'h avg'} tone="teal" hint={data.doubts.avgResolutionHours !== null ? `Resolved in ${data.doubts.avgResolutionHours}h on average` : undefined} />
-            <KpiTile label="Feedback responses" value={data.feedback.responses} tone="lavender" />
+            <KpiTile label="Feedback responses" value={data.feedback.responses} tone="info" />
           </div>
-          {data.weeklyActive.length > 0 && <Card className="p-5"><h2 className="mb-3 text-sm font-bold text-ink">Students active per week</h2><ColumnChart data={data.weeklyActive.map((w) => ({ label: `Week of ${formatDate(w.weekStart)}: ${w.students}`, short: w.weekStart.slice(5), value: w.students }))} label="Active students per week" tone="teal" /></Card>}
+          {data.weeklyActive.length > 0 && <Card className="p-5"><h2 className="font-sans tracking-normal mb-3 text-sm font-semibold text-ink">Students active per week</h2><ColumnChart data={data.weeklyActive.map((w) => ({ label: `Week of ${formatDate(w.weekStart)}: ${w.students}`, short: w.weekStart.slice(5), value: w.students }))} label="Active students per week" tone="teal" /></Card>}
           <Card className="grid gap-6 p-5 lg:grid-cols-2">
             <BarList title="Current learning streaks" rows={data.streakDistribution.map((s) => ({ label: s.label, value: s.count }))} />
             <BarList title="Achievements awarded in the period" tone="bg-warning" rows={data.achievements.filter((a) => a.awarded).map((a) => ({ id: a.id, label: a.title, value: a.awarded }))} empty="No achievements awarded in this period." />
-            <BarList title="Projects by review status" tone="bg-lavender" rows={data.projects.map((p) => ({ label: REVIEW_LABEL[p.status], value: p.count }))} />
-            <div><h3 className="mb-2 text-sm font-bold text-ink">Feedback by topic</h3>{data.feedback.byType.length === 0 ? <p className="text-sm text-ink-3">No rated feedback in this period.</p> : <ul className="space-y-1 text-sm">{data.feedback.byType.map((f) => <li key={f.type} className="flex justify-between"><span>{f.type}</span><span>{f.average !== null ? `${f.average} / 5` : 'too few for an average'} · {f.responses}</span></li>)}</ul>}</div>
+            <BarList title="Projects by review status" tone="bg-info" rows={data.projects.map((p) => ({ label: REVIEW_LABEL[p.status], value: p.count }))} />
+            <div><h3 className="mb-2 text-sm font-semibold text-ink">Feedback by topic</h3>{data.feedback.byType.length === 0 ? <p className="text-sm text-ink-3">No rated feedback in this period.</p> : <ul className="space-y-1 text-sm">{data.feedback.byType.map((f) => <li key={f.type} className="flex justify-between"><span>{f.type}</span><span>{f.average !== null ? `${f.average} / 5` : 'too few for an average'} · {f.responses}</span></li>)}</ul>}</div>
           </Card>
           <Section title="Activity registrations">
             {data.activities.length === 0 ? <p className="text-sm text-ink-3">No registrations from these students.</p> : <Card className="divide-y divide-line">{data.activities.map((a) => <div key={a.id} className="flex justify-between gap-2 p-3 text-sm"><span>{a.title}</span><span className="text-ink-3">{a.registered} registered · {a.attended} attended · {a.cancelled} cancelled</span></div>)}</Card>}

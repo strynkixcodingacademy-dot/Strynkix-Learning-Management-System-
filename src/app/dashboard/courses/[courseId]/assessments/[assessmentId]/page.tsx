@@ -62,7 +62,7 @@ function QuestionEditor({ q, index, count, kind, negative, locked, onChange, onM
   return (
     <Card className="space-y-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-bold text-ink">Question {index + 1}</span>
+        <span className="text-sm font-semibold text-ink">Question {index + 1}</span>
         <select aria-label={`Question ${index + 1} type`} disabled={locked} value={q.type} className={`${fieldClasses} w-auto py-1.5`}
           onChange={(e) => {
             const t = e.target.value as QuestionType;

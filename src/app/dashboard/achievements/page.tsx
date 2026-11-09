@@ -23,7 +23,7 @@ const METRIC_LABEL: Record<string, string> = { lessonsCompleted: 'lessons comple
 function Month({ m, label }: { m: MonthSummary; label: string }) {
   return (
     <Card className="p-4 text-sm">
-      <div className="font-bold text-ink">{label}</div>
+      <div className="font-semibold text-ink">{label}</div>
       <dl className="mt-2 grid grid-cols-2 gap-1">
         <dt className="text-ink-3">Learning days</dt><dd className="font-semibold">{m.learningDays}</dd>
         <dt className="text-ink-3">Lessons</dt><dd className="font-semibold">{m.lessons}</dd>
@@ -44,24 +44,24 @@ function Achievements() {
   return (
     <div className="space-y-8">
       <PageHeader title="Achievements" description="Earned from what you actually do: lessons completed, work submitted, classes attended and projects your instructors approve." />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
         <KpiTile label="Current streak" value={data.streak.current} suffix="days" icon={Flame} tone="coral" />
         <KpiTile label="Longest streak" value={data.streak.longest} suffix="days" tone="warning" />
         <KpiTile label="Total learning days" value={data.streak.totalDays} tone="teal" />
-        <KpiTile label="Achievements" value={data.achievements.length} icon={Award} tone="lavender" />
+        <KpiTile label="Achievements" value={data.achievements.length} icon={Award} tone="info" />
       </div>
       <div className="grid gap-4 lg:grid-cols-3"><WeeklyGoal data={data} onChanged={reload} /><Month m={data.thisMonth} label="This month" /><Month m={data.lastMonth} label="Last month" /></div>
-      <Card className="p-5"><h2 className="mb-3 text-sm font-bold text-ink">Learning days per week (last 12 weeks)</h2><ColumnChart data={data.history.map((w) => ({ label: `Week of ${formatDate(w.weekStart)}: ${w.days} days`, short: w.weekStart.slice(5), value: w.days }))} label="Learning days per week" tone="teal" /></Card>
+      <Card className="p-5"><h2 className="font-sans tracking-normal mb-3 text-sm font-semibold text-ink">Learning days per week (last 12 weeks)</h2><ColumnChart data={data.history.map((w) => ({ label: `Week of ${formatDate(w.weekStart)}: ${w.days} days`, short: w.weekStart.slice(5), value: w.days }))} label="Learning days per week" tone="teal" /></Card>
       <Section title="Earned" icon={Award}>
         {data.achievements.length === 0 ? <p className="text-sm text-ink-3">Nothing yet — complete your first lesson to start.</p> : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{data.achievements.map((a) => (
-            <li key={a.id}><Card className="h-full space-y-1 p-4"><div className="flex items-center gap-2 font-bold text-ink"><Award className="h-5 w-5 text-warning-ink" /> {a.title}</div><p className="text-sm text-ink-2">{a.description}</p><p className="text-xs text-ink-3">Earned {formatDate(a.awardedAt)} · {a.evidence.period ? `month ${a.evidence.period}` : `${a.evidence.value} ${METRIC_LABEL[a.evidence.metric] ?? ''}`}</p></Card></li>
+            <li key={a.id}><Card className="h-full space-y-1 p-4"><div className="flex items-center gap-2 font-medium text-ink"><Award className="h-4 w-4 text-warning" aria-hidden="true" /> {a.title}</div><p className="text-sm text-ink-2">{a.description}</p><p className="text-xs text-ink-3">Earned {formatDate(a.awardedAt)} · {a.evidence.period ? `month ${a.evidence.period}` : `${a.evidence.value} ${METRIC_LABEL[a.evidence.metric] ?? ''}`}</p></Card></li>
           ))}</ul>
         )}
       </Section>
       <Section title="Still to earn" icon={Lock}>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{ACHIEVEMENTS.filter((d) => !earned.has(d.id)).map((d) => (
-          <li key={d.id}><Card className="h-full space-y-1 p-4 opacity-80"><div className="font-semibold text-ink">{d.title}</div><p className="text-sm text-ink-3">{d.description}</p><p className="text-xs text-ink-3">Progress: {Math.min(current(d.metric), d.threshold)} / {d.threshold} {METRIC_LABEL[d.metric]}</p></Card></li>
+          <li key={d.id}><Card className="h-full space-y-1 bg-transparent p-4"><div className="font-medium text-ink-2">{d.title}</div><p className="text-sm text-ink-3">{d.description}</p><p className="text-xs text-ink-3">Progress: {Math.min(current(d.metric), d.threshold)} / {d.threshold} {METRIC_LABEL[d.metric]}</p></Card></li>
         ))}</ul>
         <p className="text-xs text-ink-3">Your academy may adjust some targets. Achievements are awarded once and can’t be granted by hand.</p>
       </Section>

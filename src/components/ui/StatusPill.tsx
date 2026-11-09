@@ -1,7 +1,10 @@
 import React from 'react';
 import { TONE_CLASSES, Tone, cx } from './tones';
 
-/** Status is always shown as icon + words, never colour alone. */
+/**
+ * Status as words with a small mark in its colour. No chip: a page full of
+ * tinted pills reads as noise, and the words carry the meaning anyway.
+ */
 export function StatusPill({
   tone = 'neutral',
   icon: Icon,
@@ -17,17 +20,10 @@ export function StatusPill({
 }) {
   const t = TONE_CLASSES[tone];
   return (
-    <span
-      className={cx(
-        'inline-flex items-center gap-1 rounded-full border font-semibold whitespace-nowrap',
-        size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs',
-        t.soft,
-        t.ink,
-        t.line,
-        className
-      )}
-    >
-      {Icon && <Icon className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} aria-hidden />}
+    <span className={cx('inline-flex items-center gap-1.5 whitespace-nowrap font-medium leading-none', size === 'sm' ? 'text-xs' : 'text-sm', tone === 'neutral' ? 'text-ink-3' : t.ink, className)}>
+      {Icon
+        ? <Icon className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
+        : <span aria-hidden="true" className={cx('h-1.5 w-1.5 shrink-0 rounded-full', tone === 'neutral' ? 'bg-silver' : t.solid)} />}
       {children}
     </span>
   );

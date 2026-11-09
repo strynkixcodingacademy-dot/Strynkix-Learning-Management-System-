@@ -122,7 +122,7 @@ export function StaffAnalytics() {
           <div className="flex flex-col gap-3 sm:flex-row">
             {branches.length > 1 && (
               <div className="sm:w-60">
-                <label htmlFor="branch-filter" className="mb-1 block text-xs font-bold text-ink-3">Branch</label>
+                <label htmlFor="branch-filter" className="mb-1 block text-xs font-semibold text-ink-3">Branch</label>
                 <select id="branch-filter" value={branchFilter} onChange={(e) => { setBranchFilter(e.target.value); setBatchFilter('all'); }} className={fieldClasses}>
                   <option value="all">All branches</option>
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -130,7 +130,7 @@ export function StaffAnalytics() {
               </div>
             )}
             <div className="sm:w-72">
-              <label htmlFor="batch-filter" className="mb-1 block text-xs font-bold text-ink-3">Batch</label>
+              <label htmlFor="batch-filter" className="mb-1 block text-xs font-semibold text-ink-3">Batch</label>
               <select id="batch-filter" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)} className={fieldClasses}>
                 <option value="all">All batches ({data.filter((d) => branchFilter === 'all' || d.batch.branchId === branchFilter).length})</option>
                 {data.filter((d) => branchFilter === 'all' || d.batch.branchId === branchFilter).map((d) => <option key={d.batch.id} value={d.batch.id}>{d.batch.name}</option>)}
@@ -151,7 +151,7 @@ export function StaffAnalytics() {
               hint={ratioHint(m.learningCompletion, 'planned lessons finished (plans up to today).', 'No lessons have been planned up to today yet.')} />
             <KpiTile label="Submission rate" value={pct(m.submissionRate.percentage)} suffix={m.submissionRate.percentage === null ? undefined : '%'} icon={ClipboardCheck} tone="teal"
               hint={ratioHint(m.submissionRate, 'due assignments submitted (past deadlines only).', 'No assignment deadline has passed yet.')} />
-            <KpiTile label="Average mark" value={pct(m.assessment.percentage)} suffix={m.assessment.percentage === null ? undefined : '%'} icon={Trophy} tone="lavender"
+            <KpiTile label="Average mark" value={pct(m.assessment.percentage)} suffix={m.assessment.percentage === null ? undefined : '%'} icon={Trophy} tone="info"
               hint={`${m.assessment.gradedCount} graded submission${m.assessment.gradedCount === 1 ? '' : 's'}; ungraded work isn’t counted.`} />
           </div>
 
@@ -159,7 +159,7 @@ export function StaffAnalytics() {
             <Card className="p-5 sm:p-6">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-ink"><Activity className="h-4 w-4 text-brand" /> Activity, last 14 days</h2>
+                  <h2 className="font-sans tracking-normal flex items-center gap-2 text-base font-semibold text-ink"><Activity className="h-4 w-4 text-brand" /> Activity, last 14 days</h2>
                   <p className="text-xs text-ink-3">Lessons marked complete and assignments submitted, per day.</p>
                 </div>
                 <div className="flex gap-3 text-xs font-semibold text-ink-3">
@@ -174,7 +174,7 @@ export function StaffAnalytics() {
             </Card>
 
             <Card className="p-5 sm:p-6">
-              <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-ink"><Inbox className="h-4 w-4 text-brand" /> Workload</h2>
+              <h2 className="font-sans tracking-normal flex items-center gap-2 text-base font-semibold text-ink"><Inbox className="h-4 w-4 text-brand" /> Workload</h2>
               <ul className="mt-4 space-y-3">
                 {[
                   { icon: ClipboardCheck, label: 'Waiting for review', value: report.totals.reviewBacklog, tone: report.totals.reviewBacklog ? 'text-coral-ink' : 'text-ink' },
@@ -184,12 +184,12 @@ export function StaffAnalytics() {
                 ].map((r) => (
                   <li key={r.label} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-canvas px-3.5 py-3">
                     <span className="flex items-center gap-2.5 text-sm font-semibold text-ink-2"><r.icon className="h-4 w-4 text-ink-4" /> {r.label}</span>
-                    <span className={cx('text-lg font-extrabold tabular-nums', r.tone)}>{r.value}</span>
+                    <span className={cx('text-lg font-semibold tabular-nums', r.tone)}>{r.value}</span>
                   </li>
                 ))}
               </ul>
               {report.totals.reviewBacklog > 0 && (
-                <Link href="/dashboard" className="mt-4 inline-block text-sm font-bold text-brand-ink hover:underline">Open today’s plans to review →</Link>
+                <Link href="/dashboard" className="mt-4 inline-block text-sm font-semibold text-brand-ink hover:underline">Open today’s plans to review →</Link>
               )}
             </Card>
           </div>
@@ -204,8 +204,8 @@ export function StaffAnalytics() {
                     <Avatar name={s.name} size={36} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="truncate text-sm font-bold text-ink">{s.name}</span>
-                        <Link href={`/dashboard/batches/${s.batchId}`} className="truncate text-xs font-bold text-brand-ink hover:underline">{s.batchName}</Link>
+                        <span className="truncate text-sm font-semibold text-ink">{s.name}</span>
+                        <Link href={`/dashboard/batches/${s.batchId}`} className="truncate text-xs font-semibold text-brand-ink hover:underline">{s.batchName}</Link>
                       </div>
                       <ul className="mt-1.5 space-y-1">
                         {s.flags.map((f) => <li key={f} className="flex items-center gap-1.5 text-xs font-semibold text-coral-ink"><span className="h-1.5 w-1.5 rounded-full bg-coral" />{f}</li>)}
@@ -225,15 +225,15 @@ export function StaffAnalytics() {
                 <Card as="li" key={r.batch.id} className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <Link href={`/dashboard/batches/${r.batch.id}`} className="block truncate font-bold text-ink hover:text-brand-ink">{r.batch.name}</Link>
+                      <Link href={`/dashboard/batches/${r.batch.id}`} className="block truncate font-medium text-ink hover:text-brand-ink">{r.batch.name}</Link>
                       <div className="text-xs text-ink-3">{branchName.get(r.batch.branchId) ?? r.batch.code} · {r.activeStudents} students</div>
                     </div>
-                    <span className={cx('shrink-0 text-xs font-bold', r.reviewBacklog ? 'text-coral-ink' : 'text-ink-3')}>{r.reviewBacklog} to review</span>
+                    <span className={cx('shrink-0 text-xs font-semibold', r.reviewBacklog ? 'text-coral-ink' : 'text-ink-3')}>{r.reviewBacklog} to review</span>
                   </div>
                   <div className="space-y-2 text-xs font-semibold text-ink-3">
                     <div>Lessons<Meter value={r.metrics.learningCompletion.percentage} tone="success" label="Lesson completion" /></div>
                     <div>Submissions<Meter value={r.metrics.submissionRate.percentage} tone="teal" label="Submission rate" /></div>
-                    <div>Average mark<Meter value={r.metrics.assessment.percentage} tone="lavender" label="Average mark" /></div>
+                    <div>Average mark<Meter value={r.metrics.assessment.percentage} tone="info" label="Average mark" /></div>
                   </div>
                 </Card>
               ))}
@@ -241,7 +241,7 @@ export function StaffAnalytics() {
             <Card className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
-                  <tr className="border-b border-line bg-surface-muted text-left text-[11px] font-bold uppercase tracking-[0.1em] text-ink-3">
+                  <tr className="border-b border-line bg-surface-muted text-left text-xs font-semibold text-ink-3">
                     <th scope="col" className="px-4 py-3">Batch</th>
                     <th scope="col" className="px-4 py-3 text-right">Students</th>
                     <th scope="col" className="w-[18%] px-4 py-3">Lessons</th>
@@ -254,14 +254,14 @@ export function StaffAnalytics() {
                   {report.batches.map((r) => (
                     <tr key={r.batch.id} className="hover:bg-canvas">
                       <td className="px-4 py-3">
-                        <Link href={`/dashboard/batches/${r.batch.id}`} className="font-bold text-ink hover:text-brand-ink">{r.batch.name}</Link>
+                        <Link href={`/dashboard/batches/${r.batch.id}`} className="font-medium text-ink hover:text-brand-ink">{r.batch.name}</Link>
                         <div className="text-xs text-ink-3">{branchName.get(r.batch.branchId) ?? r.batch.code}</div>
                       </td>
-                      <td className="px-4 py-3 text-right font-bold tabular-nums">{r.activeStudents}</td>
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums">{r.activeStudents}</td>
                       <td className="px-4 py-3"><Meter value={r.metrics.learningCompletion.percentage} tone="success" label="Lesson completion" /></td>
                       <td className="px-4 py-3"><Meter value={r.metrics.submissionRate.percentage} tone="teal" label="Submission rate" /></td>
-                      <td className="px-4 py-3"><Meter value={r.metrics.assessment.percentage} tone="lavender" label="Average mark" /></td>
-                      <td className={cx('px-4 py-3 text-right font-bold tabular-nums', r.reviewBacklog ? 'text-coral-ink' : 'text-ink-3')}>{r.reviewBacklog}</td>
+                      <td className="px-4 py-3"><Meter value={r.metrics.assessment.percentage} tone="info" label="Average mark" /></td>
+                      <td className={cx('px-4 py-3 text-right font-semibold tabular-nums', r.reviewBacklog ? 'text-coral-ink' : 'text-ink-3')}>{r.reviewBacklog}</td>
                     </tr>
                   ))}
                 </tbody>

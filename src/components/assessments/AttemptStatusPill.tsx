@@ -10,7 +10,7 @@ import { CheckCircle2, Circle, Clock, Hourglass, RotateCcw, Send } from 'lucide-
 const LOOK: Record<AttemptStatus | 'not_started', { tone: Tone; icon: typeof Circle }> = {
   not_started: { tone: 'neutral', icon: Circle },
   in_progress: { tone: 'brand', icon: Clock },
-  submitted: { tone: 'lavender', icon: Send },
+  submitted: { tone: 'info', icon: Send },
   under_evaluation: { tone: 'warning', icon: Hourglass },
   evaluated: { tone: 'success', icon: CheckCircle2 },
   returned: { tone: 'coral', icon: RotateCcw },

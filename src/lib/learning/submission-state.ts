@@ -58,8 +58,8 @@ export function getDeadlineState(
 
 export const DEADLINE_STATE_LABELS: Record<DeadlineState, string> = {
   upcoming: 'Not submitted',
-  due_soon: 'Not submitted — due within 24h',
-  overdue: 'Overdue — not submitted',
+  due_soon: 'Due within a day',
+  overdue: 'Overdue',
   submitted_on_time: 'Submitted on time',
   submitted_late: 'Submitted late',
   correction_requested: 'Correction requested',

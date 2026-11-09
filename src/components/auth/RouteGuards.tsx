@@ -33,14 +33,14 @@ export function StateScreen({
 }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-canvas px-4 py-12">
-      <div className="w-full max-w-md rounded-card border border-line bg-surface p-8 text-center shadow-card animate-rise">
-        <div className="mb-2 flex justify-center"><Illustration name={illustration} size={112} /></div>
-        <h1 className="text-xl font-extrabold tracking-tight text-ink">{title}</h1>
-        <div className="mt-2 text-sm leading-relaxed text-ink-3">{children}</div>
+      <div className="w-full max-w-md text-center">
+        <div className="mb-4 flex justify-center"><Illustration name={illustration} size={36} className="text-ink-3" /></div>
+        <h1 className="type-page text-ink">{title}</h1>
+        <div className="mt-3 text-body text-ink-3">{children}</div>
         {action && <div className="mt-6 flex justify-center gap-2">{action}</div>}
       </div>
-      <div className="mt-6 flex items-center gap-2 text-xs text-ink-3">
-        <BrandMark size={18} /> Strynkix Live Books
+      <div className="mt-12 flex items-center gap-2 text-sm text-ink-3">
+        <BrandMark size={20} /> Strynkix Live Books
       </div>
     </div>
   );

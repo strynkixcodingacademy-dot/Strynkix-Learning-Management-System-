@@ -18,7 +18,7 @@ import { KpiTile } from '@/components/ui/DataViz';
 import { Card, Section } from '@/components/ui/Page';
 import { ErrorState, LoadingState, Notice } from '@/components/ui/States';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { Award, CalendarDays, Flame, HelpCircle, MessageSquareText, Target } from 'lucide-react';
+import { Award, CalendarDays, Flame, HelpCircle, MessageSquareText } from 'lucide-react';
 
 export function useMyEngagement() {
   return useApiData('my-engagement', () => engagementApi<MyEngagement>({ action: 'my_engagement' }));
@@ -31,7 +31,7 @@ export function WeeklyGoal({ data, onChanged }: { data: MyEngagement; onChanged:
   return (
     <Card className="space-y-2 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-sm font-bold text-ink"><Target className="h-4 w-4 text-brand" /> This week’s goal</span>
+        <span className="text-sm font-semibold text-ink">This week’s goal</span>
         {!editing && <button type="button" className="text-xs font-semibold text-brand-ink" onClick={() => setEditing(true)}>Change</button>}
       </div>
       {editing ? (
@@ -43,7 +43,7 @@ export function WeeklyGoal({ data, onChanged }: { data: MyEngagement; onChanged:
         </div>
       ) : (
         <>
-          <div className="text-2xl font-extrabold text-ink">{data.weekly.done} <span className="text-base font-semibold text-ink-3">of {data.weekly.goal} learning days</span></div>
+          <div className="type-figure text-[1.625rem] text-ink">{data.weekly.done} <span className="font-sans text-sm text-ink-3">of {data.weekly.goal} learning days</span></div>
           <div className="h-2 rounded-full bg-surface-sunken" role="progressbar" aria-valuenow={data.weekly.done} aria-valuemax={data.weekly.goal} aria-label="Weekly goal progress"><div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} /></div>
           <p className="text-xs text-ink-3">{data.weekly.met ? 'Goal reached — great consistency.' : 'A learning day counts when you complete a lesson, submit work or attend a class.'}</p>
         </>
@@ -59,16 +59,16 @@ export function EngagementPanel() {
   return (
     <div className="space-y-6">
       {data.newlyAwarded.length > 0 && <Notice kind="success">New achievement{data.newlyAwarded.length > 1 ? 's' : ''}: {data.achievements.filter((a) => data.newlyAwarded.includes(a.key)).map((a) => a.title).join(', ')}. <Link href="/dashboard/achievements" className="underline">View achievements</Link></Notice>}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
         <KpiTile label="Learning streak" value={data.streak.current} suffix={data.streak.current === 1 ? 'day' : 'days'} icon={Flame} tone="coral" hint={data.streak.learnedToday ? 'You learned today' : data.streak.current ? 'Learn today to keep it going' : `Longest: ${data.streak.longest} days`} />
         <KpiTile label="Learning days" value={data.streak.totalDays} icon={CalendarDays} tone="teal" hint={`${data.thisMonth.learningDays} this month`} />
         <KpiTile label="Lessons completed" value={data.stats.lessonsCompleted} tone="brand" hint={`${data.stats.assignmentsSubmitted} assignments · ${data.stats.assessmentsCompleted} assessments`} />
-        <KpiTile label="Achievements" value={data.achievements.length} icon={Award} tone="lavender" hint={`of ${data.available} kinds · earned from your recorded progress`} />
+        <KpiTile label="Achievements" value={data.achievements.length} icon={Award} tone="info" hint={`of ${data.available} kinds · earned from your recorded progress`} />
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         <WeeklyGoal data={data} onChanged={reload} />
         <Card className="space-y-2 p-4 lg:col-span-2">
-          <div className="text-sm font-bold text-ink">What to do next</div>
+          <div className="text-sm font-semibold text-ink">What to do next</div>
           <div className="flex flex-wrap gap-2">
             <Link href="/dashboard/my-courses" className={buttonClasses('primary', 'sm')}>Continue learning</Link>
             {data.deadlines[0] && <Link href={`/courses/${data.deadlines[0].courseId}/activities/${data.deadlines[0].id}`} className={buttonClasses('secondary', 'sm')}>Complete “{data.deadlines[0].title}”</Link>}
@@ -82,7 +82,7 @@ export function EngagementPanel() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Recent instructor feedback" icon={MessageSquareText}>
           {data.feedback.length === 0 ? <p className="text-sm text-ink-3">Feedback on your evaluated work appears here once results are released.</p> : (
-            <ul className="space-y-2">{data.feedback.map((f, i) => <li key={i} className="rounded-xl border border-line bg-surface p-3 text-sm"><Link href={f.link} className="font-semibold text-ink hover:text-brand-ink">{f.title}</Link><p className="mt-0.5 text-ink-2">“{f.feedback}”</p></li>)}</ul>
+            <ul className="space-y-2">{data.feedback.map((f, i) => <li key={i} className="rounded-xl border border-line bg-surface p-3 text-sm"><Link href={f.link} className="font-medium text-ink hover:text-brand-ink">{f.title}</Link><p className="mt-0.5 text-ink-2">“{f.feedback}”</p></li>)}</ul>
           )}
         </Section>
         <Section title="Achievements" icon={Award} action={<Link href="/dashboard/achievements" className="text-sm font-semibold text-brand-ink">All achievements</Link>}>

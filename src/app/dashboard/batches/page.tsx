@@ -225,8 +225,8 @@ export default function BatchesPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-base font-bold text-ink tracking-tight truncate">{batch.name}</h3>
-                      <div className="text-[11px] text-brand-ink mt-0.5">{batch.code}</div>
+                      <h3 className="text-base font-semibold text-ink truncate">{batch.name}</h3>
+                      <div className="text-xs text-brand-ink mt-0.5">{batch.code}</div>
                     </div>
                     <BatchStatusBadge status={batch.status} />
                   </div>

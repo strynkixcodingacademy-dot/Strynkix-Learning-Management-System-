@@ -45,7 +45,7 @@ interface PlanPageProps {
 }
 
 const inputClass =
-  'w-full px-3.5 py-2.5 rounded-xl bg-surface border border-line-strong text-sm text-ink placeholder-ink-4 focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 disabled:opacity-60';
+  'w-full px-3 py-2 rounded-lg bg-surface border border-line-strong transition-[border-color,box-shadow] duration-150 hover:border-silver text-sm text-ink focus:outline-none focus:border-brand focus:ring-3 focus:ring-brand/15 disabled:opacity-60';
 
 function toLocalInput(iso?: string): string {
   if (!iso) return '';
@@ -100,24 +100,24 @@ function SubmissionReview({ submission, assignment, uid }: { submission: Submiss
     <div className="mt-3 p-4 rounded-xl bg-surface border border-line space-y-3">
       {submission.textAnswer && (
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 mb-1">Written answer</div>
+          <div className="text-xs font-semibold text-ink-3 mb-1">Written answer</div>
           <p className="text-xs text-ink whitespace-pre-line">{submission.textAnswer}</p>
         </div>
       )}
       {submission.codeContent && (
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 mb-1">Code</div>
-          <pre className="text-[11px] text-ink bg-surface border border-line rounded-lg p-3 overflow-x-auto"><code>{submission.codeContent}</code></pre>
+          <div className="text-xs font-semibold text-ink-3 mb-1">Code</div>
+          <pre className="text-xs text-ink bg-surface border border-line rounded-lg p-3 overflow-x-auto"><code>{submission.codeContent}</code></pre>
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-[8rem_1fr] gap-3">
         <div className="space-y-1">
-          <label htmlFor={`score-${submission.id}`} className="text-[11px] font-semibold text-ink-2">Marks (0–{assignment.totalPoints})</label>
+          <label htmlFor={`score-${submission.id}`} className="text-xs font-semibold text-ink-2">Marks (0–{assignment.totalPoints})</label>
           <input id={`score-${submission.id}`} type="number" min={0} max={assignment.totalPoints} step="0.5" value={score}
             onChange={(e) => setScore(e.target.value)} className={inputClass} />
         </div>
         <div className="space-y-1">
-          <label htmlFor={`feedback-${submission.id}`} className="text-[11px] font-semibold text-ink-2">Feedback</label>
+          <label htmlFor={`feedback-${submission.id}`} className="text-xs font-semibold text-ink-2">Feedback</label>
           <textarea id={`feedback-${submission.id}`} rows={2} value={feedback} maxLength={5000}
             onChange={(e) => setFeedback(e.target.value)} className={inputClass} />
         </div>
@@ -354,7 +354,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Plan form */}
         <form onSubmit={handleSavePlan} className="p-5 rounded-2xl bg-surface border border-line space-y-4">
-          <h3 className="text-sm font-bold text-ink">Learning plan</h3>
+          <h3 className="text-sm font-semibold text-ink">Learning plan</h3>
           <div className="space-y-1">
             <label htmlFor="planTitle" className="text-xs font-semibold text-ink-2">Title</label>
             <input id="planTitle" value={title} onChange={(e) => setTitle(e.target.value)} required minLength={2} maxLength={160} disabled={!canEdit} className={inputClass} />
@@ -394,7 +394,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
 
         {/* Assignment form */}
         <form onSubmit={handleSaveAssignment} className="p-5 rounded-2xl bg-surface border border-line space-y-4">
-          <h3 className="text-sm font-bold text-ink">Daily assignment {!assignment && <span className="text-ink-3 font-normal">(optional)</span>}</h3>
+          <h3 className="text-sm font-semibold text-ink">Daily assignment {!assignment && <span className="text-ink-3 font-normal">(optional)</span>}</h3>
           <div className="space-y-1">
             <label htmlFor="aTitle" className="text-xs font-semibold text-ink-2">Title</label>
             <input id="aTitle" value={aTitle} onChange={(e) => setATitle(e.target.value)} required minLength={2} maxLength={160} disabled={!canEdit} className={inputClass} />
@@ -422,7 +422,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
               <input id="aDeadline" type="datetime-local" value={aDeadline} onChange={(e) => setADeadline(e.target.value)} required disabled={!canEdit} className={inputClass} />
             </div>
           </div>
-          {assignment?.status === 'published' && <p className="text-[11px] text-ink-3">Marks are locked after publishing so grades stay comparable. Deadline and instructions can still change.</p>}
+          {assignment?.status === 'published' && <p className="text-xs text-ink-3">Marks are locked after publishing so grades stay comparable. Deadline and instructions can still change.</p>}
           {assignMsg && <Banner tone={assignMsg.tone}>{assignMsg.text}</Banner>}
           {canEdit && (
             <button type="submit" disabled={savingAssignment} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand-strong disabled:opacity-50 text-white text-xs font-semibold">
@@ -441,7 +441,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
       <section className="rounded-2xl bg-surface border border-line overflow-hidden space-y-4">
         <div className="p-4 sm:p-5 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold text-ink flex items-center gap-2">
+            <h3 className="text-base font-semibold text-ink flex items-center gap-2">
               <Users className="w-4 h-4 text-brand-ink" /> Completion & Review Hub
             </h3>
             <p className="text-xs text-ink-3 mt-0.5">Triage student lesson completions and assignment submissions</p>
@@ -453,25 +453,25 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
         {roster.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 sm:px-5">
             <div className="p-3.5 rounded-xl border border-line bg-canvas/70">
-              <div className="text-xl font-extrabold text-ink">{roster.length}</div>
+              <div className="text-xl font-semibold text-ink">{roster.length}</div>
               <div className="text-xs text-ink-3">Enrolled students</div>
             </div>
             <div className="p-3.5 rounded-xl border border-line bg-canvas/70">
-              <div className="text-xl font-extrabold text-success-ink">
+              <div className="text-xl font-semibold text-success-ink">
                 {plan.lessonIds.length > 0 ? roster.filter((r) => r.completed === plan.lessonIds.length).length : '—'}
                 {plan.lessonIds.length > 0 && <span className="text-xs font-normal text-ink-3"> / {roster.length}</span>}
               </div>
               <div className="text-xs text-ink-3">Lessons completed</div>
             </div>
             <div className="p-3.5 rounded-xl border border-line bg-canvas/70">
-              <div className="text-xl font-extrabold text-teal-ink">
+              <div className="text-xl font-semibold text-teal-ink">
                 {assignment ? roster.filter((r) => r.submission !== null).length : '—'}
                 {assignment && <span className="text-xs font-normal text-ink-3"> / {roster.length}</span>}
               </div>
               <div className="text-xs text-ink-3">Submitted work</div>
             </div>
             <div className={`p-3.5 rounded-xl border ${roster.filter((r) => r.submission?.status === 'submitted' || r.submission?.status === 'resubmit_requested').length > 0 ? 'border-coral-line bg-coral-soft/50' : 'border-line bg-canvas/70'}`}>
-              <div className={`text-xl font-extrabold ${roster.filter((r) => r.submission?.status === 'submitted' || r.submission?.status === 'resubmit_requested').length > 0 ? 'text-coral-ink' : 'text-ink'}`}>
+              <div className={`text-xl font-semibold ${roster.filter((r) => r.submission?.status === 'submitted' || r.submission?.status === 'resubmit_requested').length > 0 ? 'text-coral-ink' : 'text-ink'}`}>
                 {assignment ? roster.filter((r) => r.submission?.status === 'submitted' || r.submission?.status === 'resubmit_requested').length : '—'}
               </div>
               <div className="text-xs text-ink-3">Needs review</div>
@@ -538,7 +538,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
                     <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6">
                       <div className="min-w-0 lg:w-56">
                         <div className="text-sm font-semibold text-ink truncate">{enrollment.studentDisplayName || enrollment.studentId}</div>
-                        <div className="text-[11px] text-ink-3 truncate">{enrollment.studentEmail}</div>
+                        <div className="text-xs text-ink-3 truncate">{enrollment.studentEmail}</div>
                       </div>
                       <div className="text-xs text-ink-2 lg:w-40">
                         {plan.lessonIds.length === 0 ? <span className="text-ink-3">No lessons planned</span> :
@@ -547,9 +547,9 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
                       </div>
                       <div className="flex-1 flex flex-wrap items-center gap-2 text-xs">
                         {state ? <DeadlineBadge state={state} /> : <span className="text-ink-3">No assignment</span>}
-                        {late && <span className="text-[10px] font-bold uppercase tracking-[0.06em] px-1.5 py-0.5 rounded bg-coral-soft text-coral-ink border border-coral-line">Late</span>}
-                        {submission && <span className="text-[11px] text-ink-3">attempt {submission.attemptCount ?? 1} • {formatDateTime(submission.submittedAt)}</span>}
-                        {submission?.status === 'graded' && assignment && <span className="text-[11px] text-brand-ink font-semibold">{submission.score}/{assignment.totalPoints} marks</span>}
+                        {late && <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-coral-soft text-coral-ink border border-coral-line">Late</span>}
+                        {submission && <span className="text-xs text-ink-3">attempt {submission.attemptCount ?? 1} • {formatDateTime(submission.submittedAt)}</span>}
+                        {submission?.status === 'graded' && assignment && <span className="text-xs text-brand-ink font-semibold">{submission.score}/{assignment.totalPoints} marks</span>}
                       </div>
                       {submission && assignment && (
                         <button type="button" onClick={() => setExpanded(expanded === submission.id ? null : submission.id)}
@@ -607,7 +607,7 @@ function PlanView({ batchId, planId }: { batchId: string; planId: string }) {
       />
       {statusMsg && <Banner tone={statusMsg.tone}>{statusMsg.text}</Banner>}
       {canEdit && plan.status === 'draft' && plan.lessonIds.length === 0 && !assignment && (
-        <p className="text-[11px] text-ink-3">Add lessons or an assignment and save before publishing.</p>
+        <p className="text-xs text-ink-3">Add lessons or an assignment and save before publishing.</p>
       )}
 
       {plan.status === 'published' ? (
